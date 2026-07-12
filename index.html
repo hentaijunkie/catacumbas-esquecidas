@@ -1577,7 +1577,8 @@ document.addEventListener("keydown", async ev=>{
     if(window._estado) solicitarVista(window._estado, combatendo ? {nome:$("#cbNome").textContent} : null);
     return;
   }
-  if(document.activeElement===$("#cmd")) return;
+  const foco = document.activeElement;
+  if(foco && (foco.tagName==="INPUT" || foco.tagName==="TEXTAREA" || foco.isContentEditable)) return;
   if(ev.key==="?" || ev.key==="h" || ev.key==="H"){ toggleAjuda(true); return; }
   if(combatendo || _inputBusy) return;
   const k = ev.key;

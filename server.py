@@ -20,6 +20,7 @@ Uso:
 import io
 import os
 import json
+import urllib.parse
 import time
 import threading
 import traceback
@@ -912,6 +913,7 @@ class Handler(BaseHTTPRequestHandler):
         return sess
 
     def do_GET(self):
+        _ctx.set_cookie = None
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
             try:
@@ -922,7 +924,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/assets/"):
             try:
-                asset_path = os.path.join(AQUI, path.lstrip("/"))
+                rel = urllib.parse.unquote(path.lstrip("/"))
+                asset_path = os.path.realpath(os.path.join(AQUI, rel))
+                assets_root = os.path.realpath(os.path.join(AQUI, "assets"))
+                if not asset_path.startswith(assets_root + os.sep):
+                    self._send(404, "asset não encontrado")
+                    return
                 with open(asset_path, "rb") as f:
                     ext = os.path.splitext(asset_path)[1].lower()
                     ctype = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
