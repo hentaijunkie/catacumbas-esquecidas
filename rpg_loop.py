@@ -31,7 +31,6 @@ import sys
 import json
 import zlib
 import random
-import uuid
 
 # Windows: o console padrão é cp1252 e estoura em qualquer caractere fora dele
 # (ex.: o '♪' de tocar_som, acentos). Força UTF-8 na saída p/ o jogo não crashar.

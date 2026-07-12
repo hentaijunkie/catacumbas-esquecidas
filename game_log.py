@@ -58,6 +58,10 @@ def get_logger(name="game"):
     return logger
 
 
+MAX_CLIENT_ENTRIES = 50      # /api/log é público — sem cap, qualquer um enche o disco
+MAX_CLIENT_MSG = 2000
+
+
 def log_client(entries):
     """
     Grava entradas vindas do frontend.
@@ -68,9 +72,9 @@ def log_client(entries):
         entries = [{"level": "info", "msg": entries}]
     if not isinstance(entries, list):
         entries = [entries]
-    for e in entries:
+    for e in entries[:MAX_CLIENT_ENTRIES]:
         if isinstance(e, str):
-            log.info(e)
+            log.info(e[:MAX_CLIENT_MSG])
             continue
         level = (e.get("level") or "info").lower()
         msg = e.get("msg") or e.get("message") or str(e)
@@ -81,7 +85,7 @@ def log_client(entries):
             except Exception:
                 msg = f"{msg} | {data!r}"
         fn = getattr(log, level if level in ("debug", "info", "warning", "error") else "info")
-        fn(msg)
+        fn(msg[:MAX_CLIENT_MSG])
 
 
 def log_estado_resumo(state, prefix="estado"):

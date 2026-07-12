@@ -27,6 +27,7 @@ USERS_PATH = os.path.join(DATA_DIR, "users.json")
 
 _USER_RE = re.compile(r"^[a-zA-Z0-9_]{3,24}$")
 _PBKDF2_ITERS = 120_000
+SESSION_TTL_S = 60 * 60 * 24 * 14  # mesmo prazo do Max-Age do cookie
 
 _lock = threading.RLock()
 _users: dict = {}
@@ -59,7 +60,9 @@ def load_users() -> None:
     global _users
     _ensure_data_dir()
     try:
-        with open(USERS_PATH, "r", encoding="utf-8") as f:
+        # utf-8-sig: tolera BOM se o arquivo for editado por PowerShell/Notepad —
+        # sem isso o json.load falha e TODAS as contas somem silenciosamente
+        with open(USERS_PATH, "r", encoding="utf-8-sig") as f:
             _users = json.load(f)
         if not isinstance(_users, dict):
             _users = {}
@@ -139,6 +142,9 @@ def login(username: str, password: str) -> tuple[bool, str, Optional[str]]:
             return False, "Usuário ou senha incorretos.", None
         token = secrets.token_urlsafe(32)
         now = time.time()
+        # faxina: sessões expiradas não ficam acumulando na memória
+        for t in [t for t, s in _sessions.items() if now - s.get("last", 0) > SESSION_TTL_S]:
+            _sessions.pop(t, None)
         _sessions[token] = {
             "user": username,
             "created": now,
@@ -147,6 +153,7 @@ def login(username: str, password: str) -> tuple[bool, str, Optional[str]]:
             "combate": None,
             "active_slot": 1,
             "passos_desde_save": 0,
+            "lock": threading.RLock(),  # serializa requests DESTA sessão (não o servidor todo)
         }
         return True, "Login OK.", token
 
@@ -165,7 +172,11 @@ def get_session(token: Optional[str]) -> Optional[dict]:
         s = _sessions.get(token)
         if not s:
             return None
-        s["last"] = time.time()
+        now = time.time()
+        if now - s.get("last", 0) > SESSION_TTL_S:
+            _sessions.pop(token, None)
+            return None
+        s["last"] = now
         return s
 
 

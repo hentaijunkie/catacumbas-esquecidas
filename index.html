@@ -397,13 +397,19 @@ let _escolhaClasse = null;
 // ---- API (cookies de sessão: credentials include) ----
 let _currentUser = null;
 async function api(rota, dados){
-  const r = await fetch(rota, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    credentials:"include",
-    body:JSON.stringify(dados||{})
-  });
-  const j = await r.json();
+  let j;
+  try{
+    const r = await fetch(rota, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      credentials:"include",
+      body:JSON.stringify(dados||{})
+    });
+    j = await r.json();
+  }catch(err){
+    clog("error", "api falhou: "+rota+" — "+(err&&err.message));
+    return {erro:"Falha de comunicação com o servidor. Tente de novo."};
+  }
   if(j && j.precisa_login){ mostrarAuth(true); }
   return j;
 }
@@ -444,15 +450,17 @@ function flashView(cor){
 }
 
 // ---- render ----
-function log(html, cls){
+function log(texto, cls){
   const d = document.createElement("div");
-  d.className = cls||"msg"; d.innerHTML = html;
+  d.className = cls||"msg"; d.textContent = texto;  // textContent: narrativa do LLM/jogador não vira HTML
   $("#log").appendChild(d); $("#log").scrollTop = $("#log").scrollHeight;
 }
 
 function aplicar(resp){
-  if(resp && resp.precisa_login){ mostrarAuth(true); return; }
-  if(resp && resp.user) setUserUI(resp.user);
+  if(!resp) return;
+  if(resp.precisa_login){ mostrarAuth(true); return; }
+  if(resp.erro) log("⚠ " + resp.erro, "msg");   // erros do servidor eram engolidos em silêncio
+  if(resp.user) setUserUI(resp.user);
   if(resp.precisa_novo){ $("#ovStart").classList.remove("hidden"); return; }
   if(resp.online!==undefined) $("#modo").textContent = resp.online ? "online · DeepSeek" : "offline · template";
   if(resp.narrativa) log(resp.narrativa, "narr");
@@ -470,7 +478,7 @@ function aplicar(resp){
     $("#hplbl").textContent = `${p.hp}/${p.hp_max} HP`;
     // xp bar (progresso até o próximo nível)
     let xpp = 100;
-    if(p.xp_prox!==null){ const falta=p.xp_prox; const total=falta+ (p.xp); // aprox visual
+    if(p.xp_prox!==null){ const falta=p.xp_prox; // aprox visual
       xpp = Math.max(6, Math.min(100, Math.round(100*p.xp/(p.xp+falta)))); }
     $("#xpbar").style.width = xpp+"%";
     // barra de mana (só para quem usa)
@@ -769,10 +777,6 @@ function sfx(tipo){
     if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
     const ctx = _audioCtx;
     if(ctx.state==="suspended") ctx.resume();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    const now = ctx.currentTime;
     const table = {
       passo:   {f:120, t:0.05, type:"triangle", vol:0.04},
       virar:   {f:180, t:0.04, type:"sine", vol:0.03},
@@ -799,6 +803,9 @@ function sfx(tipo){
       return;
     }
     const p2 = table[tipo] || table.passo;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
     o.type = p2.type; o.frequency.value = p2.f;
     g.gain.setValueAtTime(p2.vol, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + p2.t);
@@ -1216,9 +1223,6 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
   $("#hudLuz").textContent = escuro ? "ESCURIDÃO" : `luz ${e.player.luz||0}`;
   $("#hudLuz").style.color = escuro ? "var(--warn)" : "var(--gold)";
   let frente = "corredor";
-  const fdx = Math.round(Math.cos(FACE_ANG[facing]||0));
-  const fdy = Math.round(Math.sin(FACE_ANG[facing]||0));
-  // FACE_DIR is more reliable for discrete facing
   const fd = FACE_DIR[facing] || {dx:0,dy:1};
   const nx = e.pos.x + fd.dx, ny = e.pos.y + fd.dy;
   if(combate) frente = combate.nome || "inimigo";
@@ -1775,7 +1779,10 @@ async function doReg(){
 }
 $("#btnDoLogin").onclick = doLogin;
 $("#btnDoReg").onclick = doReg;
+$("#loginUser").addEventListener("keydown", ev=>{ if(ev.key==="Enter") doLogin(); });
 $("#loginPass").addEventListener("keydown", ev=>{ if(ev.key==="Enter") doLogin(); });
+$("#regUser").addEventListener("keydown", ev=>{ if(ev.key==="Enter") doReg(); });
+$("#regPass").addEventListener("keydown", ev=>{ if(ev.key==="Enter") doReg(); });
 $("#regKey").addEventListener("keydown", ev=>{ if(ev.key==="Enter") doReg(); });
 $("#btnLogout").onclick = async ()=>{
   await api("/api/logout", {});

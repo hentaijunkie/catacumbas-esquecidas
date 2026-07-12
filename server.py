@@ -19,12 +19,12 @@ Uso:
 
 import io
 import os
+import sys
 import json
 import urllib.parse
 import time
 import threading
 import traceback
-import contextlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import rpg_loop as eng
@@ -45,7 +45,43 @@ _LEGACY_SAVE = os.path.join(AQUI, "savegame.json")
 
 # Sessão do request atual (thread-local). acao_* usam GAME[...] como proxy.
 _ctx = threading.local()
-_GAME_LOCK = threading.RLock()
+
+# Limites de abuso (servidor público): corpo de request e rate-limit de login.
+MAX_BODY = 128 * 1024
+RL_MAX_FALHAS = 8          # falhas de login/registro por IP...
+RL_JANELA_S = 600          # ...dentro desta janela => bloqueia
+_rl_lock = threading.Lock()
+_rl_falhas: dict[str, list] = {}   # ip -> [timestamps de falha]
+
+# Locks de save por usuário (duas sessões do mesmo usuário não corrompem o index.json)
+_save_locks: dict[str, threading.RLock] = {}
+_save_locks_guard = threading.Lock()
+
+
+def _user_save_lock():
+    user = auth.safe_username(GAME.get("user") or "anon")
+    with _save_locks_guard:
+        return _save_locks.setdefault(user, threading.RLock())
+
+
+class _StdoutRouter(io.TextIOBase):
+    """sys.stdout global que roteia para o buffer da thread atual, se houver.
+    redirect_stdout troca sys.stdout GLOBALMENTE — com uma request por sessão em
+    paralelo, uma sessão capturava o texto da outra. Aqui cada thread tem o seu."""
+
+    def __init__(self, real):
+        self._real = real
+
+    def write(self, s):
+        alvo = getattr(_ctx, "stdout_buf", None) or self._real
+        return alvo.write(s)
+
+    def flush(self):
+        alvo = getattr(_ctx, "stdout_buf", None) or self._real
+        alvo.flush()
+
+
+sys.stdout = _StdoutRouter(sys.stdout)
 
 
 class _SessionGame:
@@ -179,6 +215,11 @@ def _migrar_legacy_save():
 
 def listar_saves():
     """Lista os N_SLOTS do usuário autenticado."""
+    with _user_save_lock():
+        return _listar_saves_locked()
+
+
+def _listar_saves_locked():
     _migrar_legacy_save()
     meta = _ler_meta()
     active = int(GAME.get("active_slot") or meta.get("active") or 1)
@@ -209,22 +250,27 @@ def salvar_estado(slot=None):
         slot = int(slot)
         if slot < 1 or slot > N_SLOTS:
             return False
-        _ensure_save_dir()
-        payload = to_json_safe({"state": GAME["state"], "combate": GAME["combate"]})
-        caminho = _slot_path(slot)
-        tmp = caminho + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False)
-        os.replace(tmp, caminho)
-        meta = _ler_meta()
-        meta.setdefault("slots", {})[str(slot)] = _resumo_slot(GAME["state"], GAME.get("combate"))
-        meta["active"] = slot
-        _escrever_meta(meta)
-        GAME["active_slot"] = slot
-        return True
+        with _user_save_lock():
+            return _salvar_estado_locked(slot)
     except Exception as e:
         log.warning("auto-save falhou: %s", e)
         return False
+
+
+def _salvar_estado_locked(slot):
+    _ensure_save_dir()
+    payload = to_json_safe({"state": GAME["state"], "combate": GAME["combate"]})
+    caminho = _slot_path(slot)
+    tmp = caminho + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False)
+    os.replace(tmp, caminho)
+    meta = _ler_meta()
+    meta.setdefault("slots", {})[str(slot)] = _resumo_slot(GAME["state"], GAME.get("combate"))
+    meta["active"] = slot
+    _escrever_meta(meta)
+    GAME["active_slot"] = slot
+    return True
 
 
 def carregar_slot(slot):
@@ -235,6 +281,11 @@ def carregar_slot(slot):
         return False, "Slot inválido."
     if slot < 1 or slot > N_SLOTS:
         return False, f"Slot deve ser 1..{N_SLOTS}."
+    with _user_save_lock():
+        return _carregar_slot_locked(slot)
+
+
+def _carregar_slot_locked(slot):
     _migrar_legacy_save()
     caminho = _slot_path(slot)
     if not os.path.isfile(caminho):
@@ -399,8 +450,11 @@ def classificar_offline(texto, state):
 def executar_capturando(state, acao):
     """Executa uma ação da engine capturando o que ela imprime -> vira mensagens."""
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
+    _ctx.stdout_buf = buf
+    try:
         sinal = eng.executar_acao(state, acao)
+    finally:
+        _ctx.stdout_buf = None
     linhas = [l.strip() for l in buf.getvalue().splitlines() if l.strip()]
     # tira o prefixo "[tag] " que era decoração de terminal
     linhas = [l.split("] ", 1)[1] if l.startswith("[") and "] " in l else l for l in linhas]
@@ -840,7 +894,27 @@ AUTH_OK_SEM_JOGO = {
 }
 # Rotas públicas (sem cookie)
 PUBLIC_POST = {"/api/register", "/api/login", "/api/log", "/api/auth/status"}
-PUBLIC_GET = {"/", "/index.html", "/favicon.ico", "/api/auth/status"}
+# Rotas públicas com rate-limit por IP (força bruta de senha/chave de convite)
+RL_POST = {"/api/register", "/api/login"}
+
+
+def _rl_bloqueado(ip):
+    now = time.time()
+    with _rl_lock:
+        falhas = [t for t in _rl_falhas.get(ip, []) if now - t < RL_JANELA_S]
+        if falhas:
+            _rl_falhas[ip] = falhas
+        else:
+            _rl_falhas.pop(ip, None)
+        return len(falhas) >= RL_MAX_FALHAS
+
+
+def _rl_registrar(ip, ok):
+    with _rl_lock:
+        if ok:
+            _rl_falhas.pop(ip, None)
+        else:
+            _rl_falhas.setdefault(ip, []).append(time.time())
 
 ROTAS = {
     "/api/register": acao_register,
@@ -950,17 +1024,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(auth.auth_status(), ensure_ascii=False))
             return
         if path == "/api/me":
-            with _GAME_LOCK:
-                self._bind_session()
-                body = json.dumps(acao_me(), ensure_ascii=False)
-            self._send(200, body)
+            self._bind_session()
+            self._send(200, json.dumps(acao_me(), ensure_ascii=False))
             return
         if path in ("/api/estado", "/api/saves"):
-            with _GAME_LOCK:
-                sess = self._bind_session()
-                if not sess:
-                    self._send(200, json.dumps({"erro": "não autenticado", "precisa_login": True}))
-                    return
+            sess = self._bind_session()
+            if not sess:
+                self._send(200, json.dumps({"erro": "não autenticado", "precisa_login": True}))
+                return
+            with sess["lock"]:
                 if path == "/api/saves":
                     body = json.dumps(listar_saves(), ensure_ascii=False)
                 elif GAME["state"] is None:
@@ -973,6 +1045,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, json.dumps({"erro": "rota inexistente"}))
 
     def do_POST(self):
+        _ctx.set_cookie = None
         path = self.path.split("?", 1)[0]
         fn = ROTAS.get(path)
         if not fn:
@@ -980,12 +1053,17 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, json.dumps({"erro": "rota inexistente"}))
             return
         tam = int(self.headers.get("Content-Length", 0) or 0)
+        if tam > MAX_BODY:
+            self._send(413, json.dumps({"erro": "corpo da requisição grande demais"}))
+            return
         corpo = self.rfile.read(tam) if tam else b"{}"
         try:
             dados = json.loads(corpo or b"{}")
         except json.JSONDecodeError:
             dados = {}
             log.warning("JSON inválido em %s", path)
+        if not isinstance(dados, dict):
+            dados = {}
 
         # log do cliente: aceita sem login (best-effort)
         if path == "/api/log":
@@ -998,12 +1076,34 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(resultado, ensure_ascii=False))
             return
 
-        with _GAME_LOCK:
-            _ctx.set_cookie = None
-            sess = self._bind_session()
-            if path not in PUBLIC_POST and not sess:
-                self._send(200, json.dumps({"erro": "não autenticado", "precisa_login": True}))
+        # login/registro: rate-limit por IP contra força bruta de senha/convite
+        if path in RL_POST:
+            ip = self._client_ip()
+            if _rl_bloqueado(ip):
+                log.warning("rate-limit: %s bloqueado em %s", ip, path)
+                self._send(429, json.dumps({
+                    "erro": "Muitas tentativas. Aguarde alguns minutos e tente de novo."}))
                 return
+            _ctx.set_cookie = None
+            self._bind_session()
+            try:
+                resultado = fn(dados)
+            except Exception as e:
+                log.error("erro em %s: %s\n%s", path, e, traceback.format_exc())
+                resultado = {"erro": str(e)}
+            _rl_registrar(ip, bool(resultado.get("ok")))
+            self._send(200, json.dumps(resultado, ensure_ascii=False))
+            return
+
+        _ctx.set_cookie = None
+        sess = self._bind_session()
+        if path not in PUBLIC_POST and not sess:
+            self._send(200, json.dumps({"erro": "não autenticado", "precisa_login": True}))
+            return
+        # Lock POR SESSÃO: uma chamada lenta do LLM só bloqueia o próprio jogador.
+        # (O stdout roteado por thread torna executar_capturando seguro em paralelo.)
+        lock = sess["lock"] if sess else threading.RLock()
+        with lock:
             # rotas de jogo exigem state (exceto lista abaixo)
             if (path not in PUBLIC_POST and path not in AUTH_OK_SEM_JOGO
                     and sess and sess.get("state") is None):
@@ -1018,8 +1118,13 @@ class Handler(BaseHTTPRequestHandler):
                 log.error("erro em %s: %s\n%s", path, e, traceback.format_exc())
                 resultado = {"erro": str(e)}
             body = json.dumps(resultado, ensure_ascii=False)
-            # cookie pode ter sido setado por login/logout
+            # cookie pode ter sido setado por logout
             self._send(200, body)
+
+    def _client_ip(self):
+        """IP real do cliente (Railway/proxies mandam X-Forwarded-For)."""
+        xff = (self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+        return xff or self.client_address[0]
 
     def log_message(self, fmt, *args):
         msg = fmt % args if args else str(fmt)
