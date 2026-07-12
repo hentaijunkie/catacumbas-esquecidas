@@ -312,6 +312,13 @@ em modo online:
 - `game_log` ganhou o logger `llm`; `data/feedback.jsonl` e `logs/llm.log` já entram nos
   padrões do `.gitignore` (`data/`, `logs/`, `*.log`) — nada de dado de jogador no repo.
 
+### Correções Visuais e Fluxo de Jogo (v2.5.1)
+- **Raycaster Direção Corrigida:** O plano da câmera (linha 1044 em `index.html`) foi invertido (`planeX = dirY`, `planeY = -dirX`) para corrigir a inversão visual de sprites que estavam fazendo a esquerda/direita aparecerem trocadas.
+- **Fluxo do Novo Jogo / Auto-save:** 
+  - `salvar_estado()` não auto-salva jogos finalizados (`game_over`/`vitoria`), evitando que o slot ativo seja congelado no final.
+  - `GET /api/estado` limpa o jogo da memória e retorna `precisa_novo: True` se detectar estado finalizado. Isso força a interface a retornar para a aba de criar personagem ao clicar em "Jogar de novo".
+  - O save manual explícito (botão "Salvar") recebeu um parâmetro `force=True`, garantindo que um jogador ainda possa salvar manualmente um final.
+
 ---
 
 ### (histórico) Vila, Andar 3 e multi-save (v2.1)

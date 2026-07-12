@@ -271,10 +271,21 @@ def _listar_saves_locked():
             "user": GAME.get("user")}
 
 
-def salvar_estado(slot=None):
-    """Auto-save / save manual no diretório do usuário (atômico)."""
+def salvar_estado(slot=None, force=False):
+    """Auto-save / save manual no diretório do usuário (atômico).
+    
+    Não salva estados finalizados (game_over/ganhou/final) no auto-save,
+    para evitar que 'Jogar de novo' recarregue o jogo encerrado.
+    Passe force=True para saves manuais explícitos.
+    """
     if GAME["state"] is None:
         return False
+    # Auto-save não persiste estado finalizado — o slot deve conter sempre
+    # um jogo em progresso para que o boot não recarregue o fim de jogo.
+    if not force:
+        st = GAME["state"]
+        if st.get("game_over") or st.get("ganhou") or st.get("final"):
+            return False
     if slot is None:
         slot = GAME.get("active_slot") or 1
     try:
@@ -807,7 +818,7 @@ def acao_save(dados=None):
     """Save manual (POST). dados.slot opcional (1..N_SLOTS); default = slot ativo."""
     dados = dados or {}
     slot = dados.get("slot")
-    if salvar_estado(slot):
+    if salvar_estado(slot, force=True):   # force=True: save manual salva qualquer estado
         s = int(slot) if slot is not None else int(GAME.get("active_slot") or 1)
         return {"msg": f"Jogo salvo no slot {s}.", "slot": s, "saves": listar_saves()}
     return {"erro": "Erro ao salvar (sem jogo ativo ou slot inválido)."}
@@ -1119,6 +1130,13 @@ class Handler(BaseHTTPRequestHandler):
                     body = json.dumps(listar_saves(), ensure_ascii=False)
                 elif GAME["state"] is None:
                     body = json.dumps({"erro": "sem jogo", "precisa_novo": True,
+                                       "user": sess.get("user")})
+                elif (GAME["state"].get("game_over") or GAME["state"].get("ganhou")
+                      or GAME["state"].get("final")):
+                    # Jogo finalizado: trata como sem jogo para forçar nova seleção de classe
+                    GAME["state"] = None
+                    GAME["combate"] = None
+                    body = json.dumps({"erro": "jogo encerrado", "precisa_novo": True,
                                        "user": sess.get("user")})
                 else:
                     body = json.dumps(resposta(), ensure_ascii=False)

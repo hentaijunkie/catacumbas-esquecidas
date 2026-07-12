@@ -1041,7 +1041,7 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
   const posX = (camX!=null) ? camX : e.pos.x+0.5;
   const posY = (camY!=null) ? camY : e.pos.y+0.5;
   const dirX = Math.cos(ang), dirY = Math.sin(ang);
-  const planeX = -dirY * 0.66, planeY = dirX * 0.66;
+  const planeX = dirY * 0.66, planeY = -dirX * 0.66;
   const escuro = !(e.player && e.player.luz > 0);
   const FOG = escuro ? 4.8 : 9.5;
 
