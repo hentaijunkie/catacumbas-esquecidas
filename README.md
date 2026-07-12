@@ -70,9 +70,15 @@ Sem chave: modo offline (template). Com chave:
 | Item | Como |
 |---|---|
 | Criar conta | Precisa da **chave de convite** (`REGISTER_KEY` / `INVITE_KEY` / `invite_key.txt`) |
-| Login | Cookie `session` HttpOnly; cada jogador tem seu `GAME` |
+| Login | Cookie `session` HttpOnly (expira em 14 dias); cada jogador tem seu `GAME` |
 | Saves | `saves/<usuario>/slot_1..3.json` |
 | API auth | `POST /api/register`, `/api/login`, `/api/logout` · `GET /api/me`, `/api/auth/status` |
+
+**Segurança embutida no servidor** (stdlib, sem dependências):
+- Senhas com **PBKDF2-HMAC-SHA256**; comparações com `compare_digest`.
+- **Rate-limit por IP** no login/registro (8 falhas em 10 min → HTTP 429) — protege senha e chave de convite de força bruta (funciona atrás de proxy via `X-Forwarded-For`).
+- **Lock por sessão**: a chamada lenta do LLM de um jogador não trava os outros.
+- Rota `/assets/` validada contra **path traversal**; corpo de POST limitado a 128KB; `/api/log` com cap de volume.
 
 ### Deploy
 
@@ -101,7 +107,7 @@ Não publique a chave no repositório.
 
 ### Exploração
 - Masmorra procedural (~24 salas) + **andares 2–3** (minichefes) + **superfície (Pedralume)**
-- **Ouro** e **loja/NPCs** na Vila; **3 slots de save** (`saves/slot_N.json`)
+- **Ouro** e **loja/NPCs** na Vila; **3 slots de save** por conta (`saves/<usuario>/slot_N.json`)
 - Luz/tocha, Pedra de Luz Eterna, fadiga, encumbrance, descanso + wandering
 - Lore tablets, altares (rezar/oferecer/saquear), armadilhas, cofres, gazua, **Loot Procedural (Afixos)** + **Identificação** (pergaminho)
 - **Dano contínuo:** Gás Venenoso envenena, Lâminas Giratórias causam sangramento (tick por passo)
@@ -122,14 +128,17 @@ Contrato LLM: [`LLM_RULEBOOK.md`](LLM_RULEBOOK.md) · Plano: [`ROADMAP.md`](ROAD
 | Arquivo / pasta | Papel |
 |---|---|
 | `rpg_loop.py` | Engine, terminal, `--demo` |
-| `server.py` | HTTP + `/api/*` + favicon + serve UI |
+| `server.py` | HTTP + `/api/*` + favicon + serve UI (locks por sessão, rate-limit) |
+| `auth.py` | Contas (PBKDF2), sessões com expiração, cookie, chave de convite |
 | `index.html` | Raycaster 1ª pessoa, automapa, UI, SFX, lerp |
 | `balance_sim.py` | Simulação de balance vs Golem |
 | `game_log.py` | Logs em `logs/game.log` e `logs/client.log` |
 | `LLM_RULEBOOK.md` | Constituição do narrador |
+| `DEPLOY-RAILWAY.md` | Guia de deploy (Railway + volume) |
 | `artifacts/` | Lore / design notes |
+| `data/` · `saves/` | Contas e saves por usuário (gitignored) |
 | `logs/` | Debug runtime (gitignored) |
-| `.gitignore` | key, logs, pycache, venv |
+| `.gitignore` | key, contas, saves, logs, pycache, venv |
 
 ---
 
@@ -152,4 +161,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.2 — multi-sessão, contas com chave de convite, deploy Docker/VPS.*
+*Protótipo v2.3 — multi-sessão com locks por jogador, contas com chave de convite, rate-limit, deploy Railway/Docker.*

@@ -225,11 +225,48 @@ Stretch da identificação, coerente com `disarma` (vê o que outros não veem):
 - **Vila 2D:** `na_superficie` desenha praça estática (casas, fonte, Mira/Ancião, placa LOJA) em vez do céu+sol do raycaster.
 - **Automapa:** mesmos glifos ASCII nas salas visitadas.
 
-### Multi-sessão + contas + deploy (v2.2) — **atual**
+### Multi-sessão + contas + deploy (v2.2)
 - **Contas:** registro com chave de convite (`REGISTER_KEY` / `invite_key.txt`); senha PBKDF2; cookie `session`.
 - **Multi-jogador:** cada sessão tem `state`/`combate` isolados; saves em `saves/<user>/`.
 - **UI:** overlay login/criar conta; badge de usuário; logout.
 - **Deploy:** bind `HOST`/`PORT` (default `0.0.0.0:8000`); `Dockerfile` + `docker-compose.yml`.
+
+### Hotfixes de revisão pós-deploy (v2.2.1)
+Revisão com o jogo já rodando online; verificados no browser e via `curl --path-as-is`:
+- **Tecla "s" não digitava no login:** o listener global de WASD só isentava a caixa de
+  comando `#cmd` — nos campos de usuário/senha, `w/a/s/d` viravam movimento (com
+  `preventDefault`) e `h`/`?` abriam a ajuda. Agora qualquer INPUT/TEXTAREA/contenteditable
+  focado é ignorado pelo atalho.
+- **SEGURANÇA — path traversal em `/assets/`:** a rota montava o caminho com
+  `os.path.join` sem validar `..` — `GET /assets/../key.txt` servia a chave da API e
+  `/assets/../data/users.json` os hashes de senha. Corrigido com `realpath` + `unquote`
+  validados contra a raiz de `assets/` (cobre também `%2e%2e`).
+- **Cookie em keep-alive:** `do_GET` não limpava o `Set-Cookie` pendente da thread;
+  em conexões reaproveitadas um cookie de request anterior podia ser reenviado.
+
+### Hardening multi-jogador (v2.3) — **atual**
+Servidor público exige mais que funcionar; verificado com dois usuários em paralelo,
+`curl` (429/413/404) e `--demo` verde:
+- **Lock por SESSÃO no lugar do lock global:** a chamada lenta do LLM de um jogador
+  não bloqueia mais os outros (ação da sessão B em 0.01s durante narração de 2.8s da
+  sessão A). Viabilizado pelo **`_StdoutRouter`**: `executar_capturando` trocou
+  `redirect_stdout` (troca o stdout do processo inteiro — inseguro entre threads) por
+  um stdout global que roteia para o buffer da thread atual.
+- **Rate-limit por IP** em `/api/login` e `/api/register`: 8 falhas em 10 min → HTTP 429
+  (protege senha e chave de convite de força bruta); lê `X-Forwarded-For` p/ funcionar
+  atrás do proxy do Railway.
+- **Sessões expiram** após 14 dias de inatividade (mesmo prazo do cookie) + faxina no
+  login — o dicionário de sessões não cresce para sempre.
+- **Caps anti-abuso:** corpo de POST ≤ 128KB (413); `/api/log` (rota pública) limitado
+  a 50 entradas/request e 2000 chars/mensagem — ninguém enche o disco de log.
+- **Locks de save por usuário:** duas abas logadas na mesma conta não corrompem o
+  `index.json` dos slots.
+- **`users.json` tolera BOM** (`utf-8-sig`): editar o arquivo com PowerShell/Notepad
+  derrubava o parse e TODAS as contas sumiam silenciosamente no próximo cadastro.
+- **Web:** erros do servidor aparecem no log do jogo (eram engolidos); `api()` não
+  explode em falha de rede; `log()` usa `textContent` (narrativa do LLM/texto do
+  jogador não vira HTML); Enter submete em todos os campos de login/registro;
+  vazamento de nós de áudio no `sfx("hit")` corrigido.
 
 ---
 
@@ -278,6 +315,8 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 - Guerreiro endgame continua forte vs Golem.
 - Audio e "beep" sintetico (sem arquivos de som).
 - Cadastro aberto a quem tiver a chave de convite (não há papéis admin/moderador).
+- Rate-limit de login é por IP e em memória: atrás de NAT compartilhado pode bloquear
+  vizinhos honestos; reiniciar o servidor zera o contador.
 
 ---
 
@@ -293,4 +332,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.2 — multi-sessão, contas com chave de convite, Docker/deploy.*
+*Última atualização: v2.3 — hardening multi-jogador (locks por sessão, rate-limit, expiração de sessão, caps anti-abuso).*
