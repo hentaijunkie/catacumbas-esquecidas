@@ -160,7 +160,7 @@ por `--demo`, testes de round-trip e cliques reais no browser:
 - **Painel de combate:** sangramento e fraqueza agora aparecem ao lado do veneno (ticam por
   round, mas ficavam invisíveis durante a luta).
 
-### Robustez e contrato (v1.9.2) — **atual**
+### Robustez e contrato (v1.9.2)
 As 7 melhorias sugeridas na revisão, todas com teste:
 - **Contrato de escolhas com teste `--demo`:** novo teste exercita exatamente os strings que
   os botões da web enviam (`atacar/pocao/pocao_mana/fugir/magia:<id>`); prefixo de magia
@@ -244,7 +244,7 @@ Revisão com o jogo já rodando online; verificados no browser e via `curl --pat
 - **Cookie em keep-alive:** `do_GET` não limpava o `Set-Cookie` pendente da thread;
   em conexões reaproveitadas um cookie de request anterior podia ser reenviado.
 
-### Hardening multi-jogador (v2.3) — **atual**
+### Hardening multi-jogador (v2.3)
 Servidor público exige mais que funcionar; verificado com dois usuários em paralelo,
 `curl` (429/413/404) e `--demo` verde:
 - **Lock por SESSÃO no lugar do lock global:** a chamada lenta do LLM de um jogador
@@ -268,7 +268,7 @@ Servidor público exige mais que funcionar; verificado com dois usuários em par
   jogador não vira HTML); Enter submete em todos os campos de login/registro;
   vazamento de nós de áudio no `sfx("hit")` corrigido.
 
-### Defesa contra jailbreak / prompt injection do narrador (v2.4) — **atual**
+### Defesa contra jailbreak / prompt injection do narrador (v2.4)
 O texto livre do jogador chega ao LLM; sem defesa, vira vetor de injeção. Camadas
 técnicas (idioma-agnósticas) + reforço das leis, verificado no `--demo` e com 7 ataques
 reais em modo online (PT/EN/ES/JP + roleplay "DAN") — todos narrados como "nada acontece",
@@ -291,6 +291,26 @@ sem sair do personagem, sem vazar prompt e sem mexer nos números (ouro seguiu 2
 - Defesa em profundidade real: mesmo que uma prosa passe, o LLM **não é dono dos números** —
   nenhuma ação fora do whitelist executa. Rulebook atualizado (v2.3, leis 12–13 + seção de
   defesa em camadas).
+
+### Observabilidade das jogadas online + feedback dos jogadores (v2.5) — **atual**
+Para otimizar o jogo com dados reais de uso, verificado no `--demo` e end-to-end no browser
+em modo online:
+- **Log de turno do LLM (`logs/llm.log`):** antes, as jogadas online não deixavam rastro do
+  que o LLM fazia — só movimento/erros iam pro `game.log`. Agora um hook opcional
+  `eng.LOG_LLM` (None no terminal/`--demo`, ligado pelo servidor) registra cada turno:
+  `turno_inicio` (entrada do jogador, se é texto confiável, pos/andar/classe/HP),
+  `turno_ok` (tentativa, ação escolhida, narrativa), `turno_invalido` (motivo + resposta
+  bruta truncada) e `turno_fallback`. Cada linha marcada com o usuário → dá para rastrear
+  e depurar uma partida depois. Hook é best-effort: uma exceção no log nunca derruba a
+  jogada (coberto por teste).
+- **Feedback in-game (sugestão / bug / report):** botão 💬 no topo abre um formulário com
+  seletor de tipo + texto livre (até 4000 chars). `POST /api/feedback` (exige login, não
+  exige jogo ativo) grava em `data/feedback.jsonl` — uma linha JSON com usuário, timestamp,
+  tipo, texto e o **contexto da partida** (andar, classe, raça, nível, HP, posição) quando
+  há jogo. Texto é limpo de caracteres de controle e limitado; tipo desconhecido vira
+  "sugestão"; texto curto demais é recusado. Fecha no Esc / clique fora.
+- `game_log` ganhou o logger `llm`; `data/feedback.jsonl` e `logs/llm.log` já entram nos
+  padrões do `.gitignore` (`data/`, `logs/`, `*.log`) — nada de dado de jogador no repo.
 
 ---
 
@@ -356,4 +376,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.4 — defesa contra jailbreak/prompt injection do narrador (entrada sanitizada + emoldurada, leis idioma-agnósticas, guarda de saída).*
+*Última atualização: v2.5 — observabilidade das jogadas online (logs/llm.log) + feedback in-game dos jogadores (sugestão/bug/report em data/feedback.jsonl).*

@@ -36,12 +36,43 @@ PORT = int(os.environ.get("PORT", "8000"))
 ONLINE = bool(os.environ.get("DEEPSEEK_API_KEY"))
 AQUI = os.path.dirname(os.path.abspath(__file__))
 log = game_log.get_logger("game")
+llm_log = game_log.get_logger("llm")   # turnos do LLM (debug de jogadas online)
+
+
+def _log_llm_turno(evento, **campos):
+    """Hook de observabilidade do engine -> logs/llm.log. Marca cada turno online
+    com o usuário atual para dar para rastrear a jogada depois."""
+    user = None
+    try:
+        user = GAME.get("user")
+    except Exception:
+        pass
+    partes = [evento, f"user={user}"]
+    for k, v in campos.items():
+        if v is None:
+            continue
+        s = str(v).replace("\n", " ⏎ ")
+        if len(s) > 300:
+            s = s[:300] + "…"
+        partes.append(f"{k}={s}")
+    nivel = "warning" if evento in ("turno_invalido", "turno_fallback") else "info"
+    getattr(llm_log, nivel)(" | ".join(partes))
+
+
+eng.LOG_LLM = _log_llm_turno
 
 PASSOS_POR_AUTOSAVE = 12
 N_SLOTS = 3
 # Em produção (Railway): volume em /data e SAVE_ROOT=/data/saves (junto com DATA_DIR=/data)
 SAVE_ROOT = os.environ.get("SAVE_ROOT") or os.path.join(AQUI, "saves")
 _LEGACY_SAVE = os.path.join(AQUI, "savegame.json")
+
+# Feedback dos jogadores (sugestões / bugs / reports) — persistido no volume junto
+# com as contas (DATA_DIR), uma linha JSON por envio.
+FEEDBACK_PATH = os.path.join(auth.DATA_DIR, "feedback.jsonl")
+FEEDBACK_TIPOS = {"sugestao", "bug", "report"}
+FEEDBACK_MAX = 4000        # limite do texto (relatos de bug podem ser longos)
+_feedback_lock = threading.Lock()
 
 # Sessão do request atual (thread-local). acao_* usam GAME[...] como proxy.
 _ctx = threading.local()
@@ -832,6 +863,53 @@ def acao_me(_dados=None):
     return {"ok": True, "user": s.get("user"), "tem_jogo": s.get("state") is not None}
 
 
+def _limpar_feedback(texto):
+    """Tira caracteres de controle (menos \\n\\t), colapsa espaços e limita o tamanho.
+    Mantém quebras de linha — um relato de bug pode ser multilinha."""
+    t = str(texto or "")
+    t = "".join(c for c in t if c == "\n" or c == "\t" or ord(c) >= 0x20)
+    return t.strip()[:FEEDBACK_MAX]
+
+
+def acao_feedback(dados=None):
+    """Recebe sugestão / bug / report do jogador e grava em data/feedback.jsonl."""
+    dados = dados or {}
+    tipo = (dados.get("tipo") or "sugestao").strip().lower()
+    if tipo not in FEEDBACK_TIPOS:
+        tipo = "sugestao"
+    texto = _limpar_feedback(dados.get("texto"))
+    if len(texto) < 3:
+        return {"erro": "Escreva um pouco mais para o feedback ser útil.", "ok": False}
+
+    sess = getattr(_ctx, "session", None)
+    state = sess.get("state") if sess else None
+    contexto = None
+    if state and state.get("player"):
+        p = state["player"]
+        contexto = {"andar": state.get("profundidade"), "na_superficie": state.get("na_superficie"),
+                    "classe": p.get("classe"), "raca": p.get("raca"), "nivel": p.get("nivel"),
+                    "hp": p.get("hp"), "pos": state.get("pos")}
+    entrada = {
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "user": (sess.get("user") if sess else None),
+        "tipo": tipo,
+        "texto": texto,
+        "online": ONLINE,
+        "contexto": contexto,
+    }
+    try:
+        with _feedback_lock:
+            os.makedirs(auth.DATA_DIR, exist_ok=True)
+            with open(FEEDBACK_PATH, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entrada, ensure_ascii=False) + "\n")
+    except OSError as e:
+        log.error("falha ao gravar feedback: %s", e)
+        return {"erro": "Não foi possível salvar agora. Tente novamente mais tarde.", "ok": False}
+    log.info("feedback %s de %s (%d chars)", tipo, entrada["user"], len(texto))
+    rotulo = {"sugestao": "Sugestão", "bug": "Bug", "report": "Report"}[tipo]
+    return {"ok": True, "msg": f"{rotulo} enviado. Obrigado por ajudar a melhorar o jogo!"}
+
+
 def acao_comprar(dados):
     if GAME["combate"]:
         return resposta(mensagens=["Termine o combate primeiro."])
@@ -893,7 +971,7 @@ def acao_combate(dados):
 # Rotas que exigem login mas NÃO exigem jogo ativo
 AUTH_OK_SEM_JOGO = {
     "/api/novo", "/api/load", "/api/saves", "/api/log",
-    "/api/logout", "/api/me", "/api/save",
+    "/api/logout", "/api/me", "/api/save", "/api/feedback",
 }
 # Rotas públicas (sem cookie)
 PUBLIC_POST = {"/api/register", "/api/login", "/api/log", "/api/auth/status"}
@@ -949,6 +1027,7 @@ ROTAS = {
     "/api/vender": acao_vender,
     "/api/falar": acao_falar,
     "/api/log": acao_client_log,
+    "/api/feedback": acao_feedback,
 }
 
 

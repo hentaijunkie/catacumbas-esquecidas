@@ -81,6 +81,11 @@ Sem chave: modo offline (template). Com chave:
 - Rota `/assets/` validada contra **path traversal**; corpo de POST limitado a 128KB; `/api/log` com cap de volume.
 - **Anti-jailbreak / prompt injection do narrador:** o texto livre do jogador é sanitizado (marcadores de canal, roles e cercas de código removidos) e emoldurado como *dado, não instrução*; leis idioma-agnósticas + guarda de saída rejeitam quebra de personagem e vazamento de regras. Como o LLM nunca controla os números, um jailbreak não vira ouro/HP/itens. Detalhes em [`LLM_RULEBOOK.md`](LLM_RULEBOOK.md).
 
+### Feedback dos jogadores & logs de debug
+
+- **💬 Feedback in-game:** botão no topo abre um formulário para **sugestão / bug / report** (texto livre). Cada envio é gravado em `data/feedback.jsonl` (uma linha JSON) com usuário, timestamp e o **contexto da partida** (andar, classe, raça, nível, HP, posição) — pronto para triagem.
+- **Logs de jogada online:** cada turno narrado pelo LLM é registrado em `logs/llm.log` (entrada do jogador, ação escolhida, narrativa, reparos e fallbacks), marcado por usuário — dá para rastrear e depurar uma jogada depois. Eventos do servidor ficam em `logs/game.log` e os do browser em `logs/client.log`.
+
 ### Deploy
 
 **Railway (recomendado):** veja o guia completo em [`DEPLOY-RAILWAY.md`](DEPLOY-RAILWAY.md).
@@ -133,11 +138,11 @@ Contrato LLM: [`LLM_RULEBOOK.md`](LLM_RULEBOOK.md) · Plano: [`ROADMAP.md`](ROAD
 | `auth.py` | Contas (PBKDF2), sessões com expiração, cookie, chave de convite |
 | `index.html` | Raycaster 1ª pessoa, automapa, UI, SFX, lerp |
 | `balance_sim.py` | Simulação de balance vs Golem |
-| `game_log.py` | Logs em `logs/game.log` e `logs/client.log` |
+| `game_log.py` | Logs em `logs/game.log`, `logs/client.log` e `logs/llm.log` |
 | `LLM_RULEBOOK.md` | Constituição do narrador |
 | `DEPLOY-RAILWAY.md` | Guia de deploy (Railway + volume) |
 | `artifacts/` | Lore / design notes |
-| `data/` · `saves/` | Contas e saves por usuário (gitignored) |
+| `data/` · `saves/` | Contas, feedback e saves por usuário (gitignored) |
 | `logs/` | Debug runtime (gitignored) |
 | `.gitignore` | key, contas, saves, logs, pycache, venv |
 
@@ -151,7 +156,8 @@ python balance_sim.py
 python server.py          # logs em logs/
 ```
 
-**Debug:** `logs/game.log` (servidor), `logs/client.log` (browser), tecla **F3**.  
+**Debug:** `logs/game.log` (servidor), `logs/llm.log` (turnos do LLM online), `logs/client.log` (browser), tecla **F3**.  
+**Feedback dos jogadores:** `data/feedback.jsonl` (uma linha JSON por envio).  
 **Princípio:** mecânica na engine + teste; prosa no LLM; whitelist sempre.
 
 ---
@@ -162,4 +168,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.3 — multi-sessão com locks por jogador, contas com chave de convite, rate-limit, deploy Railway/Docker.*
+*Protótipo v2.5 — feedback in-game (sugestão/bug/report) + logs de jogada online; multi-sessão com locks por jogador, contas com chave de convite, rate-limit, defesa anti-jailbreak, deploy Railway/Docker.*

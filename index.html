@@ -137,6 +137,7 @@
     <button id="btnSave" class="mini" style="border-color:var(--hp); color:var(--hp);">Salvar</button>
     <button id="btnLoad" class="mini" style="border-color:var(--mana); color:var(--mana);">Carregar</button>
     <button id="btnAjuda" class="mini">? Ajuda</button>
+    <button id="btnFeedback" class="mini" style="border-color:var(--gold); color:var(--gold);">💬 Feedback</button>
     <button id="btnLogout" class="mini" style="display:none;border-color:var(--dim);color:var(--dim)">Sair</button>
   </div>
 </header>
@@ -308,6 +309,34 @@
     <div id="savesList" class="classes"></div>
     <div style="text-align:center;margin-top:12px">
       <button type="button" class="mini" id="btnFechaSaves">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- feedback: sugestões / bugs / reports -->
+<div class="overlay hidden" id="ovFeedback">
+  <div class="box" style="max-width:520px;text-align:left">
+    <h2 style="text-align:center">💬 Feedback</h2>
+    <p style="text-align:center;color:var(--dim);font-size:13px">
+      Encontrou um bug? Tem uma sugestão? Conte pra gente — ajuda a melhorar o jogo.
+    </p>
+    <label style="font-size:12px;color:var(--dim)">Tipo</label>
+    <div style="display:flex;gap:8px;margin:4px 0 12px">
+      <button type="button" class="mini fbtipo" data-tipo="sugestao" style="border-color:var(--accent)">💡 Sugestão</button>
+      <button type="button" class="mini fbtipo" data-tipo="bug">🐛 Bug</button>
+      <button type="button" class="mini fbtipo" data-tipo="report">📝 Report</button>
+    </div>
+    <label style="font-size:12px;color:var(--dim)">Sua mensagem</label>
+    <textarea id="fbTexto" rows="6" maxlength="4000"
+      placeholder="Descreva a sugestão, o bug (o que você fez e o que aconteceu) ou o report…"
+      style="width:100%;margin:4px 0 6px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);resize:vertical;font-family:inherit;font-size:13px"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--dim)">
+      <span id="fbContador">0 / 4000</span>
+      <span id="fbMsg" style="min-height:1.2em"></span>
+    </div>
+    <div style="text-align:center;margin-top:12px;display:flex;gap:8px;justify-content:center">
+      <button type="button" id="btnEnviarFb">Enviar</button>
+      <button type="button" class="mini" id="btnFechaFb">Fechar</button>
     </div>
   </div>
 </div>
@@ -1525,6 +1554,39 @@ function toggleAjuda(v){ $("#ovAjuda").classList.toggle("hidden", !v); }
 $("#btnAjuda").onclick = ()=>toggleAjuda(true);
 $("#btnFecharAjuda").onclick = ()=>toggleAjuda(false);
 
+// ---- feedback (sugestões / bugs / reports) ----
+let _fbTipo = "sugestao";
+function setFbTipo(t){
+  _fbTipo = t;
+  document.querySelectorAll(".fbtipo").forEach(b=>{
+    b.style.borderColor = b.dataset.tipo===t ? "var(--accent)" : "var(--line)";
+  });
+}
+function toggleFeedback(v){
+  $("#ovFeedback").classList.toggle("hidden", !v);
+  if(v){ $("#fbMsg").textContent=""; setFbTipo("sugestao"); $("#fbTexto").focus(); }
+}
+$("#btnFeedback").onclick = ()=>toggleFeedback(true);
+$("#btnFechaFb").onclick = ()=>toggleFeedback(false);
+$("#ovFeedback").onclick = ev=>{ if(ev.target.id==="ovFeedback") toggleFeedback(false); };
+document.querySelectorAll(".fbtipo").forEach(b=> b.onclick = ()=>setFbTipo(b.dataset.tipo));
+$("#fbTexto").addEventListener("input", ()=>{
+  $("#fbContador").textContent = `${$("#fbTexto").value.length} / 4000`;
+});
+$("#btnEnviarFb").onclick = async ()=>{
+  const texto = $("#fbTexto").value.trim();
+  if(texto.length < 3){ $("#fbMsg").textContent = "Escreva um pouco mais."; $("#fbMsg").style.color="var(--warn)"; return; }
+  $("#btnEnviarFb").disabled = true;
+  $("#fbMsg").textContent = "Enviando…"; $("#fbMsg").style.color = "var(--dim)";
+  const r = await api("/api/feedback", {tipo:_fbTipo, texto});
+  $("#btnEnviarFb").disabled = false;
+  if(r.erro){ $("#fbMsg").textContent = r.erro; $("#fbMsg").style.color = "var(--warn)"; return; }
+  $("#fbTexto").value = ""; $("#fbContador").textContent = "0 / 4000";
+  $("#fbMsg").textContent = "";
+  log("💬 " + (r.msg || "Feedback enviado. Obrigado!"), "narr");
+  toggleFeedback(false);
+};
+
 let _savesMode = "save"; // "save" | "load"
 async function abrirSaves(mode){
   _savesMode = mode;
@@ -1573,7 +1635,7 @@ $("#ovAjuda").onclick = ev=>{ if(ev.target.id==="ovAjuda") toggleAjuda(false); }
 // Controles 1ª pessoa: frente/trás = relativo ao facing; laterais = virar no lugar.
 let _inputBusy = false;
 document.addEventListener("keydown", async ev=>{
-  if(ev.key==="Escape"){ toggleAjuda(false); $("#cmd").blur(); return; }
+  if(ev.key==="Escape"){ toggleAjuda(false); toggleFeedback(false); $("#cmd").blur(); return; }
   if(ev.key==="F3"){
     ev.preventDefault();
     DEBUG_VIEW = !DEBUG_VIEW;

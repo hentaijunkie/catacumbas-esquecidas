@@ -1597,6 +1597,22 @@ def _chamar_deepseek(mensagens):
 # Injetável para testes offline. Em produção fica None e usamos o DeepSeek de verdade.
 CHAMADA_LLM = None
 
+# Hook de observabilidade dos turnos do LLM (para debug de jogadas online).
+# Fica None no terminal/--demo; o servidor liga em game_log. Assinatura:
+#   LOG_LLM(evento: str, **campos)  — nunca deve levantar exceção.
+LOG_LLM = None
+
+
+def _log_llm(evento, **campos):
+    """Reporta um marco do turno do LLM ao hook, se houver. Best-effort: um erro
+    de logging jamais pode derrubar a jogada."""
+    if LOG_LLM is None:
+        return
+    try:
+        LOG_LLM(evento, **campos)
+    except Exception:
+        pass
+
 
 def _obter_resposta_bruta(mensagens):
     fn = CHAMADA_LLM or _chamar_deepseek
@@ -1687,6 +1703,10 @@ def obter_acao_do_llm(state, acao_jogador, papel_jogador="user", confiavel=False
         {"role": "user", "content": estado_para_prompt(state)},
         {"role": papel_jogador, "content": turno},
     ]
+    p = state.get("player", {})
+    _log_llm("turno_inicio", entrada=acao_jogador, confiavel=confiavel,
+             pos=state.get("pos"), andar=state.get("profundidade"),
+             classe=p.get("classe"), hp=p.get("hp"))
 
     for tentativa in range(1, MAX_RETRIES + 1):
         bruto = _obter_resposta_bruta(mensagens)
@@ -1703,10 +1723,15 @@ def obter_acao_do_llm(state, acao_jogador, papel_jogador="user", confiavel=False
             else:
                 ok, motivo_val = validar_resposta(dados, state)
                 if ok:
+                    _log_llm("turno_ok", tentativa=tentativa,
+                             acao=dados["acao"].get("tipo"),
+                             narrativa=dados.get("texto_narrativo"))
                     return dados
                 motivo = motivo_val
 
         # Falhou: manda feedback específico e tenta de novo.
+        _log_llm("turno_invalido", tentativa=tentativa, motivo=motivo,
+                 bruto=(bruto[:400] if isinstance(bruto, str) else bruto))
         if tentativa < MAX_RETRIES:
             print(f"  [engine] resposta inválida ({motivo}) — reparo {tentativa}/{MAX_RETRIES-1}...")
             mensagens.append({"role": "assistant", "content": bruto or ""})
@@ -1717,6 +1742,7 @@ def obter_acao_do_llm(state, acao_jogador, papel_jogador="user", confiavel=False
             })
 
     # Fallback seguro: nunca deixa o jogo quebrar por causa do LLM.
+    _log_llm("turno_fallback", motivo=motivo)
     return {
         "texto_narrativo": "Um silêncio estranho paira no ar; nada acontece por ora.",
         "acao": {"tipo": "nenhuma"},
@@ -3360,6 +3386,27 @@ def rodar_demo():
     assert ok_v, "narrativa legítima deveria passar"
     print("  entrada sanitizada (marcadores/roles/cerca/tamanho, multi-idioma) +"
           " saída sem vazamento/quebra de personagem. OK")
+
+    # --- Observabilidade: o hook LOG_LLM recebe os marcos do turno (debug online) ---
+    print("\nHook de log do LLM (LOG_LLM):")
+    global LOG_LLM
+    capturado = []
+    LOG_LLM = lambda evento, **c: capturado.append((evento, c))
+    try:
+        idx["i"] = 0                          # rebobina a fila do fake_llm
+        obter_acao_do_llm(state, "abro a porta")
+        eventos = [e for e, _ in capturado]
+        assert "turno_inicio" in eventos, "deveria logar o início do turno"
+        assert "turno_ok" in eventos, "deveria logar o turno resolvido"
+        # o marco turno_ok carrega a ação escolhida (rastreável no log)
+        assert any(c.get("acao") for e, c in capturado if e == "turno_ok"), "turno_ok inclui a ação"
+        # um erro no hook nunca pode derrubar a jogada
+        LOG_LLM = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+        d = obter_acao_do_llm(state, "abro a porta")
+        assert d and d.get("acao"), "hook que explode não pode quebrar o turno"
+    finally:
+        LOG_LLM = None
+    print("  turno_inicio/turno_ok emitidos, ação rastreável, hook à prova de exceção. OK")
 
     # Progressão: XP acumulado sobe de nível (engine-side), com bônus de HP/dano (até nv4).
     print("\nProgressão (XP -> nível):")
