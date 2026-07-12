@@ -1,0 +1,11 @@
+# Railway: usa o Dockerfile na raiz e escuta a PORT injetada pela plataforma.
+# Docs: https://docs.railway.com/builds/dockerfiles
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# healthcheckPath = "/"   # HTML da home; opcional
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

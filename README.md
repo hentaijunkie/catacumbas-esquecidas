@@ -74,24 +74,19 @@ Sem chave: modo offline (template). Com chave:
 | Saves | `saves/<usuario>/slot_1..3.json` |
 | API auth | `POST /api/register`, `/api/login`, `/api/logout` · `GET /api/me`, `/api/auth/status` |
 
-### Deploy (VPS / Docker)
+### Deploy
+
+**Railway (recomendado):** veja o guia completo em [`DEPLOY-RAILWAY.md`](DEPLOY-RAILWAY.md).
+
+Resumo: GitHub → New Project → Variables (`REGISTER_KEY`, `DATA_DIR=/data`, `SAVE_ROOT=/data/saves`, `SESSION_SECURE=1`) → Volume em `/data` → Generate Domain.
+
+**Docker Compose (VPS local):**
 
 ```bash
-# Exemplo com Docker Compose
 export REGISTER_KEY="chave-que-voce-da-aos-testadores"
 # export DEEPSEEK_API_KEY="..."   # opcional
 docker compose up -d --build
 ```
-
-Ou em um VPS sem Docker:
-
-```bash
-export HOST=0.0.0.0 PORT=8000
-export REGISTER_KEY="sua-chave"
-python server.py
-```
-
-Na frente, use **Caddy** ou **nginx** com HTTPS e, se HTTPS: `SESSION_SECURE=1`.
 
 **Importante:** envie aos testadores (1) o link do site e (2) a chave de convite **só para criar conta**.  
 Não publique a chave no repositório.

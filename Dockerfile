@@ -10,13 +10,15 @@ COPY index.html LLM_RULEBOOK.md README.md ROADMAP.md ./
 COPY assets ./assets
 COPY artifacts ./artifacts
 
-# Persistência e logs em volumes (recomendado em produção)
-RUN mkdir -p /app/data /app/saves /app/logs
+# Persistência: no Railway monte um volume em /data e defina:
+#   DATA_DIR=/data
+#   SAVE_ROOT=/data/saves
+RUN mkdir -p /app/data /app/saves /app/logs /data/saves
 
 ENV HOST=0.0.0.0
 ENV PORT=8000
-# REGISTER_KEY / INVITE_KEY e DEEPSEEK_API_KEY via -e ou compose
-# SESSION_SECURE=1 se estiver atrás de HTTPS
+# PORT é sobrescrita pelo Railway em runtime
+# REGISTER_KEY, DEEPSEEK_API_KEY, SESSION_SECURE via Variables no painel
 
 EXPOSE 8000
 CMD ["python", "server.py"]

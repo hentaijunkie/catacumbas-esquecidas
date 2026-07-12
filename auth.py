@@ -21,7 +21,8 @@ import time
 from typing import Any, Optional
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(AQUI, "data")
+# Em produção (Railway): monte um volume e defina DATA_DIR=/data (users em /data/users.json)
+DATA_DIR = os.environ.get("DATA_DIR") or os.path.join(AQUI, "data")
 USERS_PATH = os.path.join(DATA_DIR, "users.json")
 
 _USER_RE = re.compile(r"^[a-zA-Z0-9_]{3,24}$")

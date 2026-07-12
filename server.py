@@ -38,7 +38,8 @@ log = game_log.get_logger("game")
 
 PASSOS_POR_AUTOSAVE = 12
 N_SLOTS = 3
-SAVE_ROOT = os.path.join(AQUI, "saves")
+# Em produção (Railway): volume em /data e SAVE_ROOT=/data/saves (junto com DATA_DIR=/data)
+SAVE_ROOT = os.environ.get("SAVE_ROOT") or os.path.join(AQUI, "saves")
 _LEGACY_SAVE = os.path.join(AQUI, "savegame.json")
 
 # Sessão do request atual (thread-local). acao_* usam GAME[...] como proxy.
@@ -1022,11 +1023,18 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     game_log.session_banner()
+    # Garante pastas de persistência (volume Railway ou local)
+    try:
+        os.makedirs(auth.DATA_DIR, exist_ok=True)
+        os.makedirs(SAVE_ROOT, exist_ok=True)
+    except OSError as e:
+        log.warning("não foi possível criar data/saves: %s", e)
     modo = "ONLINE (DeepSeek)" if ONLINE else "OFFLINE (narração por template)"
     convite = "configurada" if auth.invite_key() else "AUSENTE (cadastro desativado)"
     print(f"As Catacumbas Esquecidas — servidor web [{modo}]")
     print(f"Escutando http://{HOST}:{PORT}")
     print(f"Chave de convite (REGISTER_KEY/invite_key.txt): {convite}")
+    print(f"DATA_DIR={auth.DATA_DIR}  SAVE_ROOT={SAVE_ROOT}")
     print(f"Logs: {game_log.LOG_DIR}")
     print("Multi-sessão: cada conta tem jogo e saves isolados.")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
