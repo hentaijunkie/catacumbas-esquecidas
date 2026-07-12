@@ -1,0 +1,16 @@
+key.txt
+.deepseek_key
+invite_key.txt
+register_key.txt
+.env
+.env.*
+logs/
+saves/
+data/
+savegame.json
+__pycache__/
+*.pyc
+.venv/
+venv/
+.git/
+*.md.tmp

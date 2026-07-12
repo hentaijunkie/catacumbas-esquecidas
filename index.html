@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>As Catacumbas Esquecidas</title>
+<style>
+  :root{
+    --bg:#0e0f13; --panel:#181a21; --panel2:#20232d; --line:#2c3040;
+    --ink:#e7e9ef; --dim:#9aa0b4; --accent:#5fd0e0; --gold:#e8c95a;
+    --hp:#d9524a; --xp:#5fb0e0; --good:#4bbf73; --warn:#e0913a; --boss:#c9433a; --mana:#5a6cf0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+  h1{font-size:18px;margin:0;letter-spacing:.5px}
+  .badge{font-size:11px;color:var(--dim);border:1px solid var(--line);
+         padding:2px 8px;border-radius:20px;margin-left:10px;vertical-align:middle}
+  header{display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line);
+         background:var(--panel)}
+  .wrap{display:grid;grid-template-columns:2.2fr 1fr;gap:14px;padding:14px;max-width:1280px;margin:0 auto;align-items:start}
+  @media(max-width:920px){.wrap{grid-template-columns:1fr}}
+  .col-left{display:flex;flex-direction:column;gap:14px}
+  .col-right{display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);
+           margin:0 0 10px}
+  #viewWrap{position:relative;border-radius:10px;overflow:hidden;
+            background:#0a0b10;box-shadow:inset 0 0 0 1px #ffffff08, inset 0 10px 40px #000a;
+            aspect-ratio:16/10;max-height:520px}
+  #view{display:block;width:100%;height:100%}
+  #viewHud{position:absolute;left:10px;bottom:8px;right:10px;display:flex;justify-content:space-between;
+           font-size:11px;color:var(--dim);pointer-events:none;text-shadow:0 1px 3px #000;gap:8px;flex-wrap:wrap}
+  #viewHud b{color:var(--accent)}
+  #viewFlash{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s}
+  /* centralização SEGURA: margin:auto no canvas (não justify/align center no flex) —
+     senão o excedente acima/à esquerda fica fora do alcance da rolagem */
+  #miniWrap{display:flex;margin-top:10px;padding:8px;
+            border-radius:10px;overflow:auto;max-height:260px;
+            background:radial-gradient(120% 110% at 50% 35%,#242938 0%,#161822 70%,#11131b 100%);
+            box-shadow:inset 0 0 0 1px #ffffff08}
+  #mapa{display:block;margin:auto}
+  .legenda{font-size:11px;color:var(--dim);margin-top:8px;display:flex;flex-wrap:wrap;gap:12px}
+  .bar{height:16px;border-radius:8px;background:#2a2d38;overflow:hidden;position:relative}
+  .bar>i{display:block;height:100%;transition:width .25s}
+  .barlbl{position:absolute;inset:0;font-size:11px;text-align:center;line-height:16px;color:#fff;
+          text-shadow:0 1px 2px #000}
+  .stat{display:flex;justify-content:space-between;margin:6px 0;font-size:14px}
+  .stat b{color:var(--accent);font-weight:600}
+  .inv{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:16px;
+        padding:3px 10px;font-size:12px}
+  .itemrow{display:flex;align-items:center;gap:8px;background:var(--panel2);
+           border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:13px}
+  .itemrow.on{border-color:var(--good);background:#1c2a22}
+  .itemrow .iname{flex:1;min-width:0}
+  .itemrow .istat{color:var(--dim);font-size:11.5px;white-space:nowrap}
+  .itemrow .eq{color:var(--good);font-size:11px;font-style:normal}
+  button.mini{padding:2px 9px;font-size:11.5px;border-radius:6px}
+  #log{height:190px;overflow-y:auto;background:var(--panel2);border-radius:10px;padding:10px 12px;
+       font-size:14px;display:flex;flex-direction:column;gap:7px}
+  .msg{color:var(--dim);font-size:12.5px}
+  .narr{color:var(--ink)}
+  .you{color:var(--accent)}
+  #inputRow{display:flex;gap:8px;margin-top:10px}
+  #cmd{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+       border-radius:8px;padding:9px 12px;font-size:14px;outline:none}
+  #cmd:focus{border-color:var(--accent)}
+  button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+         padding:9px 14px;font-size:14px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent);background:#262a36}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .hint{font-size:11.5px;color:var(--dim);margin-top:8px}
+  .hint kbd{background:#2a2d38;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;
+            padding:1px 6px;font-size:11px}
+  /* combate */
+  #combate{margin-top:12px;border:1px solid var(--boss);border-radius:10px;padding:12px;
+           background:linear-gradient(180deg,#241416,#181a21);display:none}
+  #combate.on{display:block}
+  #combate h2{color:var(--boss)}
+  .cbtns{display:flex;gap:8px;margin-top:10px}
+  .cbtns button{flex:1}
+  /* overlays */
+  .overlay{position:fixed;inset:0;background:rgba(8,9,12,.86);display:flex;align-items:center;
+           justify-content:center;z-index:10}
+  .overlay.hidden{display:none}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;
+       max-width:440px;text-align:center}
+  .box h2{font-size:20px;margin:0 0 6px;letter-spacing:1px}
+  .box p{color:var(--dim);margin:0 0 18px}
+  .classes{display:grid;gap:10px}
+  .classe{text-align:left;padding:12px 14px}
+  .classe b{display:block;font-size:15px;margin-bottom:2px}
+  .classe span{color:var(--dim);font-size:12.5px}
+  .fim h2.win{color:var(--good)} .fim h2.lose{color:var(--boss)}
+  .ajuda{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:9px;
+         font-size:13.5px;color:var(--ink)}
+  .ajuda li{line-height:1.45} .ajuda b{color:var(--accent)}
+  .ajuda kbd{background:#2a2d38;border:1px solid var(--line);border-bottom-width:2px;
+             border-radius:4px;padding:1px 6px;font-size:11px}
+    #poisonVignette { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; 
+                     box-shadow:inset 0 0 80px rgba(75, 191, 115, 0.4); opacity:0; transition: opacity 1s alternate infinite; }
+    #poisonVignette.on { opacity: 1; animation: pulsePoison 2s infinite alternate; }
+    @keyframes pulsePoison { from { opacity: 0.3; } to { opacity: 0.8; } }
+    
+    #fatigueVignette { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;
+                     box-shadow:inset 0 0 100px rgba(0, 0, 0, 0.9); opacity:0; transition: opacity 1s; }
+    #fatigueVignette.on { opacity: 1; animation: pulseFatigue 2.5s infinite ease-in-out; }
+    @keyframes pulseFatigue { 0% { opacity: 0.3; } 50% { opacity: 1.0; } 100% { opacity: 0.3; } }
+
+    /* Sangramento: vinheta vermelha pulsando mais rápido/agudo que o veneno (ferida ativa, não veneno lento) */
+    #bleedVignette { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;
+                     box-shadow:inset 0 0 90px rgba(200, 30, 30, 0.55); opacity:0; transition: opacity 0.6s; }
+    #bleedVignette.on { opacity: 1; animation: pulseBleed 0.9s infinite ease-in-out; }
+    @keyframes pulseBleed { 0% { opacity: 0.35; } 50% { opacity: 0.9; } 100% { opacity: 0.35; } }
+
+    /* Fraqueza: a visão desatura conforme os stacks (força drenada), não é uma vinheta colorida */
+    #view { transition: filter 0.5s; }
+
+    @keyframes shake {
+      0% { transform: translate(1px, 1px) rotate(0deg); }
+      20% { transform: translate(-3px, 0px) rotate(1deg); }
+      40% { transform: translate(1px, -1px) rotate(1deg); }
+      60% { transform: translate(-3px, 1px) rotate(0deg); }
+      80% { transform: translate(-1px, -1px) rotate(1deg); }
+      100% { transform: translate(1px, -2px) rotate(-1deg); }
+    }
+    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⛧ As Catacumbas Esquecidas</h1>
+  <span class="badge" id="modo">…</span>
+  <span class="badge" id="userBadge" style="display:none"></span>
+  <div style="margin-left:auto; display:flex; gap:8px;">
+    <button id="btnSave" class="mini" style="border-color:var(--hp); color:var(--hp);">Salvar</button>
+    <button id="btnLoad" class="mini" style="border-color:var(--mana); color:var(--mana);">Carregar</button>
+    <button id="btnAjuda" class="mini">? Ajuda</button>
+    <button id="btnLogout" class="mini" style="display:none;border-color:var(--dim);color:var(--dim)">Sair</button>
+  </div>
+</header>
+
+<!-- login / registro (obrigatório) -->
+<div class="overlay" id="ovAuth">
+  <div class="box" style="max-width:420px;text-align:left">
+    <h2 style="text-align:center">Conta</h2>
+    <p style="text-align:center;color:var(--dim);font-size:13px" id="authHint">
+      Crie uma conta com a <b>chave de convite</b> do administrador, ou faça login.
+    </p>
+    <div style="display:flex;gap:8px;margin-bottom:12px;justify-content:center">
+      <button type="button" class="mini" id="tabLogin" style="border-color:var(--accent)">Login</button>
+      <button type="button" class="mini" id="tabReg">Criar conta</button>
+    </div>
+    <div id="authFormLogin">
+      <label style="font-size:12px;color:var(--dim)">Usuário</label>
+      <input id="loginUser" autocomplete="username" style="width:100%;margin:4px 0 10px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)">
+      <label style="font-size:12px;color:var(--dim)">Senha</label>
+      <input id="loginPass" type="password" autocomplete="current-password" style="width:100%;margin:4px 0 10px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)">
+      <button type="button" id="btnDoLogin" style="width:100%;margin-top:6px">Entrar</button>
+    </div>
+    <div id="authFormReg" style="display:none">
+      <label style="font-size:12px;color:var(--dim)">Usuário (3–24, letras/números/_)</label>
+      <input id="regUser" autocomplete="username" style="width:100%;margin:4px 0 10px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)">
+      <label style="font-size:12px;color:var(--dim)">Senha (mín. 6)</label>
+      <input id="regPass" type="password" autocomplete="new-password" style="width:100%;margin:4px 0 10px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)">
+      <label style="font-size:12px;color:var(--dim)">Chave de convite</label>
+      <input id="regKey" type="password" autocomplete="off" placeholder="fornecida pelo administrador" style="width:100%;margin:4px 0 10px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)">
+      <button type="button" id="btnDoReg" style="width:100%;margin-top:6px">Criar conta</button>
+    </div>
+    <p id="authErro" style="color:var(--hp);font-size:13px;min-height:1.2em;margin-top:10px;text-align:center"></p>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- COLUNA ESQUERDA: Visão 3D + Narrativa + Input -->
+  <div class="col-left">
+    <div class="card">
+      <h2>Visão · 1ª pessoa</h2>
+      <div id="viewWrap">
+        <canvas id="view" width="640" height="400"></canvas>
+        <div id="viewFlash"></div>
+        <div id="poisonVignette"></div>
+        <div id="fatigueVignette"></div>
+        <div id="bleedVignette"></div>
+        <div id="viewHud">
+          <span>Olhando: <b id="hudFacing">—</b></span>
+          <span id="hudFrente">à frente: —</span>
+          <span id="hudLuz">luz</span>
+          <span id="hudLocal" style="color:var(--gold)"></span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Narrativa</h2>
+      <div id="log"></div>
+      <div id="inputRow">
+        <input id="cmd" placeholder="ex.: equipar a adaga, beber a poção, examinar…" autocomplete="off">
+        <button id="send">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLUNA DIREITA: Automapa + Stats + Inventário + Combate -->
+  <div class="col-right">
+    <div class="card">
+      <h2>Automapa</h2>
+      <div id="miniWrap"><canvas id="mapa" width="200" height="200"></canvas></div>
+      <div class="legenda">
+        <span>🚪 entrada</span><span style="color:var(--accent)">◆ você</span>
+        <span>💀 inimigo</span><span>💰 tesouro</span><span>🗿 chefe</span>
+        <span>? inexplorado</span>
+      </div>
+      <div class="hint">
+        <kbd>↑</kbd>/<kbd>W</kbd> frente · <kbd>↓</kbd>/<kbd>S</kbd> trás ·
+        <kbd>←</kbd>/<kbd>→</kbd> ou <kbd>A</kbd>/<kbd>D</kbd> virar.
+        Interagir: digite abaixo.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Aventureiro</h2>
+      <div class="stat"><span id="classe">—</span><b id="nivel">Nv 1</b></div>
+      <div class="bar"><i id="hpbar" style="width:100%;background:var(--hp)"></i>
+        <span class="barlbl" id="hplbl">HP</span></div>
+      <div class="bar" id="manarow" style="height:13px;margin-top:6px;display:none">
+        <i id="manabar" style="width:100%;background:var(--mana)"></i>
+        <span class="barlbl" id="manalbl">Mana</span></div>
+      <div class="bar" id="luzrow" style="height:11px;margin-top:6px">
+        <i id="luzbar" style="width:100%;background:var(--gold)"></i>
+        <span class="barlbl" id="luzlbl">Luz</span></div>
+      <div class="bar" style="height:10px;margin-top:6px"><i id="xpbar"
+        style="width:0;background:var(--xp)"></i></div>
+      <div class="stat" style="margin-top:10px"><span>Ouro</span><b id="ouro" style="color:var(--gold)">0</b></div>
+      <div class="stat"><span>Arma</span><b id="arma">—</b></div>
+      <div class="stat"><span>Armadura</span><b id="armadura">—</b></div>
+      <div class="stat"><span>Dano / Defesa</span><b id="df">—</b></div>
+      <div class="stat" id="attrsrow" style="display:none"><span>Atributos</span><b id="attrs">—</b></div>
+      <div class="stat" id="magiasrow" style="display:none"><span>Magias</span><b id="magiasknown">—</b></div>
+      <div class="stat" id="lorerow" style="display:none"><span>Lore</span><b id="lorecount">0</b></div>
+      <div class="cbtns" id="conjurarbtns" style="display:none;margin-top:6px"></div>
+      <div class="stat" id="fadrow" style="display:none"><span>Fadiga / Carga</span><b id="fadlbl">—</b></div>
+      <div class="cbtns" id="explobtn" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+        <button id="btnDescansar" type="button">Descansar</button>
+        <button id="btnTablet" type="button" style="display:none">Ler tablet</button>
+        <button id="btnEsconder" type="button" style="display:none">Esconder</button>
+        <button id="btnGazua" type="button" style="display:none">Gazua</button>
+        <button id="btnDescer" type="button" style="display:none">Descer</button>
+        <button id="btnSubir" type="button" style="display:none">Subir / Vila</button>
+        <button id="btnPurificar" type="button" style="display:none;border-color:var(--accent)">Purificar Golem</button>
+      </div>
+      <div id="altarBox" style="display:none;margin-top:10px;border:1px solid var(--gold);border-radius:8px;padding:10px">
+        <div style="font-size:12px;color:var(--gold);margin-bottom:6px" id="altarNome">Altar</div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:8px" id="altarDesc"></div>
+        <div class="cbtns" id="altarBtns" style="flex-wrap:wrap"></div>
+      </div>
+      <div id="lojaBox" style="display:none;margin-top:10px;border:1px solid var(--gold);border-radius:8px;padding:10px">
+        <div style="font-size:12px;color:var(--gold);margin-bottom:6px">Pedralume · Loja &amp; NPCs</div>
+        <div class="cbtns" id="npcBtns" style="flex-wrap:wrap;margin-bottom:8px"></div>
+        <div id="lojaItens" class="inv"></div>
+      </div>
+      <h2 style="margin-top:14px">Inventário</h2>
+      <div class="inv" id="inv"></div>
+
+      <div id="combate">
+        <h2>⚔ Combate: <span id="cbNome"></span></h2>
+        <div class="bar"><i id="cbbar" style="width:100%;background:var(--boss)"></i>
+          <span class="barlbl" id="cblbl"></span></div>
+        <div id="cbEnemyDebuffs" style="margin:4px 0 0;font-size:12px;color:var(--gold);min-height:14px"></div>
+        <div id="cbbuffs" style="margin:4px 0;font-size:12px;color:var(--mana);min-height:14px"></div>
+        <div id="cbextras" style="margin:2px 0 6px;font-size:12px;color:var(--warn)"></div>
+        <div class="cbtns">
+          <button data-e="atacar">Atacar</button>
+          <button data-e="pocao">Poção</button>
+          <button data-e="fugir">Fugir</button>
+        </div>
+        <div class="cbtns" id="magiabtns"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- seleção de classe + raça -->
+<div class="overlay" id="ovStart">
+  <div class="box" style="max-width:480px">
+    <h2 id="startTit">Escolha sua classe</h2>
+    <p id="startSub">A fonte da Vila secou. Desça às catacumbas e restaure a água.</p>
+    <div class="classes" id="classes"></div>
+    <div class="classes" id="racas" style="display:none;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- fim de jogo -->
+<div class="overlay hidden fim" id="ovFim">
+  <div class="box">
+    <h2 id="fimTit"></h2>
+    <p id="fimTxt"></p>
+    <button onclick="location.reload()">Jogar de novo</button>
+  </div>
+</div>
+
+<!-- slots de save -->
+<div class="overlay hidden" id="ovSaves">
+  <div class="box" style="max-width:480px;text-align:left">
+    <h2 style="text-align:center" id="savesTit">Salvar / Carregar</h2>
+    <p style="text-align:center;color:var(--dim);font-size:13px" id="savesSub">Escolha um slot (1–3).</p>
+    <div id="savesList" class="classes"></div>
+    <div style="text-align:center;margin-top:12px">
+      <button type="button" class="mini" id="btnFechaSaves">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- mini-tutorial (tecla ? ou botão Ajuda) -->
+<div class="overlay hidden" id="ovAjuda">
+  <div class="box" style="max-width:560px;text-align:left">
+    <h2 style="text-align:center">Como jogar</h2>
+    <ul class="ajuda">
+      <li><b>Mover (1ª pessoa):</b> <kbd>↑</kbd>/<kbd>W</kbd> frente, <kbd>↓</kbd>/<kbd>S</kbd> trás,
+        <kbd>←</kbd><kbd>→</kbd> virar. Passagens abertas mostram portais; paredes sólidas são pedra.
+        <kbd>F3</kbd> debug da vista.</li>
+      <li><b>Andares:</b> 3 níveis — <em>Descer</em> (escada) ou reentrar da Vila.
+        <em>Subir / Vila</em> sobe andares ou emerge em Pedralume. Andar 3 tem <b>minichefes</b>.</li>
+      <li><b>Vila:</b> em Pedralume a visão vira um <b>painel 2D</b> (praça + Mira/Ancião). Loja e ouro no painel direito.</li>
+      <li><b>Visão 3D:</b> monstro/altar/baú/loot usam <b>glifos ASCII</b> (S=esqueleto, †=altar, $=loot…). Em combate o alvo fica sempre à frente da câmera.</li>
+      <li><b>Interagir:</b> clique nos itens do inventário (<em>Equipar</em>/<em>Usar</em>/<em>Identificar</em>), ou digite na caixa —
+        ex.: <i>"equipar espada longa"</i>, <i>"beber poção"</i>, <i>"ler grimório"</i>, <i>"examinar"</i>.</li>
+      <li><b>Combate:</b> botões <b>Atacar</b>, <b>Poção</b>, <b>Fugir</b>. As <b>magias</b> aparecem como botões
+        (custam mana); <b>Poção Mana</b> recarrega. Algumas salas têm <b>hordas</b> (um bando de inimigos) —
+        todos revidam por round; use <b>magia de área</b> (Nova Gélida) p/ atingir todos de uma vez.</li>
+      <li><b>Magia:</b> o <b>Mago</b> (e um pouco o Ladino) conjura no combate. Dano mágico <b>ignora a armadura</b> —
+        ótimo contra inimigos couraçados. Os feitiços <b>ficam mais fortes conforme você sobe de nível</b>.
+        Há <b>buffs</b> temporários (<em>Escudo Arcano</em> = mais defesa; <em>Pressa</em> = golpe duplo),
+        magia de <b>área</b> e <b>cura fora de combate</b> (botão ✚ ao lado das magias). Aprenda novos feitiços <b>lendo grimórios</b>.</li>
+      <li><b>Ladino furtivo:</b> ao começar uma luta, o <b>1º golpe</b> do Ladino é pelas costas — <b>dano dobrado</b>.</li>
+      <li><b>Itens:</b> nada some ao trocar — a arma/armadura antiga fica no inventário com seus stats, dá p/ reequipar.
+        Loot mágico nasce <em>não identificado</em> (nome genérico); use um <b>Pergaminho de Identificação</b> no botão Identificar.
+        O <b>Ladino</b> tem chance de decifrar afixos sozinho ao saquear.</li>
+      <li><b>Armadilhas &amp; cofres:</b> o <b>Ladino</b> desarma armadilhas e arromba cofres; as outras classes
+        levam o dano e precisam da <b>Chave de Ferro</b>.</li>
+      <li><b>Classes:</b> 🛡️ Guerreiro (tanque) · 🔮 Mago (nuke frágil) · 🗡️ Ladino (ardiloso).</li>
+      <li><b>Mapa:</b> 🚪 entrada · 💀 inimigo · 💰 tesouro · 🗿 chefe · ? inexplorado.</li>
+      <li><b>Luz:</b> a tocha tem duração (passos). Sem luz, o mapa fecha e o combate fica pior — <b>use tochas</b> do inventário.</li>
+      <li><b>Descansar:</b> em sala segura recupera HP/mana; pode atrair monstro errante.</li>
+      <li><b>Tablets:</b> leia inscrições antigas (lore canônico). O narrador só enfeita o que a engine revelou.</li>
+      <li><b>Finais:</b> mate o <b>Golem</b> <em>ou</em> purifique-o com o <b>Coração de Cristal</b> + Sabedoria alta (câmara do chefe).</li>
+      <li><b>Objetivo:</b> desça, fique mais forte e liberte o rio de Pedralume.</li>
+    </ul>
+    <div style="text-align:center;margin-top:14px"><button id="btnFecharAjuda">Fechar (Esc)</button></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let combatendo = false;
+
+const texCanvas = document.createElement("canvas");
+texCanvas.width = 64; texCanvas.height = 64;
+const tctx = texCanvas.getContext("2d");
+tctx.fillStyle = "#3a3b45"; tctx.fillRect(0, 0, 64, 64);
+for(let y=0; y<64; y+=16) {
+  for(let x=0; x<64; x+=32) {
+    let ox = (y/16)%2 ? 16 : 0;
+    tctx.fillStyle = `rgb(${45+Math.random()*15}, ${48+Math.random()*12}, ${55+Math.random()*15})`;
+    tctx.fillRect(x - ox, y, 31, 15);
+    tctx.fillStyle = "rgba(0,0,0,0.4)";
+    tctx.fillRect(x - ox, y+14, 31, 2);
+    tctx.fillRect(x - ox + 29, y, 2, 15);
+  }
+}
+const wallTex = texCanvas;
+
+const TEXTURES = { wall: new Image(), wallDark: new Image() };
+let texturesLoaded = false;
+let _loadedCount = 0;
+function _onTexLoad() {
+  _loadedCount++;
+  if(_loadedCount === 2) texturesLoaded = true;
+}
+TEXTURES.wall.onload = _onTexLoad; TEXTURES.wall.src = 'assets/textures/wall_stone.jpg';
+TEXTURES.wallDark.onload = _onTexLoad; TEXTURES.wallDark.src = 'assets/textures/wall_dark.jpg';
+
+const CLASSES = {
+  "Guerreiro": "HP 25 · Def 2 — tanque seguro. Aço puro, sem magia.",
+  "Mago":      "HP 16 · Mana 20 — glass cannon. Bola de Fogo ignora armadura.",
+  "Ladino":    "HP 20 · Def 1 — ágil. Detecta e desarma armadilhas; um toque de magia.",
+};
+const RACAS = {
+  "Humano":   "Adaptável. +5% XP em pacotes grandes.",
+  "Anão":     "+2 CON, -1 CAR. Resiste armadilhas.",
+  "Elfo":     "+2 INT, -1 CON. Mais mana por nível.",
+  "Halfling": "+2 DES, -1 FOR. Foge com mais facilidade.",
+};
+let _escolhaClasse = null;
+
+// ---- API (cookies de sessão: credentials include) ----
+let _currentUser = null;
+async function api(rota, dados){
+  const r = await fetch(rota, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    credentials:"include",
+    body:JSON.stringify(dados||{})
+  });
+  const j = await r.json();
+  if(j && j.precisa_login){ mostrarAuth(true); }
+  return j;
+}
+async function apiGet(rota){
+  const r = await fetch(rota, {credentials:"include"});
+  return r.json();
+}
+function mostrarAuth(v){
+  $("#ovAuth").classList.toggle("hidden", !v);
+  if(!v) $("#ovAuth").style.display = "none";
+  else { $("#ovAuth").style.display = ""; $("#ovAuth").classList.remove("hidden"); }
+}
+function setUserUI(user){
+  _currentUser = user || null;
+  const b = $("#userBadge"), lo = $("#btnLogout");
+  if(user){
+    b.style.display = ""; b.textContent = "👤 "+user;
+    lo.style.display = "";
+  } else {
+    b.style.display = "none"; lo.style.display = "none";
+  }
+}
+
+// ---- feedback visual: flash colorido na vista (base #viewFlash no DOM) ----
+const COR_MAGIA = {
+  bola_fogo:"rgba(255,120,40,0.85)",  relampago:"rgba(255,224,90,0.85)",
+  explosao_arcana:"rgba(200,120,255,0.85)", nova_gelida:"rgba(120,200,255,0.85)",
+  drenar_vida:"rgba(180,70,220,0.85)", curar:"rgba(75,191,115,0.85)",
+  escudo_arcano:"rgba(90,140,255,0.85)", pressa:"rgba(130,220,220,0.85)",
+  nuvem_veneno:"rgba(120,220,80,0.85)", atordoar:"rgba(255,240,150,0.85)",
+};
+function flashView(cor){
+  const f = $("#viewFlash");
+  f.style.background = `radial-gradient(ellipse at center, ${cor} 0%, rgba(0,0,0,0) 72%)`;
+  f.style.opacity = "0.55";
+  clearTimeout(flashView._t);
+  flashView._t = setTimeout(()=>{ f.style.opacity = "0"; }, 140);
+}
+
+// ---- render ----
+function log(html, cls){
+  const d = document.createElement("div");
+  d.className = cls||"msg"; d.innerHTML = html;
+  $("#log").appendChild(d); $("#log").scrollTop = $("#log").scrollHeight;
+}
+
+function aplicar(resp){
+  if(resp && resp.precisa_login){ mostrarAuth(true); return; }
+  if(resp && resp.user) setUserUI(resp.user);
+  if(resp.precisa_novo){ $("#ovStart").classList.remove("hidden"); return; }
+  if(resp.online!==undefined) $("#modo").textContent = resp.online ? "online · DeepSeek" : "offline · template";
+  if(resp.narrativa) log(resp.narrativa, "narr");
+  (resp.mensagens||[]).forEach(m => log("• "+m, "msg"));
+
+  const e = resp.estado;
+  if(e){
+    if(e.sala) window._lastSala = e.sala;
+    const p = e.player;
+    const prof = e.profundidade || 1;
+    $("#classe").textContent = (p.raca? p.raca+" ":"") + p.classe + (prof>1?` · Andar ${prof}`:"");
+    $("#nivel").textContent = "Nv "+p.nivel;
+    const hpp = Math.max(0, Math.round(100*p.hp/p.hp_max));
+    $("#hpbar").style.width = hpp+"%";
+    $("#hplbl").textContent = `${p.hp}/${p.hp_max} HP`;
+    // xp bar (progresso até o próximo nível)
+    let xpp = 100;
+    if(p.xp_prox!==null){ const falta=p.xp_prox; const total=falta+ (p.xp); // aprox visual
+      xpp = Math.max(6, Math.min(100, Math.round(100*p.xp/(p.xp+falta)))); }
+    $("#xpbar").style.width = xpp+"%";
+    // barra de mana (só para quem usa)
+    const temMana = p.mana_max > 0;
+    $("#manarow").style.display = temMana ? "block" : "none";
+    if(temMana){ 
+      $("#manabar").style.width = Math.round(100*p.mana/p.mana_max)+"%";
+      $("#manalbl").textContent = `${p.mana}/${p.mana_max} Mana`; 
+    }
+    
+    // Veneno visual (FP view)
+    $("#poisonVignette").classList.toggle("on", !!p.veneno);
+
+    // Sangramento visual: vinheta vermelha pulsando rápido (ferida ativa)
+    $("#bleedVignette").classList.toggle("on", !!p.sangramento);
+
+    // Fraqueza visual: a vista dessatura conforme os stacks (força drenada, máx. 3)
+    const fraquezaStacks = p.fraqueza_stacks || 0;
+    $("#view").style.filter = fraquezaStacks > 0
+      ? `grayscale(${Math.min(3, fraquezaStacks) / 3 * 0.55}) brightness(${1 - fraquezaStacks*0.05})`
+      : "";
+
+    // Fadiga visual alinhada a FADIGA_MAX da engine (0..3): leve / média / alta
+    const fadiga = p.fadiga || 0;
+    const fvEl = $("#fatigueVignette");
+    fvEl.classList.toggle("on", fadiga >= 1);
+    if(fadiga >= 3) { fvEl.style.boxShadow = "inset 0 0 140px rgba(0,0,0,0.97)"; }
+    else if(fadiga >= 2) { fvEl.style.boxShadow = "inset 0 0 110px rgba(0,0,0,0.85)"; }
+    else if(fadiga >= 1) { fvEl.style.boxShadow = "inset 0 0 80px rgba(0,0,0,0.65)"; }
+    else { fvEl.style.boxShadow = ""; }
+    if(fadiga >= 2) playFatigueAudio(); else stopFatigueAudio();
+
+    // Batimento de coração em HP crítico durante combate.
+    // Usa resp.combate (o estado NOVO) — `combatendo` só é atualizado mais abaixo,
+    // e o valor velho atrasava o liga/desliga em uma ação.
+    const hpCrit = p.hp < Math.round(p.hp_max * 0.3) && !!resp.combate;
+    if(hpCrit) playHeartbeat(); else stopHeartbeat();
+    
+    // luz (tocha = ~14; Pedra de Luz Eterna satura em "eterna" em vez de 9999%)
+    const luz = p.luz||0;
+    const luzEterna = luz >= 500;
+    const luzMax = 14;
+    $("#luzbar").style.width = luzEterna ? "100%" : Math.min(100, Math.round(100*luz/luzMax))+"%";
+    $("#luzbar").style.background = luz>0 ? "var(--gold)" : "#444";
+    $("#luzlbl").textContent = luzEterna ? "luz eterna" : (luz>0 ? `${luz} luz` : "ESCURIDÃO");
+    // atributos
+    if(p.atributos){
+      $("#attrsrow").style.display = "flex";
+      const a=p.atributos;
+      $("#attrs").textContent = `FOR ${a.for} DES ${a.des} CON ${a.con} INT ${a.int} SAB ${a.sab} CAR ${a.car}`;
+    }
+    // magias conhecidas
+    $("#magiasrow").style.display = (p.magias&&p.magias.length) ? "flex" : "none";
+    $("#magiasknown").textContent = (p.magias||[]).map(m=>m.nome).join(", ") || "—";
+    $("#lorerow").style.display = "flex";
+    $("#lorecount").textContent = (p.lore&&p.lore.length) ? p.lore.length+" fragmentos" : "0";
+    montarBotoesConjurar(p);
+    $("#ouro").textContent = (p.ouro!=null ? p.ouro : 0) + " 🪙";
+    $("#arma").textContent = p.arma || "—";
+    $("#armadura").textContent = p.armadura || "nenhuma";
+    const bfor = p.bonus_for||0;
+    $("#df").textContent = `${p.dano_base}+${p.dano_arma}${bfor?`+${bfor}`:""} / ${p.defesa}`;
+    // fadiga / carga (+ veneno + sangramento + fraqueza ativo)
+    $("#fadrow").style.display = "flex";
+    let statusTxt = `${p.fadiga||0} · ${p.nivel_carga||"leve"} (${p.carga||0})`;
+    let statusColor = "";
+    if(p.veneno) { statusTxt += ` · ☠️ veneno ${p.veneno.passos}p`; statusColor = "#8fd45a"; }
+    if(p.sangramento) { statusTxt += ` · 🩸 sangramento ${p.sangramento.passos}p`; statusColor = statusColor || "#d45a5a"; }
+    if(p.fraqueza_stacks > 0) { statusTxt += ` · ⬇️ fraqueza ${p.fraqueza_stacks}/3`; statusColor = statusColor || "#d4a75a"; }
+    $("#fadlbl").textContent = statusTxt;
+    $("#fadlbl").style.color = statusColor;
+    // botões de exploração
+    $("#btnDescansar").disabled = combatendo || !p.pode_descansar;
+    const tab = e.sala && e.sala.tablet;
+    $("#btnTablet").style.display = tab ? "inline-block" : "none";
+    if(tab) $("#btnTablet").textContent = tab.lido ? "Reler tablet" : "Ler tablet";
+    $("#btnPurificar").style.display = p.pode_purificar ? "inline-block" : "none";
+    $("#btnEsconder").style.display = p.pode_esconder ? "inline-block" : "none";
+    $("#btnDescer").style.display = p.pode_descer ? "inline-block" : "none";
+    $("#btnSubir").style.display = p.pode_subir ? "inline-block" : "none";
+    if(e.na_superficie){
+      $("#hudLocal").textContent = "Pedralume (superfície)";
+      $("#btnDescer").textContent = "Descer às catacumbas";
+    } else {
+      $("#hudLocal").textContent = e.profundidade > 1 ? `Andar ${e.profundidade}` : "";
+      $("#btnDescer").textContent = "Descer";
+    }
+    const sala = e.sala || {};
+    const podeGazua = sala.cofre_trancado || sala.armadilha_ativa;
+    $("#btnGazua").style.display = (!e.na_superficie && podeGazua) ? "inline-block" : "none";
+    // altar
+    const alt = sala.altar;
+    const box = $("#altarBox");
+    if(alt && !alt.usada && !combatendo){
+      box.style.display = "block";
+      $("#altarNome").textContent = alt.nome;
+      $("#altarDesc").textContent = alt.descricao;
+      const ab = $("#altarBtns"); ab.innerHTML = "";
+      Object.entries(alt.opcoes||{}).forEach(([k,v])=>{
+        const b=document.createElement("button");
+        b.textContent = v.rotulo || k;
+        b.onclick = async ()=>aplicar(await api("/api/altar",{escolha:k}));
+        ab.appendChild(b);
+      });
+    } else { box.style.display = "none"; }
+    // Loja / NPCs em Pedralume
+    const loja = e.loja;
+    const lb = $("#lojaBox");
+    if(loja && e.na_superficie && !combatendo){
+      lb.style.display = "block";
+      const nb = $("#npcBtns"); nb.innerHTML = "";
+      (loja.npcs||[]).forEach(n=>{
+        const b=document.createElement("button");
+        b.className="mini";
+        b.textContent = "Falar: "+n.nome.split(",")[0];
+        b.onclick = async ()=>aplicar(await api("/api/falar",{alvo:n.id}));
+        nb.appendChild(b);
+      });
+      const li = $("#lojaItens");
+      li.innerHTML = (loja.itens||[]).map(it=>{
+        const dis = it.pode_comprar ? "" : " disabled";
+        return `<div class="itemrow"><span class="iname">${it.nome}</span>`
+          + `<span class="istat">${it.preco} ouro</span>`
+          + `<button class="mini" data-comprar="${it.id}"${dis}>Comprar</button></div>`;
+      }).join("") || `<span class="msg">sem estoque</span>`;
+    } else { lb.style.display = "none"; }
+    window._naSuperficie = !!e.na_superficie;
+    renderInv(p);
+    const prev = window._estado;
+    window._estado = e;
+    window._player = p;
+    // áudio de movimento / parede
+    if(prev && prev.pos && e.pos){
+      if(prev.pos.x!==e.pos.x || prev.pos.y!==e.pos.y) sfx("passo");
+      else if(prev.facing!==e.facing) sfx("virar");
+    }
+    if((resp.mensagens||[]).some(m=>/parede/i.test(m))) sfx("parede");
+    if(resp.combate && !(window._combateAntes)) sfx("combate");
+    window._combateAntes = !!resp.combate;
+    // flash colorido: magia conjurada (cor da escola) > dano sofrido > cura > mana
+    const pvp = prev && prev.player;
+    if(pvp){
+      if(window._flashMagia && p.mana < pvp.mana) flashView(window._flashMagia);
+      else if(p.hp < pvp.hp) flashView("rgba(217,82,74,0.85)");
+      else if(p.hp > pvp.hp) flashView("rgba(75,191,115,0.8)");
+      else if(p.mana > pvp.mana) flashView("rgba(90,108,240,0.8)");
+    }
+    window._flashMagia = null;
+    desenharMapa(e);
+    // lerp visual em direção ao novo estado
+    solicitarVista(e, resp.combate);
+  }
+
+  // combate
+  combatendo = !!resp.combate;
+  $("#combate").classList.toggle("on", combatendo);
+  // botões de conjurar cura só fazem sentido FORA de combate
+  $("#conjurarbtns").style.display = (!combatendo && $("#conjurarbtns").children.length) ? "flex" : "none";
+  if(resp.combate){
+    $("#cbNome").textContent = resp.combate.nome;
+    const cp = Math.max(0, Math.round(100*resp.combate.hp/resp.combate.hp_max));
+    $("#cbbar").style.width = cp+"%";
+    $("#cblbl").textContent = `${Math.max(0,resp.combate.hp)}/${resp.combate.hp_max} HP`;
+    const bf = (window._player.buffs||[]);
+    let btxt = bf.length ? "🛡️ " + bf.map(b=>`${b.nome} (${b.turnos})`).join("  ·  ") : "";
+    if(window._player.veneno)
+      btxt += (btxt ? "  ·  " : "") + `☠️ Veneno (${window._player.veneno.passos})`;
+    if(window._player.sangramento)
+      btxt += (btxt ? "  ·  " : "") + `🩸 Sangramento (${window._player.sangramento.passos})`;
+    if(window._player.fraqueza_stacks > 0)
+      btxt += (btxt ? "  ·  " : "") + `⬇️ Fraqueza (${window._player.fraqueza_stacks}/3)`;
+    $("#cbbuffs").textContent = btxt;
+    
+    const eDebuffs = Object.keys(resp.combate.debuffs||{});
+    let edTxt = eDebuffs.length ? "Debuffs no alvo: " + eDebuffs.map(d=>{
+      const nome_icone = d==='veneno' ? '☠️ Veneno' : (d==='atordoado' ? '❄️ Atordoado' : d);
+      return `${nome_icone} (${resp.combate.debuffs[d].duracao || resp.combate.debuffs[d].passos || ''})`;
+    }).join(" · ") : "";
+    $("#cbEnemyDebuffs").textContent = edTxt;
+
+    const ex = (resp.combate.extras||[]);
+    $("#cbextras").textContent = ex.length
+      ? "Bando: " + ex.map(e=>`${e.nome} ${Math.max(0,e.hp)}/${e.hp_max}`).join("  ·  ") : "";
+    montarBotoesMagia(window._player);
+  }
+
+  if(resp.fim){
+    $("#ovFim").classList.remove("hidden");
+    const win = resp.fim==="vitoria" || resp.fim==="purificacao";
+    $("#fimTit").className = win?"win":"lose";
+    if(resp.fim==="purificacao"){
+      $("#fimTit").textContent = "PURIFICAÇÃO";
+      $("#fimTxt").textContent = "O Guardião lembra o fluxo. O rio limpo sobe a Pedralume — e te reconhece como amigo.";
+    } else if(resp.fim==="vitoria"){
+      $("#fimTit").textContent = "VITÓRIA";
+      $("#fimTxt").textContent = "A água volta a correr rumo à Vila. Você retorna herói.";
+    } else {
+      $("#fimTit").textContent = "VOCÊ TOMBOU";
+      $("#fimTxt").textContent = "As catacumbas guardam mais um aventureiro. Fim.";
+    }
+  }
+}
+
+// ---- mapa + raycaster 1ª pessoa ----
+const DIR = {norte:[0,1], sul:[0,-1], leste:[1,0], oeste:[-1,0]};
+const FACE_DIR = {
+  leste:  {dx:1,  dy:0},
+  norte:  {dx:0,  dy:1},
+  oeste:  {dx:-1, dy:0},
+  sul:    {dx:0,  dy:-1},
+};
+const EMOJI_FONT = "'Segoe UI Emoji','Noto Color Emoji',system-ui";
+
+function desenharMapa(e){
+  const cv = $("#mapa"), ctx = cv.getContext("2d");
+  const rooms = e.mapa.rooms, fr = e.mapa.fronteira;
+  const todos = rooms.concat(fr);
+  if(!todos.length) return;
+  const xs = todos.map(r=>r.x), ys = todos.map(r=>r.y);
+  const minx=Math.min(...xs), maxx=Math.max(...xs), miny=Math.min(...ys), maxy=Math.max(...ys);
+  const CELL=36, TILE=26, PAD=14;
+  const wCss = (maxx-minx)*CELL + TILE + PAD*2;
+  const hCss = (maxy-miny)*CELL + TILE + PAD*2;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(wCss*dpr); cv.height = Math.round(hCss*dpr);
+  cv.style.width = wCss+"px"; cv.style.height = hCss+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,wCss,hCss);
+  const cx = x => PAD + TILE/2 + (x-minx)*CELL;
+  const cy = y => PAD + TILE/2 + (maxy-y)*CELL;
+
+  const key = (x,y)=>x+","+y;
+  const shown = new Set(todos.map(r=>key(r.x,r.y)));
+  const pos = e.pos;
+
+  ctx.lineCap = "round";
+  rooms.forEach(r=>(r.exits||[]).forEach(d=>{
+    const n = [r.x+DIR[d][0], r.y+DIR[d][1]];
+    if(!shown.has(key(n[0],n[1]))) return;
+    const alvoFronteira = !rooms.some(o=>o.x===n[0]&&o.y===n[1]);
+    ctx.beginPath(); ctx.moveTo(cx(r.x),cy(r.y)); ctx.lineTo(cx(n[0]),cy(n[1]));
+    ctx.strokeStyle="#20242f"; ctx.lineWidth=12; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx(r.x),cy(r.y)); ctx.lineTo(cx(n[0]),cy(n[1]));
+    ctx.strokeStyle = alvoFronteira ? "#2c3140" : "#3b4152";
+    ctx.lineWidth=8; ctx.stroke();
+  }));
+
+  fr.forEach(r=>tileFronteira(ctx, cx(r.x), cy(r.y), TILE));
+  rooms.forEach(r=>tileSala(ctx, cx(r.x), cy(r.y), TILE, r, r.x===pos.x && r.y===pos.y));
+  tokenJogador(ctx, cx(pos.x), cy(pos.y), e.facing);
+
+  // rola o contêiner p/ manter o token do jogador sempre à vista
+  const wrap = $("#miniWrap");
+  if(wrap.scrollHeight > wrap.clientHeight || wrap.scrollWidth > wrap.clientWidth){
+    const rc = cv.getBoundingClientRect(), rw = wrap.getBoundingClientRect();
+    wrap.scrollTo({
+      left: wrap.scrollLeft + (rc.left - rw.left) + cx(pos.x) - wrap.clientWidth/2,
+      top:  wrap.scrollTop  + (rc.top  - rw.top)  + cy(pos.y) - wrap.clientHeight/2,
+    });
+  }
+}
+
+// ---- Raycaster + logs + SFX + lerp ----
+let DEBUG_VIEW = false;
+const _logBuf = [];
+let _logFlushTimer = null;
+let _audioCtx = null;
+const _lerp = { x:null, y:null, ang:null, target:null, combate:null, raf:0 };
+
+function clog(level, msg, data){
+  const entry = {level: level||"info", msg: String(msg), data: data||undefined, t: Date.now()};
+  _logBuf.push(entry);
+  if(level==="error") console.error("[view]", msg, data||"");
+  else if(level==="warning") console.warn("[view]", msg, data||"");
+  else if(DEBUG_VIEW) console.log("[view]", msg, data||"");
+  if(!_logFlushTimer) _logFlushTimer = setTimeout(flushClientLogs, 800);
+}
+async function flushClientLogs(){
+  _logFlushTimer = null;
+  if(!_logBuf.length) return;
+  const batch = _logBuf.splice(0, 80);
+  try{
+    await fetch("/api/log", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({entries: batch})});
+  }catch(err){ /* offline ok */ }
+}
+window.addEventListener("error", ev=>{
+  clog("error", "JS: "+(ev.message||"erro"), {file: ev.filename, line: ev.lineno});
+});
+window.addEventListener("unhandledrejection", ev=>{
+  clog("error", "Promise: "+(ev.reason && (ev.reason.message||ev.reason)));
+});
+
+function sfx(tipo){
+  try{
+    if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    if(ctx.state==="suspended") ctx.resume();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    const now = ctx.currentTime;
+    const table = {
+      passo:   {f:120, t:0.05, type:"triangle", vol:0.04},
+      virar:   {f:180, t:0.04, type:"sine", vol:0.03},
+      parede:  {f:70,  t:0.08, type:"square", vol:0.05},
+      combate: {f:90,  t:0.15, type:"sawtooth", vol:0.06},
+      escada:  {f:220, t:0.12, type:"triangle", vol:0.05},
+    };
+    if(tipo === "hit") {
+      // Som de impacto mais pesado — camada grave + aguda
+      const now2 = ctx.currentTime;
+      const o2 = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      const wave = ctx.createPeriodicWave(
+        new Float32Array([0,1,0.4,0.2,0.1]),
+        new Float32Array([0,0,0,0,0])
+      );
+      o2.setPeriodicWave(wave);
+      o2.frequency.setValueAtTime(110, now2);
+      o2.frequency.exponentialRampToValueAtTime(35, now2 + 0.18);
+      g2.gain.setValueAtTime(0.15, now2);   // punch grave, mas na escala dos demais sfx (0.04-0.06)
+      g2.gain.exponentialRampToValueAtTime(0.001, now2 + 0.18);
+      o2.connect(g2); g2.connect(ctx.destination);
+      o2.start(now2); o2.stop(now2 + 0.18);
+      return;
+    }
+    const p2 = table[tipo] || table.passo;
+    o.type = p2.type; o.frequency.value = p2.f;
+    g.gain.setValueAtTime(p2.vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + p2.t);
+    o.start(ctx.currentTime); o.stop(ctx.currentTime + p2.t);
+  }catch(_){ /* audio opcional */ }
+}
+
+let _fatigueOsc = null;
+function playFatigueAudio() {
+  if(!_audioCtx || _fatigueOsc) return;
+  const ctx = _audioCtx;
+  if(ctx.state==="suspended") ctx.resume();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+
+  // Pitch respira entre ~30 e ~54 Hz num ciclo lento CONTÍNUO: LFO 0.25 Hz -> depth ±12 Hz
+  // -> frequency do oscilador. (O LFO no GANHO, sem depth, fazia o volume oscilar ±1
+  // full-scale — estourado e com fase invertida.)
+  const now = ctx.currentTime;
+  osc.frequency.setValueAtTime(42, now);
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 0.25;                  // um ciclo de "respiração" a cada 4s
+  const lfoDepth = ctx.createGain();
+  lfoDepth.gain.value = 12;                    // 42 ±12 Hz => 30..54 Hz
+  lfo.connect(lfoDepth); lfoDepth.connect(osc.frequency);
+  lfo.start(now);
+
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.08, now + 1.0);  // presença sutil, na escala dos sfx
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+
+  _fatigueOsc = { osc, gain, lfo };
+}
+
+function stopFatigueAudio() {
+  if(_fatigueOsc) {
+    const now = _audioCtx.currentTime;
+    _fatigueOsc.gain.gain.cancelScheduledValues(now);
+    _fatigueOsc.gain.gain.linearRampToValueAtTime(0, now + 0.5);
+    const fo = _fatigueOsc;
+    setTimeout(() => {
+      try { fo.osc.stop(); fo.lfo.stop(); fo.osc.disconnect(); fo.lfo.disconnect(); } catch(e){}
+    }, 500);
+    _fatigueOsc = null;
+  }
+}
+
+let _heartbeatId = null;
+function playHeartbeat() {
+  if(!_audioCtx || _heartbeatId) return;
+  const ctx = _audioCtx;
+  if(ctx.state==="suspended") ctx.resume();
+  const bpm = 1.2; // ~72bpm em pânico
+
+  function beat() {
+    const now = ctx.currentTime;
+    [0, 0.12].forEach(delay => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = 55;
+      g.gain.setValueAtTime(0.5, now + delay);
+      g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.1);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now + delay); o.stop(now + delay + 0.12);
+    });
+    _heartbeatId = setTimeout(beat, (1 / bpm) * 1000);
+  }
+  beat();
+}
+
+function stopHeartbeat() {
+  if(_heartbeatId) {
+    clearTimeout(_heartbeatId);
+    _heartbeatId = null;
+  }
+}
+
+const FACE_ANG = {leste:0, norte:Math.PI/2, oeste:Math.PI, sul:-Math.PI/2};
+
+function buildWalkable(e){
+  // O raycaster agora tem acesso a todas as salas estruturais (all_rooms) para renderizar corredores distantes
+  const walk = new Set();
+  const rooms = {};
+  const frontier = new Set();
+  
+  if(e.mapa.all_rooms){
+    e.mapa.all_rooms.forEach(r=>{
+      const k = r.x+","+r.y;
+      walk.add(k); rooms[k] = r;
+    });
+  } else {
+    // fallback caso backend antigo
+    (e.mapa.rooms||[]).forEach(r=>{
+      const k = r.x+","+r.y;
+      walk.add(k); rooms[k] = r;
+    });
+    (e.mapa.fronteira||[]).forEach(r=>{
+      const k = r.x+","+r.y;
+      walk.add(k); rooms[k] = r;
+    });
+  }
+  
+  // all_rooms é só estrutural (x/y/exits/boss/entrada) — as flags inimigo/loot
+  // vivem nas salas VISITADAS; sem esta sobreposição os billboards não aparecem.
+  (e.mapa.rooms||[]).forEach(r=>{
+    const k = r.x+","+r.y;
+    walk.add(k); rooms[k] = r;
+  });
+
+  (e.mapa.fronteira||[]).forEach(r=>{
+    frontier.add(r.x+","+r.y);
+  });
+
+  return {walk, rooms, frontier};
+}
+
+function isBlocking(walk, frontier, ix, iy){
+  const k = ix+","+iy;
+  if(walk.has(k)) return false;       // chão aberto
+  return true;                        // parede ou portal de fronteira
+}
+function isPortal(frontier, ix, iy){
+  return frontier.has(ix+","+iy);
+}
+
+function solicitarVista(e, combate){
+  _lerp.target = e;
+  _lerp.combate = combate || null;
+  if(_lerp.x===null){
+    _lerp.x = e.pos.x + 0.5;
+    _lerp.y = e.pos.y + 0.5;
+    _lerp.ang = FACE_ANG[e.facing] || 0;
+  }
+  if(!_lerp.raf) _lerp.raf = requestAnimationFrame(tickVista);
+}
+function tickVista(){
+  _lerp.raf = 0;
+  const e = _lerp.target;
+  if(!e) return;
+  const tx = e.pos.x + 0.5, ty = e.pos.y + 0.5;
+  let ta = FACE_ANG[e.facing] || 0;
+  // interpola ângulo pelo caminho mais curto
+  let da = ta - _lerp.ang;
+  while(da > Math.PI) da -= Math.PI*2;
+  while(da < -Math.PI) da += Math.PI*2;
+  const k = 0.28;
+  _lerp.x += (tx - _lerp.x) * k;
+  _lerp.y += (ty - _lerp.y) * k;
+  _lerp.ang += da * k;
+  const done = Math.abs(tx-_lerp.x)<0.01 && Math.abs(ty-_lerp.y)<0.01 && Math.abs(da)<0.02;
+  if(done){ _lerp.x=tx; _lerp.y=ty; _lerp.ang=ta; }
+  desenharVista(e, _lerp.combate, _lerp.x, _lerp.y, _lerp.ang);
+  if(!done) _lerp.raf = requestAnimationFrame(tickVista);
+}
+
+function desenharVista(e, combate, camX, camY, camAng){
+  const cv = $("#view");
+  if(!cv || !e || !e.pos){
+    clog("warning", "desenharVista: sem estado/pos");
+    return;
+  }
+  try{
+    _desenharVistaInner(e, combate, cv, camX, camY, camAng);
+  }catch(err){
+    clog("error", "raycaster crash: "+(err && err.message), {stack: err && err.stack});
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#1a1520";
+    ctx.fillRect(0,0,cv.width||640,cv.height||400);
+    ctx.fillStyle = "#e7e9ef";
+    ctx.font = "14px system-ui";
+    ctx.fillText("Erro no raycaster — veja logs/", 16, 28);
+  }
+}
+
+function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
+  const wrap = $("#viewWrap");
+  const wCss = Math.max(320, wrap.clientWidth || 640);
+  const hCss = Math.max(200, Math.round(wCss * 10/16));
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = Math.round(wCss * dpr), H = Math.round(hCss * dpr);
+  if(cv.width !== W || cv.height !== H){
+    cv.width = W; cv.height = H;
+    cv.style.width = wCss+"px"; cv.style.height = hCss+"px";
+  }
+  const ctx = cv.getContext("2d");
+
+  // Superfície: vista 2D estática (raycaster é para masmorra — evita FOV aberto “vazio”)
+  if(e.na_superficie){
+    desenharVila2D(ctx, W, H, dpr, e);
+    $("#hudFacing").textContent = "praça";
+    $("#hudFrente").textContent = "à frente: Mira · Ancião · loja";
+    $("#hudLuz").textContent = "dia";
+    return;
+  }
+
+  const {walk, rooms, frontier} = buildWalkable(e);
+  const facing = e.facing || "norte";
+  const ang = (camAng!=null) ? camAng : (FACE_ANG[facing]||0);
+  const posX = (camX!=null) ? camX : e.pos.x+0.5;
+  const posY = (camY!=null) ? camY : e.pos.y+0.5;
+  const dirX = Math.cos(ang), dirY = Math.sin(ang);
+  const planeX = -dirY * 0.66, planeY = dirX * 0.66;
+  const escuro = !(e.player && e.player.luz > 0);
+  const FOG = escuro ? 4.8 : 9.5;
+
+  // céu + chão
+  const gCeu = ctx.createLinearGradient(0,0,0,H/2);
+  gCeu.addColorStop(0, escuro ? "#05070e" : "#101624");
+  gCeu.addColorStop(1, escuro ? "#0c1018" : "#2a3348");
+  ctx.fillStyle = gCeu; ctx.fillRect(0,0,W,H/2);
+  const gChao = ctx.createLinearGradient(0,H/2,0,H);
+  gChao.addColorStop(0, escuro ? "#141018" : "#322838");
+  gChao.addColorStop(1, escuro ? "#08060a" : "#18141c");
+  ctx.fillStyle = gChao; ctx.fillRect(0,H/2,W,H);
+  // grades no chão
+  ctx.strokeStyle = escuro ? "rgba(255,255,255,0.035)" : "rgba(200,210,230,0.07)";
+  for(let i=1;i<=8;i++){
+    const t=i/8; const y = H/2 + (H/2)*t*t;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  const zbuf = new Float32Array(W);
+  let distCentro = 0, hitCentro = "wall";
+
+  for(let col=0; col<W; col++){
+    const cam = 2*col/W - 1;
+    let rayX = dirX + planeX*cam;
+    let rayY = dirY + planeY*cam;
+    const rlen = Math.hypot(rayX, rayY) || 1;
+    rayX /= rlen; rayY /= rlen;
+
+    let mapX = Math.floor(posX), mapY = Math.floor(posY);
+    const deltaX = Math.abs(1 / (rayX || 1e-12));
+    const deltaY = Math.abs(1 / (rayY || 1e-12));
+    let stepX, stepY, sideDistX, sideDistY;
+    if(rayX < 0){ stepX=-1; sideDistX=(posX-mapX)*deltaX; }
+    else { stepX=1; sideDistX=(mapX+1.0-posX)*deltaX; }
+    if(rayY < 0){ stepY=-1; sideDistY=(posY-mapY)*deltaY; }
+    else { stepY=1; sideDistY=(mapY+1.0-posY)*deltaY; }
+
+    let hit=false, side=0, steps=0, kind="wall";
+    while(!hit && steps<48){
+      steps++;
+      if(sideDistX < sideDistY){ sideDistX += deltaX; mapX += stepX; side=0; }
+      else { sideDistY += deltaY; mapY += stepY; side=1; }
+      if(isBlocking(walk, frontier, mapX, mapY)){
+        hit=true;
+        kind = isPortal(frontier, mapX, mapY) ? "portal" : "wall";
+      }
+    }
+
+    let dist = side === 0 ? (sideDistX - deltaX) : (sideDistY - deltaY);
+    if(!isFinite(dist) || dist < 0.05) dist = 0.05;
+    dist = Math.max(0.38, dist);
+    zbuf[col] = dist;
+    if(col === (W>>1)){ distCentro = dist; hitCentro = kind; }
+
+    const lineH = Math.min(Math.floor(H * 0.76), Math.floor(H / dist));
+    const y0 = Math.floor((H - lineH) / 2);
+    const y1 = y0 + lineH;
+    const fog = Math.max(0, Math.min(1, dist / FOG));
+    const ambient = escuro ? 0.38 : 0.95;
+    const shade = (1 - fog*0.82) * ambient;
+
+      let wallX = side===0 ? (posY + dist*rayY) : (posX + dist*rayX);
+      wallX -= Math.floor(wallX);
+      
+      let texX = Math.floor(wallX * 64);
+      if(side===0 && rayX>0) texX = 64 - texX - 1;
+      if(side===1 && rayY<0) texX = 64 - texX - 1;
+      if(texX < 0) texX = 0; if(texX > 63) texX = 63;
+      
+      let textureToUse = wallTex;
+      const lastWX = side===0 ? mapX - stepX : mapX;
+      const lastWY = side===1 ? mapY - stepY : mapY;
+      const sal = rooms[lastWX+","+lastWY];
+      
+      if(texturesLoaded) {
+        textureToUse = TEXTURES.wall;
+        if(sal && sal.boss) textureToUse = TEXTURES.wallDark;
+        else if(escuro) textureToUse = TEXTURES.wallDark; 
+      }
+      
+      ctx.globalAlpha = shade * (side ? 0.75 : 1.0);
+      ctx.drawImage(textureToUse, texX, 0, 1, 64, col, y0, 1, Math.max(1, y1-y0));
+      ctx.globalAlpha = 1.0;
+      
+      // Tinturas
+      if(sal && (sal.boss || sal.entrada)){
+        ctx.fillStyle = sal.boss ? `rgba(180,40,30,${shade*0.4})` : `rgba(40,160,180,${shade*0.3})`;
+        ctx.fillRect(col, y0, 1, Math.max(1, y1-y0));
+      }
+      if(!escuro && lineH > 24){
+        // filete de topo (cornija)
+        ctx.fillStyle = `rgba(190,200,220,${0.1*(1-fog)})`;
+        ctx.fillRect(col, y0, 1, Math.max(1, (lineH*0.03)|0));
+      }
+  }
+
+  // sprites (billboards) — ASCII + clamp de escala (identidade legível, sem estourar FOV)
+  const sprites = [];
+  Object.values(rooms).forEach(r=>{
+    // Em combate o alvo é forçado à frente da câmera — não desenha o tile do monstro (evita fantasma/oclusão)
+    if(combate && (r.inimigo || r.boss)) return;
+    if(r.inimigo || r.boss){
+      const meta = entityMeta(r.inimigo_id, r.boss);
+      sprites.push({x:r.x+0.5, y:r.y+0.5, kind: meta.kind, glyph: meta, scale: r.boss?1.05:0.95});
+    }
+    if(r.altar)
+      sprites.push({x:r.x+0.5, y:r.y+0.5, kind:"altar", glyph: ENTITY_GLYPH.altar, scale:0.72});
+    if(r.cofre)
+      sprites.push({x:r.x+0.5, y:r.y+0.5, kind:"cofre",
+        glyph: r.cofre_trancado ? ENTITY_GLYPH.cofre_fechado : ENTITY_GLYPH.cofre, scale:0.6});
+    if(r.loot && !r.inimigo)
+      sprites.push({x:r.x+0.5, y:r.y+0.5, kind:"loot", glyph: ENTITY_GLYPH.loot, scale:0.5});
+    if(r.escada)
+      sprites.push({x:r.x+0.5, y:r.y+0.5, kind:"stairs", glyph: ENTITY_GLYPH.stairs, scale:0.65});
+    if(r.escada_sobe)
+      sprites.push({x:r.x+0.5, y:r.y+0.5, kind:"stairs_up", glyph: ENTITY_GLYPH.stairs_up, scale:0.65});
+  });
+  if(e.sala){
+    // props da sala atual (caso ainda não estejam no mapa visitado / flags)
+    if(e.sala.escada && !sprites.some(s=>s.kind==="stairs" && Math.hypot(s.x-(e.pos.x+0.5),s.y-(e.pos.y+0.5))<0.2))
+      sprites.push({x:e.pos.x+0.5+dirX*0.4, y:e.pos.y+0.5+dirY*0.4, kind:"stairs", glyph: ENTITY_GLYPH.stairs, scale:0.7});
+    if(e.sala.escada_sobe)
+      sprites.push({x:e.pos.x+0.5-dirX*0.25, y:e.pos.y+0.5-dirY*0.25, kind:"stairs_up", glyph: ENTITY_GLYPH.stairs_up, scale:0.65});
+    if(e.sala.altar && !e.sala.altar.usada)
+      sprites.push({x:e.pos.x+0.5+dirX*0.45, y:e.pos.y+0.5+dirY*0.45, kind:"altar", glyph: ENTITY_GLYPH.altar, scale:0.75});
+    if(e.sala.tablet && !e.sala.tablet.lido)
+      sprites.push({x:e.pos.x+0.5+planeX*0.35, y:e.pos.y+0.5+planeY*0.35, kind:"tablet", glyph: ENTITY_GLYPH.tablet, scale:0.48});
+    if(e.sala.cofre_trancado)
+      sprites.push({x:e.pos.x+0.5+dirX*0.35+planeX*0.2, y:e.pos.y+0.5+dirY*0.35+planeY*0.2,
+        kind:"cofre", glyph: ENTITY_GLYPH.cofre_fechado, scale:0.6});
+  }
+  if(combate){
+    // Near-plane clamp: sempre a ~1.55 unidades à frente (nunca colado na parede/câmera)
+    const dFront = 1.55;
+    const meta = entityMeta(combate.id, /golem|chefe|capitão|capitao|sacerdote/i.test(combate.nome||""));
+    sprites.push({
+      x: posX + dirX*dFront, y: posY + dirY*dFront,
+      kind: meta.kind, glyph: meta, scale: meta.kind==="boss" ? 1.15 : 1.05,
+      hp: combate.hp, maxHp: combate.hp_max, pulse: true, combat: true, label: combate.nome
+    });
+    (combate.extras||[]).forEach((ex, i)=>{
+      const side = (i%2===0?1:-1) * (0.55 + 0.15*Math.floor(i/2));
+      const deep = 1.7 + 0.15*i;
+      const em = entityMeta(ex.id, false);
+      sprites.push({
+        x: posX + dirX*deep + planeX*side*1.6,
+        y: posY + dirY*deep + planeY*side*1.6,
+        kind: "enemy", glyph: em, scale: 0.9,
+        hp: ex.hp, maxHp: ex.hp_max, pulse: false, combat: true, label: ex.nome
+      });
+    });
+  }
+  sprites.forEach(s=>{ const dx=s.x-posX, dy=s.y-posY; s.dist=dx*dx+dy*dy; });
+  sprites.sort((a,b)=>b.dist-a.dist);
+
+  const invDet = 1.0 / (planeX*dirY - dirX*planeY || 1e-12);
+  const MAX_SPR = H * 0.52;   // teto de escala — evita círculo/glyph engolir a tela
+  const MIN_COMBAT_H = H * 0.28;
+  sprites.forEach(s=>{
+    const spX = s.x-posX, spY = s.y-posY;
+    let trX = invDet * (dirY*spX - dirX*spY);
+    let trY = invDet * (-planeY*spX + planeX*spY);
+    // combate: se ficar atrás da near plane, força à frente
+    if(s.combat && trY < 0.85){
+      trY = 1.2;
+      trX = 0; // centraliza o alvo principal se pulse; extras já têm side offset no mundo
+      if(!s.pulse){
+        // re-projeta extras com offset lateral artificial
+        trX = (s.x - (posX+dirX*1.7)) * 0.8;
+      }
+    }
+    if(trY <= 0.25) return;
+    let scrX = Math.floor(W/2 * (1 + trX/trY));
+    let sprH = Math.abs(Math.floor(H / trY * (s.scale||1) * 0.75));
+    sprH = Math.min(MAX_SPR, sprH);
+    if(s.combat && s.pulse) sprH = Math.max(MIN_COMBAT_H, sprH);
+    let sprW = sprH;
+    sprW = Math.min(sprW, W * 0.55);
+
+    if(s.combat){
+      // mantém o alvo na tela
+      const half = sprW/2;
+      scrX = Math.max(half*0.6, Math.min(W - half*0.6, scrX));
+    } else {
+      if(scrX + sprW/2 < -10 || scrX - sprW/2 > W + 10) return;
+      // props laterais: se o billboard ficaria gigante (borda do FOV), corta
+      if(sprH > H*0.45 && Math.abs(scrX - W/2) > W*0.28) return;
+    }
+
+    const drawStartY = Math.floor(H/2 - sprH*0.42);
+    const mid = Math.max(0, Math.min(W-1, scrX|0));
+    if(!s.combat && trY >= zbuf[mid] - 0.08) return;
+    const fog = Math.max(0, Math.min(1, Math.sqrt(s.dist||trY*trY)/FOG));
+    const alpha = s.combat ? 1 : ((escuro?0.7:1) * (1-fog*0.75));
+    drawBillboard(ctx, scrX, drawStartY, sprW, sprH, s.kind, alpha,
+      !!s.pulse, s.hp, s.maxHp, s.pulse, s.glyph, s.label);
+  });
+
+  if(escuro){
+    const v = ctx.createRadialGradient(W/2,H/2,H*0.1, W/2,H/2,H*0.78);
+    v.addColorStop(0,"rgba(0,0,0,0)");
+    v.addColorStop(1,"rgba(0,0,0,0.7)");
+    ctx.fillStyle=v; ctx.fillRect(0,0,W,H);
+  }
+
+  $("#hudFacing").textContent = facing;
+  $("#hudLuz").textContent = escuro ? "ESCURIDÃO" : `luz ${e.player.luz||0}`;
+  $("#hudLuz").style.color = escuro ? "var(--warn)" : "var(--gold)";
+  let frente = "corredor";
+  const fdx = Math.round(Math.cos(FACE_ANG[facing]||0));
+  const fdy = Math.round(Math.sin(FACE_ANG[facing]||0));
+  // FACE_DIR is more reliable for discrete facing
+  const fd = FACE_DIR[facing] || {dx:0,dy:1};
+  const nx = e.pos.x + fd.dx, ny = e.pos.y + fd.dy;
+  if(combate) frente = combate.nome || "inimigo";
+  else if(isPortal(frontier, nx, ny)) frente = "passagem nas trevas";
+  else if(isBlocking(walk, frontier, nx, ny)) frente = "parede de pedra";
+  else if(e.sala && e.sala.altar && !e.sala.altar.usada) frente = e.sala.altar.nome||"altar";
+  else if(e.sala && e.sala.escada) frente = "escada para baixo";
+  else if(e.sala && e.sala.escada_sobe) frente = "escada para cima";
+  else {
+    const nr = rooms[nx+","+ny];
+    if(nr){
+      if(nr.boss) frente = "câmara do chefe";
+      else if(nr.inimigo) frente = "figura hostil";
+      else if(nr.loot) frente = "algo brilha";
+      else frente = "passagem aberta";
+    } else frente = "corredor";
+  }
+  $("#hudFrente").textContent = "à frente: " + frente;
+
+  if(DEBUG_VIEW){
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(8, 8, 240*dpr, 80*dpr);
+    ctx.fillStyle = "#8fe8f4";
+    ctx.font = `${12*dpr}px monospace`;
+    ctx.textAlign = "left";
+    ctx.fillText(`pos ${e.pos.x},${e.pos.y} face ${facing}`, 14*dpr, 24*dpr);
+    ctx.fillText(`dist ${distCentro.toFixed(2)} hit ${hitCentro} walk ${walk.size}`, 14*dpr, 40*dpr);
+    ctx.fillText(`saídas: ${(e.sala&&e.sala.exits||[]).join(",")}`, 14*dpr, 56*dpr);
+    ctx.fillText(`front ${nx},${ny}`, 14*dpr, 72*dpr);
+  }
+
+  if(!_desenharVistaInner._lastLog || Date.now()-_desenharVistaInner._lastLog > 2500){
+    _desenharVistaInner._lastLog = Date.now();
+    clog("debug", "frame vista", {
+      pos: e.pos, facing, distCentro: +distCentro.toFixed(3), hitCentro,
+      walk: walk.size, portals: frontier.size, escuro, frente
+    });
+  }
+}
+
+// Identidade visual ASCII (Brogue/NetHack): legível, sem PNGs, sem distorção de textura.
+const ENTITY_GLYPH = {
+  golem_barro:        {ch:"G", col:"#c9433a", kind:"boss",  name:"Golem"},
+  capitao_osso:       {ch:"C", col:"#d8d0c0", kind:"boss",  name:"Capitão"},
+  sacerdote_lodo:     {ch:"P", col:"#6a9a40", kind:"boss",  name:"Sacerdote"},
+  esqueleto_animado:  {ch:"S", col:"#e8e0d0", kind:"enemy", name:"Esqueleto"},
+  aranha_cripta:      {ch:"a", col:"#8fd45a", kind:"enemy", name:"Aranha"},
+  espectro_gelido:    {ch:"E", col:"#99ccff", kind:"enemy", name:"Espectro"},
+  sombra_vampirica:   {ch:"v", col:"#b060e0", kind:"enemy", name:"Sombra"},
+  zumbi:              {ch:"Z", col:"#7a9a60", kind:"enemy", name:"Zumbi"},
+  cultista:           {ch:"k", col:"#c07090", kind:"enemy", name:"Cultista"},
+  rato_gigante:       {ch:"r", col:"#a09070", kind:"enemy", name:"Rato"},
+  morcego:            {ch:"b", col:"#9080a0", kind:"enemy", name:"Morcego"},
+  enemy:              {ch:"!", col:"#e0913a", kind:"enemy", name:"Inimigo"},
+  boss:               {ch:"B", col:"#c9433a", kind:"boss",  name:"Chefe"},
+  altar:              {ch:"†", col:"#e8c95a", kind:"altar", name:"Altar"},
+  cofre:              {ch:"■", col:"#c0a060", kind:"cofre", name:"Cofre"},
+  cofre_fechado:      {ch:"□", col:"#d0b070", kind:"cofre", name:"Cofre"},
+  loot:               {ch:"$", col:"#e8c95a", kind:"loot",  name:"Tesouro"},
+  stairs:             {ch:"▼", col:"#8ab0c8", kind:"stairs", name:"Descer"},
+  stairs_up:          {ch:"▲", col:"#90c0a0", kind:"stairs_up", name:"Subir"},
+  tablet:             {ch:"≡", col:"#c0b090", kind:"tablet", name:"Tablet"},
+};
+
+function entityMeta(id, isBoss){
+  if(id && ENTITY_GLYPH[id]) return Object.assign({kind: ENTITY_GLYPH[id].kind}, ENTITY_GLYPH[id]);
+  if(isBoss) return Object.assign({}, ENTITY_GLYPH.boss);
+  return Object.assign({}, ENTITY_GLYPH.enemy);
+}
+
+function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pulseAtk, glyph, label){
+  if(w < 4 || h < 4) return;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0.15, Math.min(1, alpha));
+  const cx = x, cy = y + h*0.5;
+  const g = glyph || ENTITY_GLYPH[kind] || ENTITY_GLYPH.enemy;
+  const col = g.col || "#e0913a";
+  const t = pulseAtk ? Math.sin(Date.now()/160)*Math.min(6, w*0.03) : 0;
+
+  // sombra no chão (ancora o billboard no tile)
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath();
+  ctx.ellipse(cx + t*0.3, y + h*0.88, w*0.28, h*0.06, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // placa escura (contraste p/ o glifo)
+  const pw = w*0.55, ph = h*0.62;
+  ctx.fillStyle = "rgba(10,12,18,0.72)";
+  ctx.strokeStyle = col;
+  ctx.lineWidth = Math.max(1.5, w*0.02);
+  if(combatPulse){ ctx.shadowColor = col; ctx.shadowBlur = 18; }
+  roundRect(ctx, cx - pw/2 + t, cy - ph*0.55, pw, ph, Math.max(4, w*0.04));
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // glifo ASCII principal
+  const fontPx = Math.max(14, Math.min(h*0.42, w*0.42));
+  ctx.font = `bold ${fontPx}px "Cascadia Mono","Consolas","Courier New",monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = col;
+  ctx.shadowColor = col;
+  ctx.shadowBlur = combatPulse ? 14 : 6;
+  ctx.fillText(g.ch || "?", cx + t, cy - ph*0.08);
+  ctx.shadowBlur = 0;
+
+  // rótulo curto
+  const lab = label || g.name || "";
+  if(lab && h > 40){
+    ctx.font = `${Math.max(9, Math.min(13, h*0.08))}px system-ui`;
+    ctx.fillStyle = "rgba(231,233,239,0.9)";
+    ctx.fillText(lab.length>14 ? lab.slice(0,13)+"…" : lab, cx + t, cy + ph*0.32);
+  }
+
+  // Barra de HP
+  if(hp !== undefined && maxHp !== undefined && maxHp > 0){
+    const barW = Math.min(w * 0.7, 120), barH = Math.max(4, h * 0.045);
+    const barX = cx - barW/2, barY = y + h*0.02;
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(barX, barY, barW, barH);
+    const p = Math.max(0, Math.min(1, hp/maxHp));
+    ctx.fillStyle = (p>0.5) ? "#4CAF50" : (p>0.2) ? "#FFC107" : "#F44336";
+    ctx.fillRect(barX, barY, barW * p, barH);
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+  }
+  ctx.restore();
+}
+
+/** Vista 2D da Vila — sem raycaster (espaços abertos quebram o FOV da masmorra). */
+function desenharVila2D(ctx, W, H, dpr, e){
+  // céu crepuscular
+  const sky = ctx.createLinearGradient(0,0,0,H*0.55);
+  sky.addColorStop(0,"#1a2038");
+  sky.addColorStop(0.5,"#3a4568");
+  sky.addColorStop(1,"#6a7088");
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,H*0.55);
+  // sol pálido
+  ctx.fillStyle = "rgba(255,210,140,0.85)";
+  ctx.beginPath(); ctx.arc(W*0.78, H*0.16, H*0.045, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,220,160,0.15)";
+  ctx.beginPath(); ctx.arc(W*0.78, H*0.16, H*0.12, 0, Math.PI*2); ctx.fill();
+
+  // silhueta de casas
+  ctx.fillStyle = "#1e2433";
+  const roofs = [[0.02,0.28,0.18],[0.16,0.32,0.2],[0.55,0.3,0.22],[0.78,0.26,0.2]];
+  roofs.forEach(([x,y,w])=>{
+    ctx.fillRect(W*x, H*y, W*w, H*(0.55-y));
+    ctx.beginPath();
+    ctx.moveTo(W*x - 4, H*y);
+    ctx.lineTo(W*(x+w/2), H*(y-0.06));
+    ctx.lineTo(W*(x+w) + 4, H*y);
+    ctx.closePath(); ctx.fill();
+  });
+  // janelas acesas
+  ctx.fillStyle = "rgba(255,200,80,0.55)";
+  [[0.08,0.38],[0.22,0.4],[0.62,0.36],[0.86,0.34]].forEach(([x,y])=>{
+    ctx.fillRect(W*x, H*y, W*0.03, H*0.035);
+  });
+
+  // chão da praça
+  const floor = ctx.createLinearGradient(0,H*0.55,0,H);
+  floor.addColorStop(0,"#4a5348");
+  floor.addColorStop(0.4,"#3a4238");
+  floor.addColorStop(1,"#2a3028");
+  ctx.fillStyle = floor; ctx.fillRect(0,H*0.55,W,H*0.45);
+  // lajes
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  for(let i=0;i<8;i++){
+    const y = H*0.55 + (H*0.45)*(i/8)*(i/8+0.2);
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  // fonte central
+  const fx = W*0.5, fy = H*0.68;
+  ctx.fillStyle = "#5a6570";
+  ctx.beginPath(); ctx.ellipse(fx, fy, W*0.12, H*0.04, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = e.missao_cumprida ? "rgba(80,160,200,0.75)" : "rgba(40,50,55,0.8)";
+  ctx.beginPath(); ctx.ellipse(fx, fy, W*0.08, H*0.025, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#8a9098";
+  ctx.fillRect(fx-W*0.012, fy-H*0.12, W*0.024, H*0.12);
+  if(e.missao_cumprida){
+    ctx.fillStyle = "rgba(120,200,255,0.5)";
+    ctx.fillRect(fx-W*0.008, fy-H*0.14, W*0.016, H*0.04);
+  }
+
+  // NPCs ASCII
+  function drawNpc(px, py, ch, col, name){
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath(); ctx.ellipse(px, py+H*0.04, W*0.04, H*0.015, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(12,14,20,0.75)";
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    const bw = W*0.07, bh = H*0.14;
+    roundRect(ctx, px-bw/2, py-bh*0.7, bw, bh, 6); ctx.fill(); ctx.stroke();
+    ctx.font = `bold ${Math.max(18, H*0.07)}px "Cascadia Mono","Consolas",monospace`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.fillText(ch, px, py - bh*0.15);
+    ctx.shadowBlur = 0;
+    ctx.font = `${Math.max(11, H*0.035)}px system-ui`;
+    ctx.fillStyle = "#e7e9ef";
+    ctx.fillText(name, px, py + bh*0.45);
+  }
+  drawNpc(W*0.22, H*0.72, "M", "#e8c95a", "Mira");
+  drawNpc(W*0.78, H*0.72, "A", "#9ab0d0", "Ancião");
+
+  // placa de loja
+  ctx.fillStyle = "rgba(20,18,12,0.8)";
+  ctx.fillRect(W*0.14, H*0.58, W*0.16, H*0.06);
+  ctx.strokeStyle = "#e8c95a"; ctx.strokeRect(W*0.14, H*0.58, W*0.16, H*0.06);
+  ctx.fillStyle = "#e8c95a";
+  ctx.font = `${Math.max(11, H*0.032)}px system-ui`;
+  ctx.textAlign = "center";
+  ctx.fillText("⚒ LOJA", W*0.22, H*0.618);
+
+  // título
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#e7e9ef";
+  ctx.font = `bold ${Math.max(14, 15*dpr)}px system-ui`;
+  ctx.fillText("Pedralume — praça da fonte", 16*dpr, 26*dpr);
+  ctx.fillStyle = "#9aa0b4";
+  ctx.font = `${Math.max(11, 12*dpr)}px system-ui`;
+  ctx.fillText(e.missao_cumprida
+    ? "A água volta a correr. A Vila respira de novo."
+    : "A fonte ainda está seca. Fale com Mira ou o Ancião — ou desça às catacumbas.",
+    16*dpr, 46*dpr);
+  if(e.player){
+    ctx.fillStyle = "#e8c95a";
+    ctx.fillText(`Ouro: ${e.player.ouro||0}  ·  use o painel da loja →`, 16*dpr, 66*dpr);
+  }
+}
+
+function tileSala(ctx, x, y, T, r, ehJogador){
+  const h=T/2, X=x-h, Y=y-h;
+  // piso de pedra com leve relevo
+  ctx.save();
+  ctx.shadowColor="#0009"; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
+  const g=ctx.createLinearGradient(0,Y,0,Y+T);
+  g.addColorStop(0,"#4a5169"); g.addColorStop(1,"#353a4c");
+  ctx.fillStyle=g; roundRect(ctx,X,Y,T,T,9); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle="#ffffff18"; ctx.lineWidth=1; roundRect(ctx,X+1,Y+1,T-2,T-2,8); ctx.stroke();
+  // ícones ASCII no automapa
+  ctx.font = `${Math.max(10, T*0.42)}px "Cascadia Mono",Consolas,monospace`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if(r.boss || r.inimigo){
+    const g = entityMeta(r.inimigo_id, r.boss);
+    ctx.fillStyle = g.col; ctx.fillText(g.ch, x, y+1);
+  } else if(r.altar){ ctx.fillStyle="#e8c95a"; ctx.fillText("†", x, y+1); }
+  else if(r.cofre){ ctx.fillStyle="#c0a060"; ctx.fillText(r.cofre_trancado?"□":"■", x, y+1); }
+  else if(r.loot){ ctx.fillStyle="#e8c95a"; ctx.fillText("$", x, y+1); }
+  else if(r.escada){ ctx.fillStyle="#8ab0c8"; ctx.fillText("▼", x, y+1); }
+  else if(r.escada_sobe){ ctx.fillStyle="#90c0a0"; ctx.fillText("▲", x, y+1); }
+  // anel colorido por tipo (prioridade: chefe > inimigo > tesouro > entrada)
+  let anel=null, lw=2;
+  if(r.entrada) anel="#4bbf73";
+  if(r.loot)    anel="#e8c95a";
+  if(r.inimigo) anel="#e0913a";
+  if(r.boss){   anel="#d94b41"; lw=3; }
+  if(anel){ ctx.strokeStyle=anel; ctx.lineWidth=lw;
+            ctx.shadowColor=anel; ctx.shadowBlur=r.boss?12:6;
+            roundRect(ctx,X,Y,T,T,9); ctx.stroke(); ctx.shadowBlur=0; }
+  // entrada sem monstro/loot: porta
+  if(!ehJogador && r.entrada && !r.inimigo && !r.boss && !r.loot){
+    ctx.font=`${Math.max(10, T*0.4)}px system-ui`;
+    ctx.fillStyle="#4bbf73"; ctx.fillText("🚪", x, y+1);
+  }
+}
+
+function tileFronteira(ctx, x, y, T){
+  const h=T/2, X=x-h, Y=y-h;
+  ctx.fillStyle="#1b1e28"; roundRect(ctx,X,Y,T,T,9); ctx.fill();
+  ctx.setLineDash([4,5]); ctx.strokeStyle="#454b61"; ctx.lineWidth=1.5;
+  roundRect(ctx,X,Y,T,T,9); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle="#616785"; ctx.font="17px system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText("?", x, y+1);
+}
+
+function tokenJogador(ctx, x, y, facing){
+  const ang = {norte:0, leste:Math.PI/2, sul:Math.PI, oeste:-Math.PI/2}[facing] || 0;
+  ctx.save();
+  ctx.translate(x,y); ctx.rotate(ang);
+  ctx.shadowColor="#5fd0e0"; ctx.shadowBlur=16;
+  ctx.fillStyle="#8fe8f4"; ctx.strokeStyle="#0b2a30"; ctx.lineWidth=1.5;
+  ctx.beginPath();                                   // seta/quilha apontando p/ o facing
+  ctx.moveTo(0,-12); ctx.lineTo(9,10); ctx.lineTo(0,5); ctx.lineTo(-9,10); ctx.closePath();
+  ctx.fill(); ctx.shadowBlur=0; ctx.stroke();
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+// ---- input ----
+// ---- mini-tutorial ----
+function toggleAjuda(v){ $("#ovAjuda").classList.toggle("hidden", !v); }
+$("#btnAjuda").onclick = ()=>toggleAjuda(true);
+$("#btnFecharAjuda").onclick = ()=>toggleAjuda(false);
+
+let _savesMode = "save"; // "save" | "load"
+async function abrirSaves(mode){
+  _savesMode = mode;
+  $("#savesTit").textContent = mode==="save" ? "Salvar jogo" : "Carregar jogo";
+  $("#savesSub").textContent = mode==="save"
+    ? "Escolha um slot (1–3). Auto-save usa o último slot ativo."
+    : "Escolha um slot. O progresso atual em memória será substituído.";
+  const data = await apiGet("/api/saves").catch(()=>({slots:[]}));
+  if(data.precisa_login){ mostrarAuth(true); return; }
+  const box = $("#savesList"); box.innerHTML = "";
+  (data.slots||[]).forEach(s=>{
+    const b = document.createElement("button");
+    b.className = "classe";
+    const ativo = data.active===s.slot ? " · ativo" : "";
+    if(s.vazio){
+      b.innerHTML = `<b>Slot ${s.slot}${ativo}</b><span>vazio</span>`;
+      if(mode==="load") b.disabled = true;
+    } else {
+      const i = s.info||{};
+      b.innerHTML = `<b>Slot ${s.slot}${ativo}</b><span>${i.raca||""} ${i.classe||"?"} · Nv ${i.nivel||"?"} · `
+        + `Andar ${i.na_superficie?"Vila":(i.profundidade||"?")} · ${i.ouro||0} ouro`
+        + (i.atualizado?` · ${i.atualizado}`:"") + `</span>`;
+    }
+    b.onclick = async ()=>{
+      if(mode==="save"){
+        const r = await api("/api/save",{slot:s.slot});
+        log("💾 " + (r.msg || r.erro), r.erro ? "msg" : "narr");
+        $("#ovSaves").classList.add("hidden");
+      } else {
+        if(window._estado && !confirm(`Carregar slot ${s.slot}? Progresso não salvo será perdido.`)) return;
+        const r = await api("/api/load",{slot:s.slot});
+        if(r.erro){ log("💾 " + r.erro, "msg"); return; }
+        location.reload();
+      }
+    };
+    box.appendChild(b);
+  });
+  $("#ovSaves").classList.remove("hidden");
+}
+$("#btnSave").onclick = ()=>abrirSaves("save");
+$("#btnLoad").onclick = ()=>abrirSaves("load");
+$("#btnFechaSaves").onclick = ()=>$("#ovSaves").classList.add("hidden");
+$("#ovSaves").onclick = ev=>{ if(ev.target.id==="ovSaves") $("#ovSaves").classList.add("hidden"); };
+$("#ovAjuda").onclick = ev=>{ if(ev.target.id==="ovAjuda") toggleAjuda(false); };
+
+// Controles 1ª pessoa: frente/trás = relativo ao facing; laterais = virar no lugar.
+let _inputBusy = false;
+document.addEventListener("keydown", async ev=>{
+  if(ev.key==="Escape"){ toggleAjuda(false); $("#cmd").blur(); return; }
+  if(ev.key==="F3"){
+    ev.preventDefault();
+    DEBUG_VIEW = !DEBUG_VIEW;
+    clog("info", "DEBUG_VIEW="+DEBUG_VIEW);
+    if(window._estado) solicitarVista(window._estado, combatendo ? {nome:$("#cbNome").textContent} : null);
+    return;
+  }
+  if(document.activeElement===$("#cmd")) return;
+  if(ev.key==="?" || ev.key==="h" || ev.key==="H"){ toggleAjuda(true); return; }
+  if(combatendo || _inputBusy) return;
+  const k = ev.key;
+  let acao = null;
+  if(k==="ArrowUp" || k==="w" || k==="W") acao = {tipo:"mover", direcao:"frente"};
+  else if(k==="ArrowDown" || k==="s" || k==="S") acao = {tipo:"mover", direcao:"tras"};
+  else if(k==="ArrowLeft" || k==="a" || k==="A") acao = {tipo:"virar", direcao:"esquerda"};
+  else if(k==="ArrowRight" || k==="d" || k==="D") acao = {tipo:"virar", direcao:"direita"};
+  if(!acao) return;
+  ev.preventDefault();
+  _inputBusy = true;
+  try{
+    if(acao.tipo==="virar"){
+      clog("debug", "virar "+acao.direcao);
+      aplicar(await api("/api/virar",{direcao:acao.direcao}));
+    } else {
+      clog("debug", "mover "+acao.direcao);
+      aplicar(await api("/api/mover",{direcao:acao.direcao}));
+    }
+  } catch(err){
+    clog("error", "input falhou: "+(err&&err.message));
+  } finally { _inputBusy = false; }
+});
+window.addEventListener("resize", ()=>{
+  if(window._estado) solicitarVista(window._estado, combatendo ? {nome:$("#cbNome").textContent} : null);
+});
+$("#send").onclick = enviar;
+$("#cmd").addEventListener("keydown", ev=>{ if(ev.key==="Enter") enviar(); });
+async function enviar(){
+  const t=$("#cmd").value.trim(); if(!t) return;
+  $("#cmd").value=""; log("› "+t, "you");
+  aplicar(await api("/api/interagir",{texto:t}));
+}
+// ---- inventário (stats + equipado + clique-para-equipar/usar) ----
+function renderInv(p){
+  const box=$("#inv");
+  if(!p.inventario || !p.inventario.length){ box.innerHTML=`<span class="msg">vazio</span>`; return; }
+  const naVila = !!window._naSuperficie;
+  box.innerHTML = p.inventario.map(it=>{
+    const q = it.qtd>1 ? ` ×${it.qtd}` : "";
+    let acao = "";
+    if(it.identificavel) acao += `<button class="mini" data-identificar="${it.id}">Identificar</button>`;
+    if(it.equipada) acao += `<span class="eq">✓ equipada</span>`;
+    else if(it.equipavel) acao += `<button class="mini" data-equipar="${it.id}">Equipar</button>`;
+    else if(it.usavel) acao += `<button class="mini" data-usar="${it.id}">Usar</button>`;
+    if(naVila && !it.equipada && it.id!=="coracao_cristal")
+      acao += `<button class="mini" data-vender="${it.id}">Vender</button>`;
+    
+    let style = it.cor ? ` style="color: ${it.cor}; font-weight: bold;"` : "";
+    if(it.identificado===false) style = ` style="color: #9aa0b4; font-style: italic;"`;
+    return `<div class="itemrow ${it.equipada?'on':''}"><span class="iname"${style}>${it.nome}${q}</span>`
+         + `<span class="istat">${it.stat||''}</span>${acao}</div>`;
+  }).join("");
+}
+$("#inv").addEventListener("click", async ev=>{
+  const eq=ev.target.dataset.equipar, us=ev.target.dataset.usar;
+  const idf=ev.target.dataset.identificar, vd=ev.target.dataset.vender;
+  if(idf) aplicar(await api("/api/identificar",{alvo:idf}));
+  else if(eq) aplicar(await api("/api/equipar",{item:eq}));
+  else if(vd) aplicar(await api("/api/vender",{item:vd}));
+  else if(us) {
+    if(us==="pocao_cura") window._flashMagia = "rgba(75, 191, 115, 0.9)";
+    if(us==="pocao_mana") window._flashMagia = "rgba(100, 150, 255, 0.9)";
+    aplicar(await api("/api/usar",{item:us}));
+  }
+});
+$("#lojaItens").addEventListener("click", async ev=>{
+  const c = ev.target.dataset.comprar;
+  if(c) aplicar(await api("/api/comprar",{item:c}));
+});
+
+async function agirCombate(escolha){ 
+  const isAtaque = escolha === "atacar";
+  const isMagia = escolha.startsWith("magia:");
+  if(isAtaque || isMagia){
+    const vw = $("#viewWrap");
+    const dur = isMagia ? 600 : 400;  // magia = tremida mais longa
+    vw.classList.remove("shake");
+    void vw.offsetWidth;
+    vw.classList.add("shake");
+    setTimeout(() => vw.classList.remove("shake"), dur);
+    if(isAtaque) sfx("hit");  // som de impacto pesado só no ataque físico
+  }
+  if(escolha === "pocao") window._flashMagia = "rgba(75, 191, 115, 0.9)";
+  if(escolha === "pocao_mana") window._flashMagia = "rgba(100, 150, 255, 0.9)";
+  const resp = await api("/api/combate",{escolha});
+  // Se o combate acabou, parar heartbeat
+  if(!resp.combate) stopHeartbeat();
+  aplicar(resp); 
+}
+document.querySelectorAll("#combate > .cbtns button[data-e]").forEach(b=>{
+  b.onclick = ()=>agirCombate(b.dataset.e);
+});
+// Botões de conjurar FORA de combate: só magias de cura (efeito "cura"), direto por id.
+function montarBotoesConjurar(p){
+  const box=$("#conjurarbtns"); box.innerHTML="";
+  const curas=(p.magias||[]).filter(m=>m.efeito==="cura");
+  const ferido = p.hp < p.hp_max;
+  curas.forEach(m=>{
+    const b=document.createElement("button");
+    b.textContent = `✚ ${m.nome} (${m.custo}m)`;
+    b.disabled = p.mana < m.custo || !ferido;   // sem mana ou vida cheia -> nada a fazer
+    b.onclick = async ()=>{ window._flashMagia = COR_MAGIA[m.id] || "rgba(75,191,115,0.85)";
+                            aplicar(await api("/api/conjurar",{magia:m.id})); };
+    box.appendChild(b);
+  });
+}
+// Botões dinâmicos: magias conhecidas (desabilitadas sem mana) + poção de mana.
+function montarBotoesMagia(p){
+  const box=$("#magiabtns"); box.innerHTML="";
+  (p.magias||[]).forEach(m=>{
+    const b=document.createElement("button");
+    const sufixo = m.efeito==="buff" ? `, ${m.duracao}t` : (m.efeito==="dano"||m.efeito==="dreno" ? `, ${m.valor}` : "");
+    b.textContent = `${m.nome} (${m.custo}m${sufixo})`;
+    b.disabled = p.mana < m.custo;
+    b.onclick = ()=>{ window._flashMagia = COR_MAGIA[m.id] || "rgba(160,140,255,0.8)";
+                      agirCombate("magia:"+m.id); };   // contrato da engine: "magia:<id>"
+    box.appendChild(b);
+  });
+  if((p.inventario||[]).some(it=>it.id==="pocao_mana")){
+    const b=document.createElement("button");
+    b.textContent = "Poção Mana"; b.onclick = ()=>agirCombate("pocao_mana");
+    box.appendChild(b);
+  }
+}
+
+// ---- exploração (descansar / tablet / purificar) ----
+$("#btnDescansar").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/descansar",{})); };
+$("#btnTablet").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/ler_tablet",{})); };
+$("#btnPurificar").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/purificar",{})); };
+$("#btnEsconder").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/esconder",{})); };
+$("#btnDescer").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/descer",{})); }};
+$("#btnSubir").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/subir",{})); }};
+$("#btnGazua").onclick = async ()=>{
+  if(combatendo) return;
+  const alvo = (window._lastSala && window._lastSala.cofre_trancado) ? "cofre" : "armadilha";
+  aplicar(await api("/api/gazua",{alvo}));
+};
+
+// ---- start: classe -> raça ----
+Object.entries(CLASSES).forEach(([nome,desc])=>{
+  const b=document.createElement("button"); b.className="classe";
+  b.innerHTML=`<b>${nome}</b><span>${desc}</span>`;
+  b.onclick=()=>{
+    _escolhaClasse = nome;
+    $("#startTit").textContent = "Escolha sua raça";
+    $("#startSub").textContent = nome + " — cada raça altera atributos (engine aplica).";
+    $("#classes").style.display = "none";
+    $("#racas").style.display = "grid";
+  };
+  $("#classes").appendChild(b);
+});
+Object.entries(RACAS).forEach(([nome,desc])=>{
+  const b=document.createElement("button"); b.className="classe";
+  b.innerHTML=`<b>${nome}</b><span>${desc}</span>`;
+  b.onclick=async ()=>{
+    $("#ovStart").classList.add("hidden");
+    aplicar(await api("/api/novo",{classe:_escolhaClasse, raca:nome}));
+  };
+  $("#racas").appendChild(b);
+});
+
+// ---- auth UI ----
+let _authTab = "login";
+function setAuthTab(tab){
+  _authTab = tab;
+  $("#authFormLogin").style.display = tab==="login" ? "" : "none";
+  $("#authFormReg").style.display = tab==="reg" ? "" : "none";
+  $("#tabLogin").style.borderColor = tab==="login" ? "var(--accent)" : "var(--line)";
+  $("#tabReg").style.borderColor = tab==="reg" ? "var(--accent)" : "var(--line)";
+  $("#authErro").textContent = "";
+}
+$("#tabLogin").onclick = ()=>setAuthTab("login");
+$("#tabReg").onclick = ()=>setAuthTab("reg");
+async function doLogin(){
+  $("#authErro").textContent = "";
+  const j = await api("/api/login", {username:$("#loginUser").value, password:$("#loginPass").value});
+  if(j.erro){ $("#authErro").textContent = j.erro; return; }
+  setUserUI(j.user);
+  mostrarAuth(false);
+  await bootGame();
+}
+async function doReg(){
+  $("#authErro").textContent = "";
+  const j = await api("/api/register", {
+    username:$("#regUser").value, password:$("#regPass").value, invite_key:$("#regKey").value
+  });
+  if(j.erro){ $("#authErro").textContent = j.erro; return; }
+  // login automático após cadastro
+  $("#loginUser").value = $("#regUser").value;
+  $("#loginPass").value = $("#regPass").value;
+  setAuthTab("login");
+  await doLogin();
+}
+$("#btnDoLogin").onclick = doLogin;
+$("#btnDoReg").onclick = doReg;
+$("#loginPass").addEventListener("keydown", ev=>{ if(ev.key==="Enter") doLogin(); });
+$("#regKey").addEventListener("keydown", ev=>{ if(ev.key==="Enter") doReg(); });
+$("#btnLogout").onclick = async ()=>{
+  await api("/api/logout", {});
+  setUserUI(null);
+  window._estado = null;
+  $("#ovStart").classList.add("hidden");
+  mostrarAuth(true);
+  log("Sessão encerrada.", "msg");
+};
+
+async function bootGame(){
+  try {
+    const r = await apiGet("/api/estado");
+    if(r.precisa_login){ mostrarAuth(true); return; }
+    if(r.user) setUserUI(r.user);
+    if(r.precisa_novo) {
+      // reset seletor de classe
+      _escolhaClasse = null;
+      $("#classes").style.display = "grid";
+      $("#racas").style.display = "none";
+      $("#startTit").textContent = "Escolha sua classe";
+      $("#startSub").textContent = "A fonte da Vila secou. Desça às catacumbas e restaure a água.";
+      $("#ovStart").classList.remove("hidden");
+    } else {
+      $("#ovStart").classList.add("hidden");
+      aplicar(r);
+    }
+  } catch(e) {
+    console.error("Erro ao recuperar jogo:", e);
+    $("#ovStart").classList.remove("hidden");
+  }
+}
+
+(async function init() {
+  try {
+    const st = await apiGet("/api/auth/status");
+    if(st && st.mensagem) $("#authHint").textContent = st.mensagem;
+    if(st && !st.cadastro_disponivel){
+      $("#tabReg").disabled = true;
+      $("#tabReg").title = "Cadastro desativado no servidor (sem chave de convite)";
+    }
+    const me = await apiGet("/api/me");
+    if(me && me.ok && me.user){
+      setUserUI(me.user);
+      mostrarAuth(false);
+      await bootGame();
+    } else {
+      mostrarAuth(true);
+      $("#ovStart").classList.add("hidden");
+    }
+  } catch(e) {
+    console.error("Init auth falhou:", e);
+    mostrarAuth(true);
+  }
+})();
+</script>
+</body>
+</html>

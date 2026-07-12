@@ -1,0 +1,28 @@
+# Exemplo de deploy local/VPS com Docker Compose
+# 1. Copie invite_key.txt.example -> invite_key.txt (ou use REGISTER_KEY)
+# 2. docker compose up -d --build
+# 3. Abra http://SEU_IP:8000
+
+services:
+  catacumbas:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      # Chave que você dá aos testadores para CRIAR conta (obrigatória p/ cadastro)
+      REGISTER_KEY: "${REGISTER_KEY:-mude-esta-chave}"
+      # Opcional: narração DeepSeek
+      # DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY}"
+      # SESSION_SECURE: "1"   # se usar HTTPS na frente (Caddy/nginx)
+    volumes:
+      - catacumbas_data:/app/data
+      - catacumbas_saves:/app/saves
+      - catacumbas_logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  catacumbas_data:
+  catacumbas_saves:
+  catacumbas_logs:

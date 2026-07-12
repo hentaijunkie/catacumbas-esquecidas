@@ -1,0 +1,38 @@
+# Secrets
+key.txt
+.deepseek_key
+invite_key.txt
+register_key.txt
+.env
+.env.*
+
+# Runtime logs
+logs/
+*.log
+
+# Contas e saves multi-jogador
+data/
+saves/
+savegame.json
+savegame.json.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+
+# Cache
+.cache/

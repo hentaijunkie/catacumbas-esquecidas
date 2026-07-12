@@ -1,0 +1,6 @@
+# Copie este arquivo para invite_key.txt e coloque UMA linha com a chave secreta.
+# Quem tiver essa chave poderá criar conta no jogo.
+# Alternativa: variável de ambiente REGISTER_KEY ou INVITE_KEY.
+#
+# Exemplo (troque por algo forte):
+troque-por-uma-chave-forte-2026
