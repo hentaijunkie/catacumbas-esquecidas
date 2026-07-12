@@ -62,6 +62,11 @@ MAX_CLIENT_ENTRIES = 50      # /api/log é público — sem cap, qualquer um enc
 MAX_CLIENT_MSG = 2000
 
 
+def _uma_linha(msg):
+    """Quebra de linha em msg do cliente forjaria entradas falsas no log."""
+    return str(msg).replace("\r", " ").replace("\n", " ⏎ ")[:MAX_CLIENT_MSG]
+
+
 def log_client(entries):
     """
     Grava entradas vindas do frontend.
@@ -74,7 +79,7 @@ def log_client(entries):
         entries = [entries]
     for e in entries[:MAX_CLIENT_ENTRIES]:
         if isinstance(e, str):
-            log.info(e[:MAX_CLIENT_MSG])
+            log.info(_uma_linha(e))
             continue
         level = (e.get("level") or "info").lower()
         msg = e.get("msg") or e.get("message") or str(e)
@@ -85,7 +90,7 @@ def log_client(entries):
             except Exception:
                 msg = f"{msg} | {data!r}"
         fn = getattr(log, level if level in ("debug", "info", "warning", "error") else "info")
-        fn(msg[:MAX_CLIENT_MSG])
+        fn(_uma_linha(msg))
 
 
 def log_estado_resumo(state, prefix="estado"):

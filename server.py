@@ -328,7 +328,7 @@ def narrar_sala(state, prefixo=""):
                   f"Fatos reais (não invente além disto): {eng.ficha_sala(sala)}. "
                   f"Descreva em 1 a 2 frases APENAS o que esses fatos permitem.")
         try:
-            return eng.obter_acao_do_llm(state, evento)["texto_narrativo"]
+            return eng.obter_acao_do_llm(state, evento, confiavel=True)["texto_narrativo"]
         except Exception:
             pass  # cai no template offline se a API falhar
     return _narrar_template(state, prefixo)
@@ -588,10 +588,13 @@ def acao_interagir(dados):
     if GAME["combate"]:
         return resposta(mensagens=["Você está em combate — use os botões."])
     state = GAME["state"]
-    texto = (dados.get("texto") or "").strip()
+    # anti-injeção: o texto do jogador é DADO — nunca canal [SISTEMA]/role/etc.
+    texto = eng.sanitizar_texto_jogador(dados.get("texto"))
     if not texto:
         return resposta()
     state["historico"].append(f"jogador: {texto}")
+    if len(state["historico"]) > 60:      # só os últimos 6 entram no prompt
+        del state["historico"][:-60]
 
     if ONLINE:
         d = eng.obter_acao_do_llm(state, texto)

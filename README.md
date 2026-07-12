@@ -79,6 +79,7 @@ Sem chave: modo offline (template). Com chave:
 - **Rate-limit por IP** no login/registro (8 falhas em 10 min → HTTP 429) — protege senha e chave de convite de força bruta (funciona atrás de proxy via `X-Forwarded-For`).
 - **Lock por sessão**: a chamada lenta do LLM de um jogador não trava os outros.
 - Rota `/assets/` validada contra **path traversal**; corpo de POST limitado a 128KB; `/api/log` com cap de volume.
+- **Anti-jailbreak / prompt injection do narrador:** o texto livre do jogador é sanitizado (marcadores de canal, roles e cercas de código removidos) e emoldurado como *dado, não instrução*; leis idioma-agnósticas + guarda de saída rejeitam quebra de personagem e vazamento de regras. Como o LLM nunca controla os números, um jailbreak não vira ouro/HP/itens. Detalhes em [`LLM_RULEBOOK.md`](LLM_RULEBOOK.md).
 
 ### Deploy
 
