@@ -796,7 +796,7 @@ function desenharMapa(e){
   }));
 
   fr.forEach(r=>tileFronteira(ctx, cx(r.x), cy(r.y), TILE));
-  rooms.forEach(r=>tileSala(ctx, cx(r.x), cy(r.y), TILE, r, r.x===pos.x && r.y===pos.y));
+  rooms.forEach(r=>tileSala(ctx, cx(r.x), cy(r.y), TILE, r, r.x===pos.x && r.y===pos.y, e.profundidade));
   tokenJogador(ctx, cx(pos.x), cy(pos.y), e.facing);
 
   // rola o contêiner p/ manter o token do jogador sempre à vista
@@ -1185,7 +1185,7 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
     // Em combate o alvo é forçado à frente da câmera — não desenha o tile do monstro (evita fantasma/oclusão)
     if(combate && (r.inimigo || r.boss)) return;
     if(r.inimigo || r.boss){
-      const meta = entityMeta(r.inimigo_id, r.boss);
+      const meta = entityMeta(r.inimigo_id, r.boss, e.profundidade);
       sprites.push({x:r.x+0.5, y:r.y+0.5, kind: meta.kind, glyph: meta, scale: r.boss?1.05:0.95});
     }
     if(r.altar)
@@ -1217,7 +1217,7 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
   if(combate){
     // Near-plane clamp: sempre a ~1.55 unidades à frente (nunca colado na parede/câmera)
     const dFront = 1.55;
-    const meta = entityMeta(combate.id, /golem|chefe|capitão|capitao|sacerdote/i.test(combate.nome||""));
+    const meta = entityMeta(combate.id, /golem|chefe|capitão|capitao|sacerdote/i.test(combate.nome||""), e.profundidade);
     sprites.push({
       x: posX + dirX*dFront, y: posY + dirY*dFront,
       kind: meta.kind, glyph: meta, scale: meta.kind==="boss" ? 1.15 : 1.05,
@@ -1226,7 +1226,7 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
     (combate.extras||[]).forEach((ex, i)=>{
       const side = (i%2===0?1:-1) * (0.55 + 0.15*Math.floor(i/2));
       const deep = 1.7 + 0.15*i;
-      const em = entityMeta(ex.id, false);
+      const em = entityMeta(ex.id, false, e.profundidade);
       sprites.push({
         x: posX + dirX*deep + planeX*side*1.6,
         y: posY + dirY*deep + planeY*side*1.6,
@@ -1235,7 +1235,7 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
       });
     });
   }
-  sprites.forEach(s=>{ const dx=s.x-posX, dy=s.y-posY; s.dist=dx*dx+dy*dy; });
+  sprites.forEach(s=>{ const dx=s.x-posX, dy=s.y-posY; s.dist=(dx*dx+dy*dy) - (s.combat ? 100 : 0); });
   sprites.sort((a,b)=>b.dist-a.dist);
 
   const invDet = 1.0 / (planeX*dirY - dirX*planeY || 1e-12);
@@ -1356,9 +1356,15 @@ const ENTITY_GLYPH = {
   tablet:             {ch:"≡", col:"#c0b090", kind:"tablet", name:"Tablet"},
 };
 
-function entityMeta(id, isBoss){
+function entityMeta(id, isBoss, prof = 1){
   if(id && ENTITY_GLYPH[id]) return Object.assign({kind: ENTITY_GLYPH[id].kind, spriteId: id}, ENTITY_GLYPH[id]);
-  if(isBoss) return Object.assign({spriteId: "boss"}, ENTITY_GLYPH.boss);
+  if(isBoss) {
+    let bId = "boss";
+    if(prof === 1) bId = "golem_barro";
+    else if(prof === 2) bId = "capitao_osso";
+    else if(prof >= 3) bId = "sacerdote_lodo";
+    return Object.assign({spriteId: bId}, ENTITY_GLYPH[bId] || ENTITY_GLYPH.boss);
+  }
   return Object.assign({spriteId: "enemy"}, ENTITY_GLYPH.enemy);
 }
 
@@ -1619,7 +1625,7 @@ function desenharVila2D(ctx, W, H, dpr, e){
   }
 }
 
-function tileSala(ctx, x, y, T, r, ehJogador){
+function tileSala(ctx, x, y, T, r, ehJogador, prof = 1){
   const h=T/2, X=x-h, Y=y-h;
   // piso de pedra com leve relevo
   ctx.save();
@@ -1633,7 +1639,7 @@ function tileSala(ctx, x, y, T, r, ehJogador){
   ctx.font = `${Math.max(10, T*0.42)}px "Cascadia Mono",Consolas,monospace`;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   if(r.boss || r.inimigo){
-    const g = entityMeta(r.inimigo_id, r.boss);
+    const g = entityMeta(r.inimigo_id, r.boss, prof);
     ctx.fillStyle = g.col; ctx.fillText(g.ch, x, y+1);
   } else if(r.altar){ ctx.fillStyle="#e8c95a"; ctx.fillText("†", x, y+1); }
   else if(r.cofre){ ctx.fillStyle="#c0a060"; ctx.fillText(r.cofre_trancado?"□":"■", x, y+1); }
