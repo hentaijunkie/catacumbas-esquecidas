@@ -678,6 +678,8 @@ function aplicar(resp){
       }).join("") || `<span class="msg">sem estoque</span>`;
     } else { lb.style.display = "none"; }
     window._naSuperficie = !!e.na_superficie;
+    // NPC da sala atual (loja.npcs traz só o NPC do tile) — habilita o Consertar na forja
+    window._npcLocal = (loja && loja.npcs && loja.npcs[0]) || null;
     renderInv(p);
     const prev = window._estado;
     window._estado = e;
@@ -1705,6 +1707,9 @@ function renderInv(p){
     else if(it.usavel) acao += `<button class="mini" data-usar="${it.id}">Usar</button>`;
     if(naVila && !it.equipada && it.id!=="coracao_cristal")
       acao += `<button class="mini" data-vender="${it.id}">Vender</button>`;
+    const naForja = naVila && window._npcLocal && window._npcLocal.id === "ferreiro";
+    if(naForja && it.durabilidade != null && it.durabilidade < it.durabilidade_max)
+      acao += `<button class="mini" data-consertar="${it.id}">Consertar (10🪙)</button>`;
     
     let style = it.cor ? ` style="color: ${it.cor}; font-weight: bold;"` : "";
     if(it.identificado===false) style = ` style="color: #9aa0b4; font-style: italic;"`;
@@ -1715,7 +1720,9 @@ function renderInv(p){
 $("#inv").addEventListener("click", async ev=>{
   const eq=ev.target.dataset.equipar, us=ev.target.dataset.usar;
   const idf=ev.target.dataset.identificar, vd=ev.target.dataset.vender;
+  const cons=ev.target.dataset.consertar;
   if(idf) aplicar(await api("/api/identificar",{alvo:idf}));
+  else if(cons) aplicar(await api("/api/consertar",{item:cons}));
   else if(eq) aplicar(await api("/api/equipar",{item:eq}));
   else if(vd) aplicar(await api("/api/vender",{item:vd}));
   else if(us) {
@@ -1891,58 +1898,8 @@ async function bootGame(){
   }
 }
 
-// ---- interações no canvas da vila ----
-const cvs = $("#view");
-window._vilaHitboxes = [];
-window._vilaHoverTooltip = null;
-window._vilaMouseX = 0;
-window._vilaMouseY = 0;
-
-function checkVilaHitbox(ev) {
-  if (!window._naSuperficie || !window._vilaHitboxes) return null;
-  const rect = cvs.getBoundingClientRect();
-  const scaleX = cvs.width / rect.width;
-  const scaleY = cvs.height / rect.height;
-  const x = (ev.clientX - rect.left) * scaleX;
-  const y = (ev.clientY - rect.top) * scaleY;
-  
-  window._vilaMouseX = x;
-  window._vilaMouseY = y;
-  
-  for (const box of window._vilaHitboxes) {
-    if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) {
-      return box;
-    }
-  }
-  return null;
-}
-
-cvs.addEventListener("mousemove", (ev) => {
-  if (!window._naSuperficie) return;
-  const hit = checkVilaHitbox(ev);
-  if (hit) {
-    cvs.style.cursor = "pointer";
-    if (window._vilaHoverTooltip !== hit.tooltip) {
-      window._vilaHoverTooltip = hit.tooltip;
-      if (window._estado) solicitarVista(window._estado, null);
-    }
-  } else {
-    cvs.style.cursor = "default";
-    if (window._vilaHoverTooltip) {
-      window._vilaHoverTooltip = null;
-      if (window._estado) solicitarVista(window._estado, null);
-    }
-  }
-});
-
-cvs.addEventListener("click", async (ev) => {
-  if (!window._naSuperficie) return;
-  const hit = checkVilaHitbox(ev);
-  if (hit) {
-    log(`› /falar ${hit.id}`, "you");
-    aplicar(await api("/api/interagir", { texto: `/falar ${hit.id}` }));
-  }
-});
+// (o point-and-click da vila 2D morreu na v2.7: a vila agora é navegável em 1ª
+//  pessoa e os NPCs viram botões "Falar" no painel da loja da sala atual)
 
 (async function init() {
   try {

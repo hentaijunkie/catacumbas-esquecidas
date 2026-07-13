@@ -478,9 +478,31 @@ def classificar_offline(texto, state):
         it = _achar_item(t, inv, state)
         if it:
             return {"tipo": "vender", "item": it}
-    if any(k in t for k in ("falar", "convers", "mira", "anci", " mercador", "loja")):
+    if any(k in t for k in ("consert", "repar", "restaur")):
+        # candidatos: inventário + equipados; se nada casar, o único item danificado
+        candidatos = list(dict.fromkeys(
+            inv + [i for i in (state["player"].get("arma"), state["player"].get("armadura")) if i]))
+        it = _achar_item(t, candidatos, state)
+        if not it:
+            danificados = [i for i in candidatos
+                           if (lambda d: d and "durabilidade" in d
+                               and d["durabilidade"] < d.get("durabilidade_max", 30))
+                              (eng.get_item_data(i, state))]
+            if len(danificados) == 1:
+                it = danificados[0]
+        if it:
+            return {"tipo": "consertar", "item": it}
+    if any(k in t for k in ("falar", "convers", "mira", "anci", " mercador", "loja",
+                            "ferreiro", "kael", "forja", "curandeiro", "silas", "monge",
+                            "bruxa", "morrigan", "ocultista")):
         if "anci" in t or "brum" in t:
             return {"tipo": "falar", "alvo": "anciao"}
+        if any(k in t for k in ("ferreiro", "kael", "forja")):
+            return {"tipo": "falar", "alvo": "ferreiro"}
+        if any(k in t for k in ("curandeiro", "silas", "monge")):
+            return {"tipo": "falar", "alvo": "curandeiro"}
+        if any(k in t for k in ("bruxa", "morrigan", "ocultista")):
+            return {"tipo": "falar", "alvo": "bruxa"}
         return {"tipo": "falar", "alvo": "mira"}
     if any(k in t for k in ("usa", "beb", "tom", "cur", "mana")):
         it = _achar_item(t, inv, state)
@@ -937,6 +959,14 @@ def acao_vender(dados):
     return resposta(mensagens=linhas)
 
 
+def acao_consertar(dados):
+    if GAME["combate"]:
+        return resposta(mensagens=["Termine o combate primeiro."])
+    item = dados.get("item")
+    _, linhas = executar_capturando(GAME["state"], {"tipo": "consertar", "item": item})
+    return resposta(mensagens=linhas)
+
+
 def acao_falar(dados):
     if GAME["combate"]:
         return resposta(mensagens=["Termine o combate primeiro."])
@@ -1036,6 +1066,7 @@ ROTAS = {
     "/api/saves": acao_saves,
     "/api/comprar": acao_comprar,
     "/api/vender": acao_vender,
+    "/api/consertar": acao_consertar,
     "/api/falar": acao_falar,
     "/api/log": acao_client_log,
     "/api/feedback": acao_feedback,

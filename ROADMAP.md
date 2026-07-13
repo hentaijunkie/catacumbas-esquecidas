@@ -292,7 +292,7 @@ sem sair do personagem, sem vazar prompt e sem mexer nos números (ouro seguiu 2
   nenhuma ação fora do whitelist executa. Rulebook atualizado (v2.3, leis 12–13 + seção de
   defesa em camadas).
 
-### Observabilidade das jogadas online + feedback dos jogadores (v2.5) — **atual**
+### Observabilidade das jogadas online + feedback dos jogadores (v2.5)
 Para otimizar o jogo com dados reais de uso, verificado no `--demo` e end-to-end no browser
 em modo online:
 - **Log de turno do LLM (`logs/llm.log`):** antes, as jogadas online não deixavam rastro do
@@ -348,7 +348,52 @@ em modo online:
   - Equipamentos gerados pelo LLM ganharam persistência de "saúde estrutural" (`durabilidade_max`). 
   - A inicialização do item é tardia (lazy loading) e ativada somente ao sofrer ou causar dano no combate.
   - As armas sofrem dano ao atacar inimigos e armaduras ao receber dano - ambas podem ser completamente destruídas. 
-- **O Ferreiro Kaelen:** Um novo handler `/api` de consertar itens foi criado e linkado a **Kaelen**. Através da interface via LLM (`{"tipo": "consertar", "item": "<id>"}`), o jogador pode restaurar sua lâmina no NPC, pagando 10 moedas de ouro para Pedralume.
+- **O Ferreiro Kaelen:** Ação `{"tipo": "consertar", "item": "<id>"}` na whitelist, executada na forja de Kael por 10 moedas de ouro. (O endpoint `/api/consertar` prometido aqui só chegou de fato na v2.7.1.)
+
+### Hotfixes de revisão da v2.7.0 (v2.7.1) — **atual**
+Revisão completa pós-v2.7.0; bugs reproduzidos em código antes do fix e todos cobertos por
+testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
+- **CRÍTICO — andar 1 perdido ao visitar a Vila:** novo jogo → subir → descer devolvia o
+  MAPA da Vila como masmorra (o `subir_escada` não guardava o andar 1 e o fallback do
+  `descer_escada` devolvia `state["masmorra"]`, que já era a vila). Agora subir preserva
+  `andares_gerados["1"]` e descer o restaura (com regeneração determinística pela seed
+  como fallback de save antigo — nunca a vila).
+- **CRÍTICO — vila era o dict global compartilhado:** `state["masmorra"] = MAPA_VILA`
+  apontava para o template do módulo; toda sessão do servidor multi-jogador mutava o
+  mesmo objeto. Agora `vila_nova()` entrega um `deepcopy` por sessão e o `--demo` verifica
+  que andar pela vila não muta o template.
+- **CRÍTICO — mapa da vila desconexo/crashava:** a forja não tinha volta para a praça e a
+  única saída dela apontava para uma sala inexistente (`KeyError` → HTTP 500; o jogador
+  que visitava o ferreiro ficava PRESO). A entrada tinha saída "sul" para o vazio e as
+  "ruas" eram inalcançáveis. As saídas agora são derivadas da adjacência (simétricas por
+  construção) e o `--demo` valida ida-e-volta de toda saída + alcançabilidade por BFS.
+- **Vila renderizava como masmorra:** o cliente checa `e.sala.ceu_aberto`, mas a
+  serialização top-level de `sala` não enviava o campo (só as rooms do mapa) — o céu e as
+  casas nunca desenhavam. `sala` agora envia `ceu_aberto`, `npc` (id/nome/papel) e `nome`.
+- **Descer só pela entrada:** dava para "descer às catacumbas" de dentro da loja da Mira;
+  agora a superfície exige o tile da escada.
+- **Durabilidade visível e completa:** o inventário mostra `atual/max` (o item não quebra
+  mais "do nada"); itens afixados/procedurais também desgastam (o lazy-init cobria só o
+  catálogo base — uma Lâmina Rúnica das Chamas era indestrutível); ids de instância agora
+  são determinísticos (contador `seq_itens`, sem `random`), preservando a
+  reprodutibilidade por seed do loot.
+- **Conserto acessível:** endpoint `POST /api/consertar` (prometido na v2.7.0, não
+  existia), botão "Consertar (10🪙)" no inventário quando na forja com item danificado, e
+  classificador offline entende "consertar/reparar/restaurar" (com fallback para o único
+  item danificado). `falar` offline reconhece os 5 NPCs (Mira, Ancião, Kael, Silas,
+  Morrigan); system prompt idem.
+- **Nascente Envenenada em câmara própria:** a sidequest tinha sido implementada somando
+  2 cultistas à SALA DO GOLEM (o chefe final virara horda, divergindo do balance_sim e da
+  descrição da v2.7.0). O Golem volta a lutar solo; a Nascente é uma câmara nomeada no
+  andar 1 com duo de cultistas e loot próprio (poções).
+- **Teto de nível coerente:** NIVEL_MAX 15 era inatingível (soft-cap zera XP com
+  diff ≥ 3 e o maior mlvl é 7 — progressão travava no 10). Tabela cortada em 10.
+- **Point-and-click da vila removido de vez:** o código morto (`_vilaHitboxes` nunca mais
+  era populado desde que a vista 2D saiu) foi retirado; o NPC do tile vira botão "Falar".
+- **Higiene:** `script.py` (script descartável de edição commitado por engano) removido;
+  snapshot de `pilha_andares` volta a copiar `pos` (anti-aliasing defensivo); teste da
+  vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
+  corrompido e o assert casava com a mensagem de erro).
 
 
 ---
@@ -415,4 +460,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.7.0 - Expansão de Sidequests e sistema de degradação de itens (Durabilidade).*
+*Última atualização: v2.7.1 - Hotfixes da revisão pós-v2.7.0 (vila conexa e por sessão, andar 1 preservado, durabilidade visível/completa, /api/consertar, Golem solo, teto de nível 10).*

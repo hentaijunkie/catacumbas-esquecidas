@@ -29,6 +29,7 @@ Uso:
 import os
 import re
 import sys
+import copy
 import json
 import zlib
 import random
@@ -255,39 +256,46 @@ NPCS_VILA = {
     },
 }
 
+# TEMPLATE da vila — NUNCA usar direto como state["masmorra"] (é um dict de módulo,
+# compartilhado por todas as sessões do servidor). Use vila_nova() para obter uma cópia.
+# As saídas são derivadas da adjacência (como em gerar_masmorra): simétricas por
+# construção e sem portas para salas inexistentes.
 MAPA_VILA = {
-    (0, 0): {"tipo": "praca", "exits": {"norte", "sul", "leste", "oeste"}, "visitada": True, "ceu_aberto": True},
-    (0, -1): {"tipo": "entrada_catacumbas", "exits": {"sul", "norte"}, "visitada": True, "escada": True, "ceu_aberto": True}, 
-    (0, 1): {"tipo": "forja", "exits": {"norte"}, "visitada": True, "npc": "ferreiro", "ceu_aberto": True},
-    (1, 0): {"tipo": "loja_alquimia", "exits": {"oeste"}, "visitada": True, "npc": "mira", "ceu_aberto": True},
-    (-1, 0): {"tipo": "tenda_sabio", "exits": {"leste"}, "visitada": True, "npc": "anciao", "ceu_aberto": True},
-    (1, -1): {"tipo": "tenda_cura", "exits": {"oeste"}, "visitada": True, "npc": "curandeiro", "ceu_aberto": True},
-    (-1, 1): {"tipo": "cabana_bruxa", "exits": {"leste", "sul"}, "visitada": True, "npc": "bruxa", "ceu_aberto": True},
-    (-2, 1): {"tipo": "ruas", "exits": {"leste"}, "visitada": True, "ceu_aberto": True},
+    (0, 0):  {"tipo": "praca"},
+    (0, -1): {"tipo": "entrada_catacumbas", "escada": True},
+    (0, 1):  {"tipo": "forja", "npc": "ferreiro"},
+    (1, 0):  {"tipo": "loja_alquimia", "npc": "mira"},
+    (-1, 0): {"tipo": "tenda_sabio", "npc": "anciao"},
+    (1, -1): {"tipo": "tenda_cura", "npc": "curandeiro"},
+    (-1, 1): {"tipo": "cabana_bruxa", "npc": "bruxa"},
+    (-2, 1): {"tipo": "ruas"},
 }
-# Liga a tenda da bruxa ao sabio (oeste) ou norte da praca
-MAPA_VILA[(0, 0)]["exits"].add("norte")
-MAPA_VILA[(0, 1)]["exits"].add("norte")
-MAPA_VILA[(-1, 0)]["exits"].add("norte")
-MAPA_VILA[(-1, 1)]["exits"].add("sul")
-MAPA_VILA[(0, -1)]["exits"].add("leste")
-MAPA_VILA[(1, -1)]["exits"].add("oeste")
+for (_vx, _vy), _vsala in MAPA_VILA.items():
+    _vsala["exits"] = {d for d, (dx, dy) in
+                       {"norte": (0, 1), "sul": (0, -1), "leste": (1, 0), "oeste": (-1, 0)}.items()
+                       if (_vx + dx, _vy + dy) in MAPA_VILA}
+    _vsala.update({"visitada": True, "ceu_aberto": True, "limpa": True})
+    _vsala.setdefault("armadilha", None)
+    _vsala.setdefault("armadilha_ativa", False)
+    _vsala.setdefault("cofre", False)
+    _vsala.setdefault("trancado", False)
+    _vsala.setdefault("inimigo", None)
+    _vsala.setdefault("altar", False)
+    _vsala.setdefault("tesouro", None)
+    _vsala.setdefault("npc", None)
+    _vsala.setdefault("lore", None)
+    _vsala.setdefault("escada", False)
+    _vsala.setdefault("escada_sobe", False)
+    _vsala.setdefault("saqueada", False)
+    _vsala.setdefault("loot", [])
+    _vsala.setdefault("boss", False)
+    _vsala.setdefault("chefe_morto", False)
+del _vx, _vy, _vsala
 
-for coord in MAPA_VILA:
-    MAPA_VILA[coord].setdefault("armadilha", None)
-    MAPA_VILA[coord].setdefault("armadilha_ativa", False)
-    MAPA_VILA[coord].setdefault("cofre", False)
-    MAPA_VILA[coord].setdefault("trancado", False)
-    MAPA_VILA[coord].setdefault("inimigo", None)
-    MAPA_VILA[coord].setdefault("altar", False)
-    MAPA_VILA[coord].setdefault("tesouro", None)
-    MAPA_VILA[coord].setdefault("npc", None)
-    MAPA_VILA[coord].setdefault("lore", None)
-    MAPA_VILA[coord].setdefault("escada_sobe", False)
-    MAPA_VILA[coord].setdefault("saqueada", False)
-    MAPA_VILA[coord].setdefault("loot", [])
-    MAPA_VILA[coord].setdefault("boss", False)
-    MAPA_VILA[coord].setdefault("chefe_morto", False)
+
+def vila_nova():
+    """Cópia da vila para UMA sessão (o template global nunca deve ser mutado)."""
+    return copy.deepcopy(MAPA_VILA)
 # Aba: Magias (o Mago é dono delas; o Ladino toca de leve). Dano de magia IGNORA a
 # defesa do alvo — é o que faz o feitiço furar o Golem melhor que o aço. 'custo' = mana.
 # Efeitos: 'dano' (nuke), 'cura' (HP), 'dreno' (dano + cura pelo mesmo valor),
@@ -363,7 +371,10 @@ N_SALAS = 50                                         # masmorra maior (campanha 
 # Aba: Progressão (engine é dona — o LLM nunca decide XP nem nível). Até nível 4.
 # 'xp' = total ACUMULADO exigido p/ ALCANÇAR aquele nível. Sobe de nível ganha os bônus
 # (+HP, +dano, +mana). Limpar a masmorra maior leva ~nível 4; o Golem fica vencível.
-NIVEL_MAX = 15
+# Teto coerente com o soft-cap de XP (ganhar_xp): o maior mlvl do bestiário é 7
+# (Golem); com a penalidade zerando o XP a partir de diff>=3, o nível 10 é o último
+# alcançável de fato — níveis acima disso seriam letra morta na tabela.
+NIVEL_MAX = 10
 PROGRESSAO = {
     2: {"xp": 6,  "hp_max": 5, "dano_base": 1, "mana_max": 3},
     3: {"xp": 14, "hp_max": 5, "dano_base": 1, "mana_max": 3},
@@ -374,11 +385,6 @@ PROGRESSAO = {
     8: {"xp": 114, "hp_max": 7, "dano_base": 1, "mana_max": 5},
     9: {"xp": 146, "hp_max": 7, "dano_base": 1, "mana_max": 5},
     10: {"xp": 182, "hp_max": 7, "dano_base": 1, "mana_max": 5},
-    11: {"xp": 222, "hp_max": 8, "dano_base": 1, "mana_max": 5},
-    12: {"xp": 266, "hp_max": 8, "dano_base": 1, "mana_max": 6},
-    13: {"xp": 314, "hp_max": 8, "dano_base": 1, "mana_max": 6},
-    14: {"xp": 366, "hp_max": 9, "dano_base": 1, "mana_max": 6},
-    15: {"xp": 422, "hp_max": 9, "dano_base": 1, "mana_max": 7},
 }
 
 # Afixos Procedurais (Loot)
@@ -634,13 +640,19 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
     it = iter(outras)
 
     if profundidade <= 1:
-        # Chefe na sala mais distante da entrada.
+        # Chefe na sala mais distante da entrada (solo — o balance_sim simula ELE assim).
         salas[fundo]["tipo"] = "camara"
         salas[fundo]["boss"] = True
         salas[fundo]["inimigo"] = OBJETIVO_BOSS
-        salas[fundo]["grupo"] = ["cultista", "cultista"]
-        salas[fundo]["nome"] = "Nascente Envenenada"
         boss_cell = fundo
+
+        # Nascente Envenenada (Sidequest - Andar 1): câmara própria com duo de cultistas.
+        nascente_cell = next(it)
+        salas[nascente_cell]["tipo"] = "camara"
+        salas[nascente_cell]["nome"] = "Nascente Envenenada"
+        salas[nascente_cell]["inimigo"] = "cultista"
+        salas[nascente_cell]["grupo"] = ["cultista"]
+        salas[nascente_cell]["loot"] = ["pocao_cura", "pocao_mana"]
     elif profundidade == 2:
         # Câmara elite (horda) - sem Golem.
         salas[fundo]["tipo"] = "camara"
@@ -1241,6 +1253,14 @@ def _inventario_json(state):
         elif info["tipo"] == "reliquia":
             d["stat"] = "relíquia"
             d["usavel"] = False
+        # Durabilidade (armas/armaduras que já desgastaram têm instância com o campo):
+        # o jogador precisa VER o desgaste — item não pode quebrar "do nada".
+        if info["tipo"] in ("arma", "armadura") and "durabilidade" in info:
+            dmax = info.get("durabilidade_max", 30)
+            d["durabilidade"] = info["durabilidade"]
+            d["durabilidade_max"] = dmax
+            if identificado:
+                d["stat"] += f" · {info['durabilidade']}/{dmax}"
         dados[iid] = d
         ordem.append(iid)
     return [dados[i] for i in ordem]
@@ -1348,6 +1368,11 @@ def serializar_estado(state):
         "loja": loja_json(state),
         "sala": {"tipo": sala["tipo"], "exits": sorted(sala["exits"]), "ficha": ficha_sala(sala),
                  "tablet": tablet,
+                 "nome": sala.get("nome"),
+                 "ceu_aberto": bool(sala.get("ceu_aberto")),
+                 "npc": ({"id": sala["npc"], "nome": NPCS_VILA[sala["npc"]]["nome"],
+                          "papel": NPCS_VILA[sala["npc"]]["papel"]}
+                         if sala.get("npc") in NPCS_VILA else None),
                  "escada": bool(sala.get("escada")),
                  "escada_sobe": bool(sala.get("escada_sobe") or (
                      state.get("profundidade", 1) > 1 and sala.get("tipo") == "entrada")),
@@ -1574,7 +1599,7 @@ AÇÕES PERMITIDAS (use APENAS estas — qualquer outra é proibida):
 - {{"tipo": "comprar", "item": "<id>"}}  -> comprar na loja de Pedralume (só na superfície).
 - {{"tipo": "vender", "item": "<id>"}}  -> vender item do inventário na Vila (não equipado).
 - {{"tipo": "consertar", "item": "<id>"}} -> consertar arma ou armadura na forja de Kaelen.
-- {{"tipo": "falar", "alvo": "mira"|"anciao"|"ferreiro"}}  -> falar com NPC da Vila.
+- {{"tipo": "falar", "alvo": "mira"|"anciao"|"ferreiro"|"curandeiro"|"bruxa"}}  -> falar com o NPC da sala atual da Vila.
 
 REGRA DE OURO SOBRE ITENS (leia com atenção — foi fonte de bugs):
 - "pego/acho/ganho X"      -> dar_item     (só se for loot novo mesmo)
@@ -2185,35 +2210,43 @@ def desgastar_item(state, item_id_ou_inst, slot):
     # Se for string base (não gerada proceduralmente), instanciar
     if item_id_ou_inst not in state.get("itens_gerados", {}):
         base = ITENS.get(item_id_ou_inst)
-        if not base or base["tipo"] not in ("arma", "armadura"): return None
+        if not base or base["tipo"] not in ("arma", "armadura"):
+            return None
         inst = base.copy()
         inst["durabilidade"] = inst.get("durabilidade_max", 30)
-        
-        if "itens_gerados" not in state: state["itens_gerados"] = {}
-        novo_id = f"{item_id_ou_inst}_{len(state['itens_gerados'])}_{random.randint(100, 999)}"
+
+        # id determinístico: contador monotônico do save (nada de random — a
+        # reprodutibilidade por seed do loot procedural vale aqui também)
+        state.setdefault("itens_gerados", {})
+        seq = state.get("seq_itens", 0) + 1
+        state["seq_itens"] = seq
+        novo_id = f"{item_id_ou_inst}_d{seq}"
         state["itens_gerados"][novo_id] = inst
-        
+
         # Atualiza as referências
         if item_id_ou_inst in p.get("inventario", []):
             idx = p["inventario"].index(item_id_ou_inst)
             p["inventario"][idx] = novo_id
         if p.get(slot) == item_id_ou_inst:
             p[slot] = novo_id
-            
+
         item_id_ou_inst = novo_id
 
-    # Aplica o desgaste
+    # Aplica o desgaste (itens afixados do loot também: lazy-init da durabilidade)
     inst = state["itens_gerados"][item_id_ou_inst]
-    if "durabilidade" in inst:
-        inst["durabilidade"] -= 1
-        if inst["durabilidade"] <= 0:
-            if item_id_ou_inst in p["inventario"]:
-                p["inventario"].remove(item_id_ou_inst)
-            if p.get(slot) == item_id_ou_inst:
-                p[slot] = None
-            return f"Sua {inst['nome']} QUEBROU durante o combate!"
-        elif inst["durabilidade"] == 5:
-            return f"AVISO: Sua {inst['nome']} está muito danificada e vai quebrar em breve!"
+    if inst.get("tipo") not in ("arma", "armadura"):
+        return None
+    inst.setdefault("durabilidade_max", 30)
+    inst.setdefault("durabilidade", inst["durabilidade_max"])
+    inst["durabilidade"] -= 1
+    if inst["durabilidade"] <= 0:
+        if item_id_ou_inst in p["inventario"]:
+            p["inventario"].remove(item_id_ou_inst)
+        if p.get(slot) == item_id_ou_inst:
+            p[slot] = None
+        return f"Sua {inst['nome']} QUEBROU durante o combate!"
+    if inst["durabilidade"] == 5:
+        return f"AVISO: Sua {inst['nome']} está muito danificada e vai quebrar em breve!"
     return None
 
 def saquear_sala(state, sala):
@@ -2516,12 +2549,19 @@ def descer_escada(state):
     """
     Desce: da superfície reentra nas catacumbas; no andar 1 usa escada p/ andar 2.
     """
-    # Superfície → reentrar na entrada das catacumbas
+    # Superfície → reentrar na entrada das catacumbas (só pela escada da entrada)
     if state.get("na_superficie"):
+        if not sala_atual(state).get("escada"):
+            print("  [escada] Só se desce às catacumbas pela entrada, na borda da praça.")
+            return ["Só se desce às catacumbas pela entrada, na borda da praça."], None
+        # Restaura o andar 1 explorado; se um save antigo não o tiver, regenera
+        # determinístico pela seed (NUNCA usar a vila como fallback de masmorra).
+        m1 = state.get("andares_gerados", {}).pop("1", None)
+        if m1 is None or not any(s.get("tipo") == "entrada" for s in m1.values()):
+            m1 = gerar_masmorra(state.get("seed"), profundidade=1)
         state["na_superficie"] = False
         state["local"] = "Entrada das Catacumbas Esquecidas"
-        # Restaura o Andar 1
-        state["masmorra"] = state.get("andares_gerados", {}).get("1", state["masmorra"])
+        state["masmorra"] = m1
         state["pos"] = {"x": 0, "y": 0}
         state["facing"] = facing_para_saida(state["masmorra"], (0, 0))
         state["historico"].append("reentrou nas catacumbas")
@@ -2541,7 +2581,7 @@ def descer_escada(state):
     if not state.get("na_superficie"):
         state.setdefault("pilha_andares", []).append({
             "masmorra": state["masmorra"],
-            "pos": state["pos"],
+            "pos": dict(state["pos"]),
             "facing": state["facing"],
             "profundidade": state.get("profundidade", 1),
             "local": state.get("local")
@@ -2609,8 +2649,11 @@ def subir_escada(state):
         print("  [escada] Só se sobe à Vila pela entrada das catacumbas.")
         return ["Só se volta à Vila pela entrada das catacumbas."], None
 
+    # Preserva o andar 1 explorado (senão descer de volta o perderia) e entrega
+    # uma CÓPIA da vila — o template MAPA_VILA é global e compartilhado entre sessões.
+    state.setdefault("andares_gerados", {})["1"] = state["masmorra"]
     state["na_superficie"] = True
-    state["masmorra"] = MAPA_VILA
+    state["masmorra"] = vila_nova()
     state["pos"] = {"x": 0, "y": -1}
     state["facing"] = "norte"
     state["local"] = "Pedralume — praça da fonte seca"
@@ -3045,39 +3088,41 @@ def vender_item(state, item_id):
 
 
 def consertar_item(state, item_id):
-    """Conserta item (arma ou armadura) no ferreiro."""
+    """Conserta item (arma ou armadura) no ferreiro. Toda mensagem é IMPRESSA
+    (a web captura stdout via executar_capturando — retorno sem print fica mudo)."""
+    def _resp(msg, tag="forja"):
+        print(f"  [{tag}] {msg}")
+        return [msg]
+
     p = state["player"]
     pos = (state["pos"]["x"], state["pos"]["y"])
     if state["masmorra"].get(pos, {}).get("npc") != "ferreiro":
-        print("  [forja] Não há ferreiro aqui.")
-        return ["Você precisa estar na forja de Kael para consertar itens."]
-    
+        return _resp("Você precisa estar na forja de Kael para consertar itens.")
+
     if item_id not in p["inventario"] and p.get("arma") != item_id and p.get("armadura") != item_id:
-        return ["Você não tem esse item."]
-        
+        return _resp("Você não tem esse item.")
+
     info = get_item_data(item_id, state)
     if not info or info["tipo"] not in ("arma", "armadura"):
-        return ["Isso não pode ser consertado."]
-        
+        return _resp("Isso não pode ser consertado.")
+
     if item_id not in state.get("itens_gerados", {}):
-        return [f"{info['nome']} já está em perfeito estado."]
-        
+        return _resp(f"{info['nome']} já está em perfeito estado.")
+
     inst = state["itens_gerados"][item_id]
     max_d = inst.get("durabilidade_max", 30)
     atual = inst.get("durabilidade", max_d)
     if atual >= max_d:
-        return [f"{inst['nome']} já está em perfeito estado."]
-        
+        return _resp(f"{inst['nome']} já está em perfeito estado.")
+
     custo = 10
     if p.get("ouro", 0) < custo:
-        return [f"Ouro insuficiente para consertar (custa {custo} ouro)."]
-        
+        return _resp(f"Ouro insuficiente para consertar (custa {custo} ouro).")
+
     p["ouro"] -= custo
     inst["durabilidade"] = max_d
     state["historico"].append(f"consertou {inst['nome']}")
-    msg = f"Kael consertou {inst['nome']} por {custo} ouro."
-    print(f"  [forja] {msg}")
-    return [msg]
+    return _resp(f"Kael consertou {inst['nome']} por {custo} ouro.")
 
 def falar_npc(state, alvo):
     """Diálogo com NPC da Vila (sem efeito mecânico além de lore no histórico)."""
@@ -3624,7 +3669,7 @@ def rodar_demo():
     assert prog["player"]["nivel"] == 4, "26 XP -> nível 4"
     assert prog["player"]["hp_max"] == hp0 + 5 + 5 + 6 and prog["player"]["dano_base"] == 6, "bônus do nível 4"
     _dbg(ganhar_xp(prog, 9999))                                   # excesso não passa do teto
-    assert prog["player"]["nivel"] == 15, "não deve passar de NIVEL_MAX"
+    assert prog["player"]["nivel"] == NIVEL_MAX, "não deve passar de NIVEL_MAX"
     assert xp_para_proximo(prog["player"]) is None, "no nível máximo não falta XP"
 
     # Sanidade do balanceamento: no nível máximo, o Guerreiro fura a defesa do Golem.
@@ -3845,7 +3890,8 @@ def rodar_demo():
     inimigos = [s["inimigo"] for s in salas_inim] + [g for s in salas_inim for g in s["grupo"]]
     xp_total = sum(BESTIARIO[i]["xp"] for i in inimigos)
     assert len(traps) == 3, "3 armadilhas"
-    assert len(salas_inim) == 8 and len(hordas) == 2, "6 inimigos comuns + 2 hordas (8 salas de combate)"
+    assert len(salas_inim) == 9 and len(hordas) == 3, \
+        "6 inimigos comuns + 2 hordas + Nascente Envenenada (9 salas de combate)"
     assert xp_total >= PROGRESSAO[4]["xp"], "limpar tudo deve alcançar o nível 4"
     print(f"  {len(masmorra)} salas; chefe a {dist[bosses[0]]}; {len(salas_inim)} encontros "
           f"({len(inimigos)} inimigos, {xp_total} XP), {len(traps)} armadilhas.")
@@ -4091,13 +4137,27 @@ def rodar_demo():
     subir_escada(ml)
     assert ml.get("na_superficie")
     assert ml["pos"] == {"x": 0, "y": -1}, "Aparece na entrada das catacumbas da vila"
+    assert ml["masmorra"] is not MAPA_VILA, "a vila da sessão deve ser CÓPIA do template"
     r_surf = aplicar_movimento(ml, "frente")
     assert r_surf["moveu"], "Movimento na vila agora e permitido"
-    # reentrar
+    # reentrar (só pela entrada) — e o andar 1 explorado tem de voltar intacto
+    r_neg = descer_escada(ml)[0]
+    assert ml.get("na_superficie") and "entrada" in r_neg[0], "não desce da praça"
     ml["pos"] = {"x": 0, "y": -1}
     descer_escada(ml)
     assert not ml.get("na_superficie")
+    assert sala_atual(ml)["tipo"] == "entrada", "voltar da Vila restaura o ANDAR 1, não a vila"
+    assert any(s.get("inimigo") == OBJETIVO_BOSS for s in ml["masmorra"].values()), \
+        "andar 1 restaurado ainda tem o Golem"
     print(f"  escada↔andares + Vila; rato hp escalado={st2['hp']}. OK")
+
+    # Round-trip Vila SEM ter descido ao andar 2 antes (o caminho que perdia o andar 1)
+    rt = novo_jogo("Guerreiro", seed=9)
+    m1_antes = rt["masmorra"]
+    subir_escada(rt)
+    ml_msgs = descer_escada(rt)
+    assert rt["masmorra"] is m1_antes, "novo jogo -> Vila -> descer devolve o MESMO andar 1"
+    assert sala_atual(rt)["tipo"] == "entrada"
 
     # --- Serialização multi-nível: superfície / pode_subir / pode_descer ---
     print("\nSerialização multi-nível (pode_subir/pode_descer/superfície):")
@@ -4393,8 +4453,14 @@ def rodar_demo():
     n_pot = vl["player"]["inventario"].count("pocao_cura")
     vender_item(vl, "pocao_cura")
     assert vl["player"]["inventario"].count("pocao_cura") == n_pot - 1
-    # não vende na masmorra
+    # não desce da loja da Mira — só pela entrada
+    assert vl.get("na_superficie")
     descer_escada(vl)
+    assert vl.get("na_superficie"), "descer só funciona na entrada das catacumbas"
+    vl["pos"] = {"x": 0, "y": -1}
+    descer_escada(vl)
+    assert not vl.get("na_superficie")
+    # não compra na masmorra
     assert "Mira" in comprar_item(vl, "tocha")[0]
     # ouro ao matar
     cb_g = novo_combate(vl, "rato_gigante")
@@ -4403,6 +4469,78 @@ def rodar_demo():
     _resolver_mortes(vl, cb_g)
     assert vl["player"]["ouro"] > o_antes, "vitória dá ouro"
     print(f"  loja/NPCs na superfície; ouro em combate. OK")
+
+    # --- Vila: integridade do mapa (toda saída leva a sala real; tudo alcançável) ---
+    print("\nVila (integridade do mapa):")
+    for (vx, vy), vs in MAPA_VILA.items():
+        for d in vs["exits"]:
+            dx, dy = DIRECOES_ABS[d]
+            alvo = (vx + dx, vy + dy)
+            assert alvo in MAPA_VILA, f"saída {d} de {(vx, vy)} aponta pro vazio {alvo}"
+            assert {"norte": "sul", "sul": "norte", "leste": "oeste", "oeste": "leste"}[d] \
+                in MAPA_VILA[alvo]["exits"], f"saída {d} de {(vx, vy)} não tem volta"
+    alcance = _bfs_dist(MAPA_VILA, (0, -1))
+    assert set(alcance) == set(MAPA_VILA), "toda sala da vila deve ser alcançável da entrada"
+    # andar pela vila inteira não muta o template global
+    vv = novo_jogo("Guerreiro", seed=2)
+    subir_escada(vv)
+    snapshot_template = {c: dict(s, exits=set(s["exits"])) for c, s in MAPA_VILA.items()}
+    for _ in range(2):
+        for d in ("norte", "sul", "leste", "oeste"):
+            aplicar_movimento(vv, d)
+    assert all(MAPA_VILA[c]["exits"] == snapshot_template[c]["exits"] and
+               MAPA_VILA[c]["saqueada"] == snapshot_template[c]["saqueada"]
+               for c in MAPA_VILA), "andar pela vila não pode mutar o template global"
+    print(f"  {len(MAPA_VILA)} salas, saídas simétricas, tudo alcançável, template imutável. OK")
+
+    # --- Durabilidade: desgaste, quebra, itens afixados e conserto no ferreiro ---
+    print("\nDurabilidade e conserto (ferreiro Kael):")
+    du = novo_jogo("Guerreiro", seed=11)
+    p_du = du["player"]
+    cb_du = novo_combate(du, "zumbi")
+    combate_passo(du, cb_du, "atacar")            # 1º golpe: lazy-init da instância
+    inst_id = p_du["arma"]
+    assert inst_id in du["itens_gerados"], "arma vira instância com durabilidade ao usar"
+    assert inst_id.endswith("_d1"), "id de instância determinístico (contador, sem random)"
+    inst = du["itens_gerados"][inst_id]
+    assert inst["durabilidade"] == inst["durabilidade_max"] - 1, "1 golpe = 1 desgaste"
+    inv_js = _inventario_json(du)
+    d_js = next(i for i in inv_js if i["id"] == inst_id)
+    assert d_js.get("durabilidade") == inst["durabilidade"], "durabilidade visível na UI"
+    assert f"{inst['durabilidade']}/{inst['durabilidade_max']}" in d_js["stat"]
+    # item AFIXADO também desgasta (lazy-init na instância existente)
+    du["itens_gerados"]["lamina_teste"] = {"nome": "Lâmina Flamejante", "tipo": "arma",
+                                           "dano": 5, "carga": 3, "durabilidade_max": 50}
+    p_du["arma"] = "lamina_teste"
+    desgastar_item(du, "lamina_teste", "arma")
+    assert du["itens_gerados"]["lamina_teste"]["durabilidade"] == 49, "afixado desgasta"
+    # quebra: remove do slot e do inventário
+    du["itens_gerados"][inst_id]["durabilidade"] = 1
+    p_du["arma"] = inst_id
+    msg_q = desgastar_item(du, inst_id, "arma")
+    assert "QUEBROU" in msg_q and p_du["arma"] is None and inst_id not in p_du["inventario"]
+    # conserto: só na forja, cobra ouro, restaura o máximo
+    p_du["inventario"].append("lamina_teste")
+    p_du["ouro"] = 25
+    assert "forja" in consertar_item(du, "lamina_teste")[0], "não conserta fora da forja"
+    subir_escada(du)
+    du["pos"] = {"x": 0, "y": 1}                  # forja de Kael
+    msg_c = consertar_item(du, "lamina_teste")[0]
+    assert "consertou" in msg_c.lower() or "Kael" in msg_c
+    assert du["itens_gerados"]["lamina_teste"]["durabilidade"] == 50, "conserto restaura tudo"
+    assert p_du["ouro"] == 15, "conserto custa 10 ouro"
+    assert "perfeito estado" in consertar_item(du, "lamina_teste")[0], "não cobra à toa"
+    print("  desgaste/quebra/afixado/conserto na forja. OK")
+
+    # --- Sidequests procedurais ---
+    print("\nSidequests (Nascente Envenenada / Carrasco):")
+    a1 = gerar_masmorra(seed=42, profundidade=1)
+    golem_sala = next(s for s in a1.values() if s.get("inimigo") == OBJETIVO_BOSS)
+    assert not golem_sala.get("grupo"), "Golem luta SOZINHO (o balance_sim simula ele assim)"
+    nasc = next((s for s in a1.values() if s.get("nome") == "Nascente Envenenada"), None)
+    assert nasc and nasc["inimigo"] == "cultista" and nasc["grupo"] == ["cultista"], \
+        "Nascente Envenenada: câmara própria com duo de cultistas no andar 1"
+    print("  Golem solo + Nascente no andar 1; Carrasco coberto no bloco multi-nível. OK")
 
     # --- Andar 3 + minichefes ---
     print("\nAndar 3 (minichefes):")

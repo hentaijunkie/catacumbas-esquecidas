@@ -53,8 +53,8 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 | `?` | Tutorial |
 | `F3` | Debug da vista (distância, saídas, hit) |
 
-- **Vista 1ª pessoa** — raycaster com texturas de parede, billboards com **sprites PNG** em pixel art (inimigos, altares, baús, loot, escadas). Combate com clamp de distância (alvo sempre legível e à frente dos props). **Vila em 2D imersiva** (NPCs sprites, loja detalhada, fonte e iluminação com z-index físico correto). Flash, vinhetas de status e fadiga.
-- **Interatividade Point-and-Click na Vila:** Event listeners no canvas permitem passar o mouse sobre os NPCs (Mira, Ancião) para exibir tooltips dinâmicos e clicar para iniciar diálogos e negociações de forma intuitiva.
+- **Vista 1ª pessoa** — raycaster com texturas de parede, billboards com **sprites PNG** em pixel art (inimigos, NPCs, altares, baús, loot, escadas). Combate com clamp de distância (alvo sempre legível e à frente dos props). Flash, vinhetas de status e fadiga.
+- **Vila navegável em 1ª pessoa:** Pedralume virou um mapa andável (praça, entrada das catacumbas, forja do Kael, loja da Mira, tenda do Ancião, curandeiro e cabana da bruxa) com céu aberto no raycaster. O NPC da sala atual aparece como botão "Falar" no painel; comprar/vender só na loja da Mira e consertar só na forja.
 - **Automapa** com névoa de guerra e indicadores de **status** (☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento). O boss revela a identidade correta à distância.
 - Badge: `online · DeepSeek` ou `offline · template`.
 - **Áudio** via Web Audio API: batimento cardíaco com HP crítico, shake prolongado nas magias, impacto grave (hit) e áudio de fadiga (pitch e LFO dinâmicos).
@@ -110,7 +110,7 @@ Não publique a chave no repositório.
 
 ### Personagem
 - 3 classes (Guerreiro / Mago / Ladino) × 4 raças (Humano, Anão, Elfo, Halfling)
-- 6 atributos (FOR/DES/CON/INT/SAB/CAR) · progressão até nível 4
+- 6 atributos (FOR/DES/CON/INT/SAB/CAR) · progressão até nível 10 (soft-cap de XP estilo Diablo: monstro muito abaixo do seu nível rende menos/zero XP)
 
 ### Exploração
 - Masmorra procedural (~24 salas) + **andares 1-3** (sidequests e minichefes) + **superfície (Pedralume)**
@@ -118,7 +118,7 @@ Não publique a chave no repositório.
 - Luz/tocha, Pedra de Luz Eterna, fadiga, encumbrance, descanso + wandering
 - Lore tablets, altares (rezar/oferecer/saquear), armadilhas, cofres, gazua, **Loot Procedural (Afixos)** + **Identificação** (pergaminho)
 - **Dano contínuo:** Gás Venenoso envenena, Lâminas Giratórias causam sangramento (tick por passo)
-- **Durabilidade e Reparo:** Armas e armaduras desgastam em uso real no combate; consertos disponíveis no Ferreiro.
+- **Durabilidade e Reparo:** Armas e armaduras (inclusive as mágicas/afixadas) desgastam em uso real no combate, com o estado visível no inventário (ex.: `23/25`); conserto na forja do Kael (botão no inventário, `/api/consertar` ou pedindo ao narrador) por 10 ouro.
 - Facing inicial aponta para uma **saída real** (entrada jogável em 1ª pessoa)
 - **Auto-save:** salva a cada combate, troca de andar, poção de cura, descanso e a cada 12 passos.
 
@@ -170,4 +170,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.7.0 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D e Z-sorting. Expansão com Sidequests (Nascente Envenenada e Carrasco) e sistema de Durabilidade (armas e armaduras degradam em combate).*
+*Protótipo v2.7.1 — Hotfix da v2.7.0: vila navegável consertada (mapa conexo por sessão, andar 1 preservado ao subir/descer), durabilidade visível + conserto completo (UI, `/api/consertar`, offline), Nascente Envenenada em câmara própria (Golem volta a lutar solo) e teto de nível coerente (10).*
