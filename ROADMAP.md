@@ -324,6 +324,18 @@ em modo online:
 - **Engine Raycaster Aprimorada:** O método `drawBillboard` agora desenha os sprites e implementa um sistema simulado de pulo nos eixos X/Y (via variável `t`) quando sob ataque, substituindo a necessidade imediata de *sprite sheets* para hit reactions. A lógica de *Z-Buffer* foi melhorada no combate para garantir que inimigos próximos (pulso de combate e barra de vida) não tenham clipagem indevida ou sumam ao chegar perto.
 - **Vila 2D Imersiva:** O cenário de superfície foi expandido: o fundo agora traz chão gradiente detalhado, loja texturizada com letreiro, fonte de água retrabalhada, luz e sombra dinâmicas, além de posicionar as artes dos NPCs (Mira e Ancião) de modo unificado e orgânico no layout.
 
+### Bugfix drawBillboard + cobertura completa do Bestiário (v2.6.1)
+- **Bug Crítico — `drawBillboard` crash:** A refatoração anterior removeu a declaração
+  de `barW`/`barH`/`barX`/`barY` e o `if` guard da barra de HP, além de referenciar `ph`
+  (variável local do fallback ASCII) no rótulo fora de escopo. Qualquer entidade com barra
+  de HP explodia em `ReferenceError`. Corrigido: rótulo agora usa `h` (sempre disponível)
+  e a barra de HP foi restaurada com declaração e guard completos.
+- **Cobertura do `SPRITE_MAP`:** 5 IDs do bestiário (`esqueleto_animado`, `zumbi`,
+  `cultista`, `rato_gigante`, `morcego`) não tinham entrada no `SPRITE_MAP` — ao encontrar
+  esses inimigos o código caía no fallback ASCII mesmo com sprites habilitados.
+  Adicionados ao mapa: esqueleto com sprite próprio; os demais apontam temporariamente
+  para o genérico (`inimigo.png`) até a geração de sprites dedicados.
+
 ---
 
 ### (histórico) Vila, Andar 3 e multi-save (v2.1)

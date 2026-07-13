@@ -53,7 +53,7 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 | `?` | Tutorial |
 | `F3` | Debug da vista (distância, saídas, hit) |
 
-- **Vista 1ª pessoa** — raycaster com texturas, billboards **ASCII** (inimigos/altares/baús/loot), combate com clamp de distância (alvo sempre legível). **Vila em 2D** (praça estática). Flash, vinhetas de status e fadiga.
+- **Vista 1ª pessoa** — raycaster com texturas de parede, billboards com **sprites PNG** em pixel art (inimigos, altares, baús, loot, escadas) com fallback ASCII. Combate com clamp de distância (alvo sempre legível). **Vila em 2D** com NPCs sprites (Mira, Ancião), loja detalhada e cenário com iluminação. Flash, vinhetas de status e fadiga.
 - **Automapa** com névoa de guerra e indicadores de **status** (☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento).
 - Badge: `online · DeepSeek` ou `offline · template`.
 - **Áudio** via Web Audio API: batimento cardíaco com HP crítico, shake prolongado nas magias, impacto grave (hit) e áudio de fadiga (pitch e LFO dinâmicos).

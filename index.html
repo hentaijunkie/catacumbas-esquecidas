@@ -418,8 +418,13 @@ const SPRITE_MAP = {
   capitao_osso: 'assets/sprites/inimigo_capitao_osso.png',
   sacerdote_lodo: 'assets/sprites/inimigo_sacerdote_lodo.png',
   golem_barro: 'assets/sprites/inimigo_golem_barro.png',
-  enemy: 'assets/sprites/inimigo.png', // genérico
-  boss: 'assets/sprites/inimigo.png', // genérico caso chefe não tenha sprite
+  esqueleto_animado: 'assets/sprites/inimigo_esqueleto_animado.png',
+  zumbi: 'assets/sprites/inimigo.png',           // TODO: sprite próprio
+  cultista: 'assets/sprites/inimigo.png',         // TODO: sprite próprio
+  rato_gigante: 'assets/sprites/inimigo.png',     // TODO: sprite próprio
+  morcego: 'assets/sprites/inimigo.png',          // TODO: sprite próprio
+  enemy: 'assets/sprites/inimigo.png',
+  boss: 'assets/sprites/inimigo.png',
   altar: 'assets/sprites/altar.png',
   cofre: 'assets/sprites/bau_aberto.png',
   cofre_fechado: 'assets/sprites/bau_fechado.png',
@@ -1406,9 +1411,16 @@ function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pul
   const lab = label || g.name || "";
   if(lab && h > 40){
     ctx.font = `${Math.max(9, Math.min(13, h*0.08))}px system-ui`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = "rgba(231,233,239,0.9)";
-    ctx.fillText(lab.length>14 ? lab.slice(0,13)+"…" : lab, cx + t, cy + ph*0.32);
+    ctx.fillText(lab.length>14 ? lab.slice(0,13)+"…" : lab, cx + t, cy + h*0.22);
   }
+
+  // Barra de HP
+  if(hp !== undefined && maxHp !== undefined && maxHp > 0){
+    const barW = Math.min(w * 0.7, 120), barH = Math.max(4, h * 0.045);
+    const barX = cx - barW/2, barY = y + h*0.02;
     ctx.fillStyle = "rgba(0,0,0,0.7)";
     ctx.fillRect(barX, barY, barW, barH);
     const p = Math.max(0, Math.min(1, hp/maxHp));
