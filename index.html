@@ -1463,43 +1463,6 @@ function drawHouse(ctx, x, y, w, h) {
   ctx.fillRect(x + w*0.7, y + h*0.2, w*0.15, h*0.2);
 }
 
-function drawFountain(ctx, x, y, H) {
-  // Base de pedra
-  ctx.fillStyle = '#4a5b6a';
-  ctx.beginPath();
-  ctx.ellipse(x, y + H*0.07, H*0.15, H*0.04, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Borda da fonte
-  ctx.fillStyle = '#3a4b5a';
-  ctx.beginPath();
-  ctx.ellipse(x, y + H*0.07, H*0.12, H*0.03, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Água seca
-  ctx.fillStyle = '#1c2e3a';
-  ctx.beginPath();
-  ctx.ellipse(x, y + H*0.07, H*0.10, H*0.025, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Pilar central
-  ctx.fillStyle = '#3a4b5a';
-  ctx.fillRect(x - H*0.03, y, H*0.06, H*0.07);
-}
-
-function drawShop(ctx, x, y, W, H) {
-  // Balcão base
-  ctx.fillStyle = "#2d241c";
-  ctx.fillRect(x, y, W*0.35, H*0.15);
-  
-  // Toldo
-  ctx.fillStyle = "#8a3a3a";
-  ctx.fillRect(x - W*0.02, y - H*0.02, W*0.39, H*0.04);
-  
-  // Parte inferior
-  ctx.fillStyle = "#4a3b2c";
-  ctx.fillRect(x + W*0.05, y + H*0.14, W*0.25, H*0.08);
-}
 
 function drawTorch(ctx, x, y, H) {
   // Poste
@@ -1518,7 +1481,7 @@ function drawTorch(ctx, x, y, H) {
 
 /** Vista 2D da Vila — sem raycaster */
 function desenharVila2D(ctx, W, H, dpr, e){
-  const hHorizonte = H * 0.55; // Linha do horizonte da praça
+  const hHorizonte = H * 0.60; // Linha do horizonte da praça
 
   // 1. Fundo (Céu Noturno)
   if (spriteImages.vila_ceu && spriteImages.vila_ceu.complete) {
@@ -1527,7 +1490,14 @@ function desenharVila2D(ctx, W, H, dpr, e){
     ctx.fillStyle = '#0f1626'; ctx.fillRect(0, 0, W, hHorizonte);
   }
 
-  // 2. Chão da praça (Pattern de paralelepípedos)
+  // 2. Casas ao fundo
+  if (spriteImages.vila_casas && spriteImages.vila_casas.complete) {
+    const scale = W / spriteImages.vila_casas.width;
+    const ph = spriteImages.vila_casas.height * scale;
+    ctx.drawImage(spriteImages.vila_casas, 0, hHorizonte - ph + H*0.05, W, ph);
+  }
+
+  // 3. Chão da praça (Pattern de paralelepípedos)
   if (spriteImages.vila_chao && spriteImages.vila_chao.complete) {
     const pat = ctx.createPattern(spriteImages.vila_chao, 'repeat');
     ctx.fillStyle = pat;
@@ -1539,48 +1509,43 @@ function desenharVila2D(ctx, W, H, dpr, e){
     ctx.fillStyle = '#120c08'; ctx.fillRect(0, hHorizonte, W, H - hHorizonte);
   }
 
-  // 3. Casas ao fundo
-  if (spriteImages.vila_casas && spriteImages.vila_casas.complete) {
-    const scale = W / spriteImages.vila_casas.width;
-    const ph = spriteImages.vila_casas.height * scale;
-    ctx.drawImage(spriteImages.vila_casas, 0, hHorizonte - ph + H*0.08, W, ph);
-  }
-
-  // 4. Loja da Mira (Balcão) e Placa (Sprite)
-  drawShop(ctx, W*0.52, H*0.42, W, H);
-  if (spriteImages.vila_placa && spriteImages.vila_placa.complete) {
-    const pw = W*0.22;
-    const ph = (pw / spriteImages.vila_placa.width) * spriteImages.vila_placa.height;
-    ctx.drawImage(spriteImages.vila_placa, W*0.52 + (W*0.35 - pw)/2, H*0.42 - ph, pw, ph);
-  }
-
-  // 5. Fonte de Pedra (Centro da praça)
+  // 4. Fonte de Pedra (Centro da praça)
   if (spriteImages.vila_fonte && spriteImages.vila_fonte.complete) {
-    const fw = W*0.35;
+    const fw = W*0.45;
     const fh = (fw / spriteImages.vila_fonte.width) * spriteImages.vila_fonte.height;
-    ctx.drawImage(spriteImages.vila_fonte, W*0.12, H*0.50, fw, fh);
-  } else {
-    drawFountain(ctx, W*0.3, H*0.58, H);
+    ctx.drawImage(spriteImages.vila_fonte, W*0.5 - fw/2, hHorizonte - fh*0.35, fw, fh);
   }
 
-  // 6. NPCs usando sprites
   window._vilaHitboxes = [];
   
-  if (spriteImages.mira && spriteImages.mira.complete) {
-    const mx = W*0.62, my = H*0.44, mw = H*0.18, mh = H*0.18;
-    ctx.drawImage(spriteImages.mira, mx, my, mw, mh);
-    window._vilaHitboxes.push({ id: 'mira', x: mx, y: my, w: mw, h: mh, tooltip: "Falar com Mira" });
-  }
-  
+  // 5. Ancião (Esquerda, ancorado no chão)
+  let ax = 0, ay = 0, aw = 0, ah = 0;
   if (spriteImages.anciao && spriteImages.anciao.complete) {
-    const ax = W*0.18, ay = H*0.58, aw = H*0.18, ah = H*0.18;
+    aw = H*0.25; ah = (aw / spriteImages.anciao.width) * spriteImages.anciao.height;
+    ax = W*0.20; ay = hHorizonte - ah*0.25;
     ctx.drawImage(spriteImages.anciao, ax, ay, aw, ah);
     window._vilaHitboxes.push({ id: 'anciao', x: ax, y: ay, w: aw, h: ah, tooltip: "Falar com o Ancião" });
   }
 
-  // 7. Tochas (com glow)
-  drawTorch(ctx, W*0.15, H*0.45, H);
-  drawTorch(ctx, W*0.85, H*0.43, H);
+  // 6. Mira (Direita, ancorada no chão)
+  let mx = 0, my = 0, mw = 0, mh = 0;
+  if (spriteImages.mira && spriteImages.mira.complete) {
+    mw = H*0.25; mh = (mw / spriteImages.mira.width) * spriteImages.mira.height;
+    mx = W*0.75 - mw; my = hHorizonte - mh*0.25;
+    ctx.drawImage(spriteImages.mira, mx, my, mw, mh);
+    window._vilaHitboxes.push({ id: 'mira', x: mx, y: my, w: mw, h: mh, tooltip: "Falar com Mira" });
+  }
+
+  // 7. Placa da Loja (Pequena, acima da Mira)
+  if (spriteImages.vila_placa && spriteImages.vila_placa.complete && mh > 0) {
+    const pw = W*0.14;
+    const ph = (pw / spriteImages.vila_placa.width) * spriteImages.vila_placa.height;
+    ctx.drawImage(spriteImages.vila_placa, mx + mw/2 - pw/2, my - ph - H*0.02, pw, ph);
+  }
+
+  // 8. Tochas (com glow) para atmosfera
+  drawTorch(ctx, W*0.10, hHorizonte - H*0.1, H);
+  drawTorch(ctx, W*0.90, hHorizonte - H*0.1, H);
 
   // vinheta p/ mesclar as bordas
   const grad = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, W*0.6);
