@@ -53,9 +53,9 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 | `?` | Tutorial |
 | `F3` | Debug da vista (distância, saídas, hit) |
 
-- **Vista 1ª pessoa** — raycaster com texturas de parede, billboards com **sprites PNG** em pixel art (inimigos, altares, baús, loot, escadas) com fallback ASCII. Combate com clamp de distância (alvo sempre legível). **Vila em 2D** com NPCs sprites (Mira, Ancião), loja detalhada, fonte e iluminação. Flash, vinhetas de status e fadiga.
+- **Vista 1ª pessoa** — raycaster com texturas de parede, billboards com **sprites PNG** em pixel art (inimigos, altares, baús, loot, escadas). Combate com clamp de distância (alvo sempre legível e à frente dos props). **Vila em 2D imersiva** (NPCs sprites, loja detalhada, fonte e iluminação com z-index físico correto). Flash, vinhetas de status e fadiga.
 - **Interatividade Point-and-Click na Vila:** Event listeners no canvas permitem passar o mouse sobre os NPCs (Mira, Ancião) para exibir tooltips dinâmicos e clicar para iniciar diálogos e negociações de forma intuitiva.
-- **Automapa** com névoa de guerra e indicadores de **status** (☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento).
+- **Automapa** com névoa de guerra e indicadores de **status** (☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento). O boss revela a identidade correta à distância.
 - Badge: `online · DeepSeek` ou `offline · template`.
 - **Áudio** via Web Audio API: batimento cardíaco com HP crítico, shake prolongado nas magias, impacto grave (hit) e áudio de fadiga (pitch e LFO dinâmicos).
 
@@ -169,4 +169,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.5 — feedback in-game (sugestão/bug/report) + logs de jogada online; multi-sessão com locks por jogador, contas com chave de convite, rate-limit, defesa anti-jailbreak, deploy Railway/Docker.*
+*Protótipo v2.6.2 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D e Z-sorting, logs de jogada online, anti-jailbreak, deploy Railway/Docker.*

@@ -320,21 +320,19 @@ em modo online:
   - O save manual explícito (botão "Salvar") recebeu um parâmetro `force=True`, garantindo que um jogador ainda possa salvar manualmente um final.
 
 ### Atualização Visual com Sprites PNG e Vila Detalhada (v2.6)
-- **Substituição de Billboards ASCII:** Os glifos de texto puro para inimigos, NPCs e objetos foram substituídos por 16 assets visuais PNG em estilo *Pixel Art Dark Fantasy* transparentes (`assets/sprites/`).
-- **Engine Raycaster Aprimorada:** O método `drawBillboard` agora desenha os sprites e implementa um sistema simulado de pulo nos eixos X/Y (via variável `t`) quando sob ataque, substituindo a necessidade imediata de *sprite sheets* para hit reactions. A lógica de *Z-Buffer* foi melhorada no combate para garantir que inimigos próximos (pulso de combate e barra de vida) não tenham clipagem indevida ou sumam ao chegar perto.
-- **Vila 2D Imersiva:** O cenário de superfície foi expandido: o fundo agora traz chão gradiente detalhado, loja texturizada com letreiro, fonte de água retrabalhada, luz e sombra dinâmicas, além de posicionar as artes dos NPCs (Mira e Ancião) de modo unificado e orgânico no layout.
+- **Substituição de Billboards ASCII:** Os glifos de texto puro para inimigos, NPCs e objetos foram substituídos por 16 assets visuais PNG em estilo *Pixel Art Dark Fantasy* transparentes (`assets/sprites/`). Adicionados inimigos (Rato Gigante, Morcego, Cultista, Zumbi, Golem, etc.).
+- **Engine Raycaster Aprimorada:** O método `drawBillboard` agora desenha os sprites e implementa um sistema simulado de pulo nos eixos X/Y (via variável `t`) quando sob ataque, substituindo a necessidade de *sprite sheets* para hit reactions. A lógica de *Z-Buffer* foi melhorada no combate.
+- **Vila 2D Imersiva:** O cenário de superfície foi expandido. Fundo com céu noturno, chão detalhado, casas silhuetadas, tochas dinâmicas (`shadowBlur`) e NPCs texturizados.
+- **Interatividade Point-and-Click:** Implementação avançada de listeners `mousemove` e `click` diretamente no `canvas#view`. A UI detecta o ponteiro sobre as hitboxes proporcionais dos NPCs (Mira, Ancião), exibindo tooltips flutuantes e interagindo automaticamente (`/falar mira`).
 
 ### Bugfix drawBillboard + cobertura completa do Bestiário (v2.6.1)
-- **Bug Crítico — `drawBillboard` crash:** A refatoração anterior removeu a declaração
-  de `barW`/`barH`/`barX`/`barY` e o `if` guard da barra de HP, além de referenciar `ph`
-  (variável local do fallback ASCII) no rótulo fora de escopo. Qualquer entidade com barra
-  de HP explodia em `ReferenceError`. Corrigido: rótulo agora usa `h` (sempre disponível)
-  e a barra de HP foi restaurada com declaração e guard completos.
-- **Cobertura do `SPRITE_MAP`:** 5 IDs do bestiário (`esqueleto_animado`, `zumbi`,
-  `cultista`, `rato_gigante`, `morcego`) não tinham entrada no `SPRITE_MAP` — ao encontrar
-  esses inimigos o código caía no fallback ASCII mesmo com sprites habilitados.
-  Adicionados ao mapa: esqueleto com sprite próprio; os demais apontam temporariamente
-  para o genérico (`inimigo.png`) até a geração de sprites dedicados.
+- **Bug Crítico — `drawBillboard` crash:** A refatoração anterior explodia em entidades com HP. Rótulo agora usa `h` e a barra de HP foi restaurada com declaração e guard completos.
+- **Cobertura do `SPRITE_MAP`:** 5 IDs do bestiário (`esqueleto_animado`, `zumbi`, `cultista`, `rato_gigante`, `morcego`) foram mapeados. Esqueleto tem arte; demais usam genérico até assets finais.
+
+### Polish Z-Index e Fallback de Sprites (v2.6.2) — **atual**
+- **Z-Index do Combate (z-sorting):** Sprites de combate agora recebem dedução de distância no sort do array para renderizar na frente de props do mapa (altares, baús, portas) evitando *clipping*.
+- **Refatoração Visual da Vila:** Limpeza de código vetorial legado (`drawShop`, `drawFountain`). A vila 2D usa exclusivamente assets PNG ancorados corretamente sobre a linha do horizonte (`H*0.60`). Ordem de pintura (Z-Index) perfeita: Céu > Casas > Chão > Fonte > NPCs > Placa.
+- **Fallback de Boss Sprite:** `entityMeta` agora deriva inteligentemente qual o chefe (`golem_barro`, `capitao_osso`, `sacerdote_lodo`) através de `e.profundidade` no mapa (já que o server enviava apenas `boss: true`). O sprite do chefe agora aparece ao longe antes de iniciar a luta.
 
 ---
 
@@ -357,11 +355,6 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 - 3 slots em `saves/slot_1..3.json` + `saves/index.json` (metadados).
 - Auto-save no slot ativo; UI Salvar/Carregar abre seletor de slots.
 - Migração: `savegame.json` legado → slot 1 se vazio.
-
-### Melhorias Visuais e Interatividade na Vila (v2.6)
-- **Arte dos Sprites:** Inserção de novos sprites PNG de inimigos (Rato Gigante, Morcego, Cultista, Zumbi, Golem, etc.) e itens com fundos transparentes tratados dinamicamente via script.
-- **Refatoração da Vila 2D (`desenharVila2D`):** O layout básico foi substituído por uma arte procedural desenhada no canvas, incluindo céu noturno, casas silhuetadas iluminadas, loja com toldo, tochas dinâmicas (`shadowBlur`) e a fonte d'água no centro.
-- **Interatividade Point-and-Click:** Implementação avançada de listeners `mousemove` e `click` diretamente no `canvas#view`. A UI detecta o ponteiro sobre as hitboxes proporcionais dos NPCs (Mira, Ancião), exibindo tooltips flutuantes (ex: *"Falar com Mira"*) e interagindo via comandos automáticos (`/falar mira`) sem a necessidade de digitação.
 
 ---
 
@@ -405,4 +398,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.5 — observabilidade das jogadas online (logs/llm.log) + feedback in-game dos jogadores (sugestão/bug/report em data/feedback.jsonl).*
+*Última atualização: v2.6.2 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D (remoção de vetores legados) e aprimoramento de Z-Index/z-sorting em combates.*
