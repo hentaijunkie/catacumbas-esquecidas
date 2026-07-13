@@ -358,6 +358,11 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 - Auto-save no slot ativo; UI Salvar/Carregar abre seletor de slots.
 - Migração: `savegame.json` legado → slot 1 se vazio.
 
+### Melhorias Visuais e Interatividade na Vila (v2.6)
+- **Arte dos Sprites:** Inserção de novos sprites PNG de inimigos (Rato Gigante, Morcego, Cultista, Zumbi, Golem, etc.) e itens com fundos transparentes tratados dinamicamente via script.
+- **Refatoração da Vila 2D (`desenharVila2D`):** O layout básico foi substituído por uma arte procedural desenhada no canvas, incluindo céu noturno, casas silhuetadas iluminadas, loja com toldo, tochas dinâmicas (`shadowBlur`) e a fonte d'água no centro.
+- **Interatividade Point-and-Click:** Implementação avançada de listeners `mousemove` e `click` diretamente no `canvas#view`. A UI detecta o ponteiro sobre as hitboxes proporcionais dos NPCs (Mira, Ancião), exibindo tooltips flutuantes (ex: *"Falar com Mira"*) e interagindo via comandos automáticos (`/falar mira`) sem a necessidade de digitação.
+
 ---
 
 ## Proximos passos (curto prazo)

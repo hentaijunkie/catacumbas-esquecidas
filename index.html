@@ -1432,78 +1432,139 @@ function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pul
   ctx.restore();
 }
 
-/** Vista 2D da Vila — sem raycaster (espaços abertos quebram o FOV da masmorra). */
-function desenharVila2D(ctx, W, H, dpr, e){
-  // céu crepuscular
-  const sky = ctx.createLinearGradient(0,0,0,H*0.55);
-  sky.addColorStop(0,"#1a2038");
-  sky.addColorStop(0.5,"#3a4568");
-  sky.addColorStop(1,"#6a7088");
-  ctx.fillStyle = sky; ctx.fillRect(0,0,W,H*0.55);
-  // sol pálido
-  ctx.fillStyle = "rgba(255,210,140,0.85)";
-  ctx.beginPath(); ctx.arc(W*0.78, H*0.16, H*0.045, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "rgba(255,220,160,0.15)";
-  ctx.beginPath(); ctx.arc(W*0.78, H*0.16, H*0.12, 0, Math.PI*2); ctx.fill();
-
-  // Chão da praça de terra/pedra
-  const chao = ctx.createLinearGradient(0,H*0.55,0,H);
-  chao.addColorStop(0,"#2a2015");
-  chao.addColorStop(1,"#1f1810");
-  ctx.fillStyle = chao; ctx.fillRect(0, H*0.55, W, H*0.45);
-
-  // silhueta de casas (fundo)
+/** Funções Auxiliares da Vila 2D */
+function drawHouse(ctx, x, y, w, h) {
   ctx.fillStyle = "#161b22";
-  const roofs = [[0.02,0.28,0.18],[0.16,0.32,0.2],[0.55,0.3,0.22],[0.78,0.26,0.2]];
-  roofs.forEach(([x,y,w])=>{
-    ctx.fillRect(W*x, H*y, W*w, H*(0.55-y));
-    ctx.beginPath();
-    ctx.moveTo(W*x - 4, H*y);
-    ctx.lineTo(W*(x+w/2), H*(y-0.06));
-    ctx.lineTo(W*(x+w) + 4, H*y);
-    ctx.closePath(); ctx.fill();
-  });
+  ctx.fillRect(x, y, w, h);
+  ctx.beginPath();
+  ctx.moveTo(x - 4, y);
+  ctx.lineTo(x + w/2, y - h*0.3);
+  ctx.lineTo(x + w + 4, y);
+  ctx.closePath();
+  ctx.fill();
   
-  // Loja (Centro Direita)
+  // Porta fechada
+  ctx.fillStyle = "#11151a";
+  ctx.fillRect(x + w*0.3, y + h*0.5, w*0.3, h*0.5);
+  
+  // Janela com luz
+  ctx.fillStyle = "rgba(255,200,100,0.6)";
+  ctx.fillRect(x + w*0.7, y + h*0.2, w*0.15, h*0.2);
+}
+
+function drawFountain(ctx, x, y, H) {
+  // Base de pedra
+  ctx.fillStyle = '#4a5b6a';
+  ctx.beginPath();
+  ctx.ellipse(x, y + H*0.07, H*0.15, H*0.04, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Borda da fonte
+  ctx.fillStyle = '#3a4b5a';
+  ctx.beginPath();
+  ctx.ellipse(x, y + H*0.07, H*0.12, H*0.03, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Água seca
+  ctx.fillStyle = '#1c2e3a';
+  ctx.beginPath();
+  ctx.ellipse(x, y + H*0.07, H*0.10, H*0.025, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Pilar central
+  ctx.fillStyle = '#3a4b5a';
+  ctx.fillRect(x - H*0.03, y, H*0.06, H*0.07);
+}
+
+function drawShop(ctx, x, y, W, H) {
+  // Balcão base
   ctx.fillStyle = "#2d241c";
-  ctx.fillRect(W*0.5, H*0.4, W*0.35, H*0.15);
-  // Toldo da Loja
+  ctx.fillRect(x, y, W*0.35, H*0.15);
+  
+  // Toldo
   ctx.fillStyle = "#8a3a3a";
-  ctx.fillRect(W*0.48, H*0.38, W*0.39, H*0.04);
-  // Placa LOJA
+  ctx.fillRect(x - W*0.02, y - H*0.02, W*0.39, H*0.04);
+  
+  // Placa
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${Math.max(12, H*0.03)}px Arial`;
   ctx.textAlign = 'center';
-  ctx.fillText('LOJA', W*0.67, H*0.35);
+  ctx.fillText('LOJA', x + W*0.17, y - H*0.05);
+  
+  // Parte inferior
+  ctx.fillStyle = "#4a3b2c";
+  ctx.fillRect(x + W*0.05, y + H*0.14, W*0.25, H*0.08);
+}
 
-  // NPCs usando sprites
+function drawTorch(ctx, x, y, H) {
+  // Poste
+  ctx.fillStyle = "#3d2a1f";
+  ctx.fillRect(x, y, H*0.02, H*0.1);
+  // Fogo e Glow
+  ctx.save();
+  ctx.fillStyle = "#ffaa33";
+  ctx.shadowColor = "#ffaa33";
+  ctx.shadowBlur = H*0.1;
+  ctx.beginPath();
+  ctx.arc(x + H*0.01, y, H*0.015, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Vista 2D da Vila — sem raycaster */
+function desenharVila2D(ctx, W, H, dpr, e){
+  // 1. Fundo (céu noturno + lua)
+  ctx.fillStyle = '#0f1626';
+  ctx.fillRect(0, 0, W, H);
+  
+  const bgGrad = ctx.createLinearGradient(0,0,0,H*0.55);
+  bgGrad.addColorStop(0,"#0f1626");
+  bgGrad.addColorStop(1,"#1a2538");
+  ctx.fillStyle = bgGrad; ctx.fillRect(0,0,W,H*0.55);
+
+  // Lua
+  ctx.fillStyle = '#ffcc66';
+  ctx.beginPath();
+  ctx.arc(W*0.78, H*0.16, H*0.05, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Casas de fundo
+  drawHouse(ctx, W*0.02, H*0.3, W*0.18, H*0.25);
+  drawHouse(ctx, W*0.16, H*0.32, W*0.2, H*0.23);
+  drawHouse(ctx, W*0.55, H*0.3, W*0.22, H*0.25);
+  drawHouse(ctx, W*0.78, H*0.26, W*0.2, H*0.29);
+
+  // 3. Chão da praça
+  ctx.fillStyle = '#3d2a1f';
+  const chao = ctx.createLinearGradient(0,H*0.55,0,H);
+  chao.addColorStop(0,"#221610");
+  chao.addColorStop(1,"#120c08");
+  ctx.fillStyle = chao; ctx.fillRect(0, H*0.55, W, H*0.45);
+
+  // 4. Fonte central
+  drawFountain(ctx, W*0.4, H*0.58, H);
+
+  // 5. Loja
+  drawShop(ctx, W*0.5, H*0.4, W, H);
+
+  // 6. NPCs usando sprites
+  window._vilaHitboxes = [];
+  
   if (spriteImages.mira && spriteImages.mira.complete) {
-    // Mira atrás do balcão
-    ctx.drawImage(spriteImages.mira, W*0.6, H*0.42, H*0.18, H*0.18);
-    // Balcão
-    ctx.fillStyle = "#4a3b2c";
-    ctx.fillRect(W*0.55, H*0.54, W*0.25, H*0.08);
+    const mx = W*0.6, my = H*0.42, mw = H*0.18, mh = H*0.18;
+    ctx.drawImage(spriteImages.mira, mx, my, mw, mh);
+    window._vilaHitboxes.push({ id: 'mira', x: mx, y: my, w: mw, h: mh, tooltip: "Falar com Mira" });
   }
   
   if (spriteImages.anciao && spriteImages.anciao.complete) {
-    // Ancião à esquerda
-    ctx.drawImage(spriteImages.anciao, W*0.2, H*0.48, H*0.18, H*0.18);
+    const ax = W*0.2, ay = H*0.48, aw = H*0.18, ah = H*0.18;
+    ctx.drawImage(spriteImages.anciao, ax, ay, aw, ah);
+    window._vilaHitboxes.push({ id: 'anciao', x: ax, y: ay, w: aw, h: ah, tooltip: "Falar com o Ancião" });
   }
 
-  // Fonte no centro
-  ctx.fillStyle = '#4a6b7a';
-  ctx.beginPath();
-  ctx.ellipse(W*0.4, H*0.65, W*0.1, H*0.03, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#3a4b5a';
-  ctx.fillRect(W*0.38, H*0.58, W*0.04, H*0.07);
-
-  // janelas acesas
-  ctx.fillStyle = "rgba(255,200,100,0.6)";
-  ctx.fillRect(W*0.06, H*0.4, W*0.03, H*0.06);
-  ctx.fillRect(W*0.85, H*0.38, W*0.03, H*0.06);
-  ctx.fillStyle = "rgba(255,200,100,0.3)";
-  ctx.fillRect(W*0.22, H*0.45, W*0.02, H*0.04);
+  // 7. Tochas (com glow)
+  drawTorch(ctx, W*0.15, H*0.45, H);
+  drawTorch(ctx, W*0.85, H*0.43, H);
 
   // vinheta p/ mesclar as bordas
   const grad = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, W*0.6);
@@ -1512,20 +1573,39 @@ function desenharVila2D(ctx, W, H, dpr, e){
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,W,H);
 
-  // título
+  // Tooltip do mouse (se hover)
+  if (window._vilaHoverTooltip) {
+    ctx.fillStyle = "rgba(0,0,0,0.8)";
+    ctx.font = `${Math.max(12, 12*dpr)}px system-ui`;
+    const tw = ctx.measureText(window._vilaHoverTooltip).width + 20;
+    const th = 24 * dpr;
+    const tx = window._vilaMouseX, ty = window._vilaMouseY - th - 10;
+    ctx.fillRect(tx - tw/2, ty, tw, th);
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(window._vilaHoverTooltip, tx, ty + th/2);
+  }
+
+  // título narrativo imersivo
   ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#e7e9ef";
   ctx.font = `bold ${Math.max(14, 15*dpr)}px system-ui`;
   ctx.fillText("Pedralume — praça da fonte", 16*dpr, 26*dpr);
+  
   ctx.fillStyle = "#9aa0b4";
-  ctx.font = `${Math.max(11, 12*dpr)}px system-ui`;
-  ctx.fillText(e.missao_cumprida
-    ? "A água volta a correr. A Vila respira de novo."
-    : "A fonte ainda está seca. Fale com Mira ou o Ancião — ou desça às catacumbas.",
-    16*dpr, 46*dpr);
+  ctx.font = `italic ${Math.max(11, 12*dpr)}px system-ui`;
+  const textoNarrativo = e.missao_cumprida
+    ? "A água cristalina volta a jorrar na fonte restaurada. A Vila respira de novo."
+    : "A praça está silenciosa. A fonte de pedra agora está quase seca. Mira mantém a loja aberta, e o Ancião Brum observa a noite.";
+  
+  ctx.fillText(textoNarrativo, 16*dpr, 46*dpr);
+  
   if(e.player){
     ctx.fillStyle = "#e8c95a";
-    ctx.fillText(`Ouro: ${e.player.ouro||0}  ·  use o painel da loja →`, 16*dpr, 66*dpr);
+    ctx.font = `bold ${Math.max(11, 12*dpr)}px system-ui`;
+    ctx.fillText(`Ouro: ${e.player.ouro||0}  ·  (Clique na loja ou nos NPCs)`, 16*dpr, 66*dpr);
   }
 }
 
@@ -1920,6 +2000,59 @@ async function bootGame(){
     $("#ovStart").classList.remove("hidden");
   }
 }
+
+// ---- interações no canvas da vila ----
+const cvs = $("#view");
+window._vilaHitboxes = [];
+window._vilaHoverTooltip = null;
+window._vilaMouseX = 0;
+window._vilaMouseY = 0;
+
+function checkVilaHitbox(ev) {
+  if (!window._naSuperficie || !window._vilaHitboxes) return null;
+  const rect = cvs.getBoundingClientRect();
+  const scaleX = cvs.width / rect.width;
+  const scaleY = cvs.height / rect.height;
+  const x = (ev.clientX - rect.left) * scaleX;
+  const y = (ev.clientY - rect.top) * scaleY;
+  
+  window._vilaMouseX = x;
+  window._vilaMouseY = y;
+  
+  for (const box of window._vilaHitboxes) {
+    if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) {
+      return box;
+    }
+  }
+  return null;
+}
+
+cvs.addEventListener("mousemove", (ev) => {
+  if (!window._naSuperficie) return;
+  const hit = checkVilaHitbox(ev);
+  if (hit) {
+    cvs.style.cursor = "pointer";
+    if (window._vilaHoverTooltip !== hit.tooltip) {
+      window._vilaHoverTooltip = hit.tooltip;
+      if (window._estado) solicitarVista(window._estado, null);
+    }
+  } else {
+    cvs.style.cursor = "default";
+    if (window._vilaHoverTooltip) {
+      window._vilaHoverTooltip = null;
+      if (window._estado) solicitarVista(window._estado, null);
+    }
+  }
+});
+
+cvs.addEventListener("click", async (ev) => {
+  if (!window._naSuperficie) return;
+  const hit = checkVilaHitbox(ev);
+  if (hit) {
+    log(`› /falar ${hit.id}`, "you");
+    aplicar(await api("/api/interagir", { texto: `/falar ${hit.id}` }));
+  }
+});
 
 (async function init() {
   try {
