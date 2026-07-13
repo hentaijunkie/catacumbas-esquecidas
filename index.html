@@ -1497,17 +1497,12 @@ function desenharVila2D(ctx, W, H, dpr, e){
     ctx.drawImage(spriteImages.vila_casas, 0, hHorizonte - ph + H*0.05, W, ph);
   }
 
-  // 3. Chão da praça (Pattern de paralelepípedos)
-  if (spriteImages.vila_chao && spriteImages.vila_chao.complete) {
-    const pat = ctx.createPattern(spriteImages.vila_chao, 'repeat');
-    ctx.fillStyle = pat;
-    ctx.save();
-    ctx.translate(0, hHorizonte);
-    ctx.fillRect(0, 0, W, H - hHorizonte);
-    ctx.restore();
-  } else {
-    ctx.fillStyle = '#120c08'; ctx.fillRect(0, hHorizonte, W, H - hHorizonte);
-  }
+  // 3. Chão da praça (Cor sólida para manter perspectiva)
+  ctx.fillStyle = '#120c08'; 
+  ctx.fillRect(0, hHorizonte, W, H - hHorizonte);
+  // Traço sutil na borda para separar o horizonte
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, hHorizonte, W, 2*dpr);
 
   // 4. Fonte de Pedra (Centro da praça)
   if (spriteImages.vila_fonte && spriteImages.vila_fonte.complete) {
