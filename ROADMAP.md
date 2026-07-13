@@ -329,10 +329,15 @@ em modo online:
 - **Bug Crítico — `drawBillboard` crash:** A refatoração anterior explodia em entidades com HP. Rótulo agora usa `h` e a barra de HP foi restaurada com declaração e guard completos.
 - **Cobertura do `SPRITE_MAP`:** 5 IDs do bestiário (`esqueleto_animado`, `zumbi`, `cultista`, `rato_gigante`, `morcego`) foram mapeados. Esqueleto tem arte; demais usam genérico até assets finais.
 
-### Polish Z-Index e Fallback de Sprites (v2.6.2) — **atual**
+### Polish Z-Index e Fallback de Sprites (v2.6.2)
 - **Z-Index do Combate (z-sorting):** Sprites de combate agora recebem dedução de distância no sort do array para renderizar na frente de props do mapa (altares, baús, portas) evitando *clipping*.
 - **Refatoração Visual da Vila:** Limpeza de código vetorial legado (`drawShop`, `drawFountain`). A vila 2D usa exclusivamente assets PNG ancorados corretamente sobre a linha do horizonte (`H*0.60`). Ordem de pintura (Z-Index) perfeita: Céu > Casas > Chão > Fonte > NPCs > Placa.
 - **Fallback de Boss Sprite:** `entityMeta` agora deriva inteligentemente qual o chefe (`golem_barro`, `capitao_osso`, `sacerdote_lodo`) através de `e.profundidade` no mapa (já que o server enviava apenas `boss: true`). O sprite do chefe agora aparece ao longe antes de iniciar a luta.
+
+### Hotfix Visual da Vila (v2.6.3) — **atual**
+- **Correção de Assets Trocados:** Os assets `vila_fonte.png` e `vila_placa.png` estavam mapeados de forma invertida nos sprites, fazendo a fonte flutuar e a placa descansar no chão. O erro foi corrigido nos arquivos para manter a harmonia matemática do canvas 2D.
+- **Perspectiva do Chão Corrigida:** Removido o padrão ilusório de textura `createPattern` (que dava o aspecto de um "muro de tijolos" vertical) do chão da praça. Em seu lugar, a vila utiliza um preenchimento sólido cor de terra (`#120c08`), assegurando que a perspectiva 2.5D respeite a linha do horizonte e ancore NPCs e props visualmente corretos.
+- **Refinamento de Sprites:** O arquivo `vila_casas.png` recebeu uma atualização de arte por conta do criador para melhorar a composição do fundo (silhuetas de casas conversando melhor com o céu).
 
 ---
 
@@ -398,4 +403,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.6.2 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D (remoção de vetores legados) e aprimoramento de Z-Index/z-sorting em combates.*
+*Última atualização: v2.6.3 — Correção na perspectiva do chão da Vila (remoção de pattern vertical), swap de assets Fonte/Placa invertidos, e atualização da arte visual das casas ao fundo.*

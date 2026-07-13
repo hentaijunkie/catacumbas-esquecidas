@@ -169,4 +169,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.6.2 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D e Z-sorting, logs de jogada online, anti-jailbreak, deploy Railway/Docker.*
+*Protótipo v2.6.3 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D (remoção do pattern de perspectiva incorreta e assets invertidos) e Z-sorting, logs de jogada online, anti-jailbreak, deploy Railway/Docker.*
