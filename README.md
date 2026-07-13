@@ -113,11 +113,12 @@ Não publique a chave no repositório.
 - 6 atributos (FOR/DES/CON/INT/SAB/CAR) · progressão até nível 4
 
 ### Exploração
-- Masmorra procedural (~24 salas) + **andares 2–3** (minichefes) + **superfície (Pedralume)**
+- Masmorra procedural (~24 salas) + **andares 1-3** (sidequests e minichefes) + **superfície (Pedralume)**
 - **Ouro** e **loja/NPCs** na Vila; **3 slots de save** por conta (`saves/<usuario>/slot_N.json`)
 - Luz/tocha, Pedra de Luz Eterna, fadiga, encumbrance, descanso + wandering
 - Lore tablets, altares (rezar/oferecer/saquear), armadilhas, cofres, gazua, **Loot Procedural (Afixos)** + **Identificação** (pergaminho)
 - **Dano contínuo:** Gás Venenoso envenena, Lâminas Giratórias causam sangramento (tick por passo)
+- **Durabilidade e Reparo:** Armas e armaduras desgastam em uso real no combate; consertos disponíveis no Ferreiro.
 - Facing inicial aponta para uma **saída real** (entrada jogável em 1ª pessoa)
 - **Auto-save:** salva a cada combate, troca de andar, poção de cura, descanso e a cada 12 passos.
 
@@ -169,4 +170,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.6.3 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D (remoção do pattern de perspectiva incorreta e assets invertidos) e Z-sorting, logs de jogada online, anti-jailbreak, deploy Railway/Docker.*
+*Protótipo v2.7.0 — Atualização visual maciça com Sprites em Pixel Art, UI Point-and-Click, Refatoração da Vila 2D e Z-sorting. Expansão com Sidequests (Nascente Envenenada e Carrasco) e sistema de Durabilidade (armas e armaduras degradam em combate).*

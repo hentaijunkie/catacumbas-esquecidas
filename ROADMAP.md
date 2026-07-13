@@ -334,10 +334,22 @@ em modo online:
 - **Refatoração Visual da Vila:** Limpeza de código vetorial legado (`drawShop`, `drawFountain`). A vila 2D usa exclusivamente assets PNG ancorados corretamente sobre a linha do horizonte (`H*0.60`). Ordem de pintura (Z-Index) perfeita: Céu > Casas > Chão > Fonte > NPCs > Placa.
 - **Fallback de Boss Sprite:** `entityMeta` agora deriva inteligentemente qual o chefe (`golem_barro`, `capitao_osso`, `sacerdote_lodo`) através de `e.profundidade` no mapa (já que o server enviava apenas `boss: true`). O sprite do chefe agora aparece ao longe antes de iniciar a luta.
 
-### Hotfix Visual da Vila (v2.6.3) — **atual**
+### Hotfix Visual da Vila (v2.6.3)
 - **Correção de Assets Trocados:** Os assets `vila_fonte.png` e `vila_placa.png` estavam mapeados de forma invertida nos sprites, fazendo a fonte flutuar e a placa descansar no chão. O erro foi corrigido nos arquivos para manter a harmonia matemática do canvas 2D.
 - **Perspectiva do Chão Corrigida:** Removido o padrão ilusório de textura `createPattern` (que dava o aspecto de um "muro de tijolos" vertical) do chão da praça. Em seu lugar, a vila utiliza um preenchimento sólido cor de terra (`#120c08`), assegurando que a perspectiva 2.5D respeite a linha do horizonte e ancore NPCs e props visualmente corretos.
 - **Refinamento de Sprites:** O arquivo `vila_casas.png` recebeu uma atualização de arte por conta do criador para melhorar a composição do fundo (silhuetas de casas conversando melhor com o céu).
+
+### Expansão de Sidequests e Mecânica de Durabilidade (v2.7.0)
+- **Novas Câmaras de Sidequest:** Ampliado o motor procedural para injetar câmaras especiais logo nos andares iniciais:
+  - *Nascente Envenenada (Andar 1)*: Protegida por um duo de cultistas.
+  - *Câmara do Carrasco (Andar 2)*: Abrigando o implacável Carrasco (mini-chefe) acompanhado de loot garantido valioso (Lâmina Rúnica + Poções).
+- **Testes Ajustados:** Os testes automatizados da masmorra (`--demo`) foram modernizados para lidar com as sidequests procedurais, removendo asserções falsas de exclusividade de chefes nos andares menores.
+- **Sistema de Durabilidade Diabólico:**
+  - Equipamentos gerados pelo LLM ganharam persistência de "saúde estrutural" (`durabilidade_max`). 
+  - A inicialização do item é tardia (lazy loading) e ativada somente ao sofrer ou causar dano no combate.
+  - As armas sofrem dano ao atacar inimigos e armaduras ao receber dano - ambas podem ser completamente destruídas. 
+- **O Ferreiro Kaelen:** Um novo handler `/api` de consertar itens foi criado e linkado a **Kaelen**. Através da interface via LLM (`{"tipo": "consertar", "item": "<id>"}`), o jogador pode restaurar sua lâmina no NPC, pagando 10 moedas de ouro para Pedralume.
+
 
 ---
 
@@ -403,4 +415,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.6.3 — Correção na perspectiva do chão da Vila (remoção de pattern vertical), swap de assets Fonte/Placa invertidos, e atualização da arte visual das casas ao fundo.*
+*Última atualização: v2.7.0 - Expansão de Sidequests e sistema de degradação de itens (Durabilidade).*

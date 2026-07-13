@@ -185,28 +185,30 @@ ALTARES = {
 # Aba 2: Bestiário ('defesa' fecha a fórmula de dano; 'xp' alimenta a progressão;
 # 'unico' marca inimigos que não reaparecem — o Golem é o chefe final).
 BESTIARIO = {
-    "rato_gigante":     {"nome": "Rato Gigante",       "hp": 8,  "dano": 2, "defesa": 0, "xp": 3, "ouro": 2},
-    "morcego":          {"nome": "Morcego Sanguessuga","hp": 6,  "dano": 2, "defesa": 0, "xp": 3, "ouro": 1},
-    "esqueleto_animado":{"nome": "Esqueleto Animado",  "hp": 15, "dano": 3, "defesa": 1, "xp": 6, "ouro": 4},
-    "cultista":         {"nome": "Cultista Sombrio",   "hp": 12, "dano": 3, "defesa": 1, "xp": 6, "ouro": 5},
-    "zumbi":            {"nome": "Zumbi Pútrido",       "hp": 22, "dano": 4, "defesa": 1, "xp": 9, "ouro": 6},
+    "rato_gigante":     {"nome": "Rato Gigante",       "hp": 8,  "dano": 2, "defesa": 0, "xp": 3, "ouro": 2, "mlvl": 1},
+    "morcego":          {"nome": "Morcego Sanguessuga","hp": 6,  "dano": 2, "defesa": 0, "xp": 3, "ouro": 1, "mlvl": 1},
+    "esqueleto_animado":{"nome": "Esqueleto Animado",  "hp": 15, "dano": 3, "defesa": 1, "xp": 6, "ouro": 4, "mlvl": 2},
+    "cultista":         {"nome": "Cultista Sombrio",   "hp": 12, "dano": 3, "defesa": 1, "xp": 6, "ouro": 5, "mlvl": 2},
+    "zumbi":            {"nome": "Zumbi Pútrido",       "hp": 22, "dano": 4, "defesa": 1, "xp": 9, "ouro": 6, "mlvl": 3},
     # 'veneno' = a mordida pode envenenar o JOGADOR (dano contínuo por passos/rounds).
-    "aranha_cripta":    {"nome": "Aranha da Cripta",   "hp": 12, "dano": 2, "defesa": 0, "xp": 5, "ouro": 4,
+    "aranha_cripta":    {"nome": "Aranha da Cripta",   "hp": 12, "dano": 2, "defesa": 0, "xp": 5, "ouro": 4, "mlvl": 3,
                          "veneno": {"dano": 2, "passos": 3, "chance": 0.35}},
     # 'gelo' = o toque drena o calor do corpo: +1 fadiga por acerto (entra em mods_combate).
-    "espectro_gelido":  {"nome": "Espectro Gélido",    "hp": 12, "dano": 3, "defesa": 2, "xp": 7, "ouro": 5,
+    "espectro_gelido":  {"nome": "Espectro Gélido",    "hp": 12, "dano": 3, "defesa": 2, "xp": 7, "ouro": 5, "mlvl": 4,
                          "gelo": True},
     # 'fraqueza' = cada acerto do inimigo reduz o dano físico do jogador em 1 (máx. 3 stacks).
     # O efeito é revertido ao fim do combate.
-    "sombra_vampirica": {"nome": "Sombra Vampírica",  "hp": 14, "dano": 3, "defesa": 1, "xp": 8, "ouro": 6,
+    "sombra_vampirica": {"nome": "Sombra Vampírica",  "hp": 14, "dano": 3, "defesa": 1, "xp": 8, "ouro": 6, "mlvl": 4,
                          "fraqueza": {"dano_red": 1, "max_stacks": 3}},
     # Minichefes do andar 3 (unicos — não reaparecem após mortos).
-    "capitao_osso":     {"nome": "Capitão de Ossos",   "hp": 30, "dano": 5, "defesa": 2, "xp": 14, "ouro": 18,
+    "capitao_osso":     {"nome": "Capitão de Ossos",   "hp": 30, "dano": 5, "defesa": 2, "xp": 14, "ouro": 18, "mlvl": 5,
                          "unico": True, "minichefe": True},
-    "sacerdote_lodo":   {"nome": "Sacerdote do Lodo",  "hp": 26, "dano": 4, "defesa": 1, "xp": 12, "ouro": 16,
+    "carrasco":         {"nome": "O Carrasco",         "hp": 40, "dano": 6, "defesa": 2, "xp": 18, "ouro": 25, "mlvl": 5,
+                         "unico": True, "minichefe": True},
+    "sacerdote_lodo":   {"nome": "Sacerdote do Lodo",  "hp": 26, "dano": 4, "defesa": 1, "xp": 12, "ouro": 16, "mlvl": 6,
                          "unico": True, "minichefe": True,
                          "veneno": {"dano": 2, "passos": 3, "chance": 0.40}},
-    "golem_barro":      {"nome": "Golem de Barro",     "hp": 40, "dano": 7, "defesa": 3, "xp": 20, "ouro": 30,
+    "golem_barro":      {"nome": "Golem de Barro",     "hp": 40, "dano": 7, "defesa": 3, "xp": 20, "ouro": 30, "mlvl": 7,
                          "unico": True},
 }
 
@@ -233,8 +235,59 @@ NPCS_VILA = {
         "fala": ("O ancião olha a fonte rachada: \"Três andares descem sob Pedralume. No fundo, "
                  "algo antigo ainda chora. Traga a água de volta — ou o que restar dela.\""),
     },
+    "ferreiro": {
+        "nome": "Kael, o Forjador",
+        "papel": "forja",
+        "fala": ("Kael bate o martelo em uma espada gasta: \"As lâminas lascam rápido nas catacumbas. "
+                 "Traga-as aqui antes que quebrem de vez.\""),
+    },
+    "curandeiro": {
+        "nome": "Irmão Silas",
+        "papel": "cura",
+        "fala": ("O monge lava bandagens ensanguentadas: \"A luz ainda não nos abandonou. "
+                 "Fique em paz, eu cuidarei de suas feridas.\""),
+    },
+    "bruxa": {
+        "nome": "Morrigan, a Ocultista",
+        "papel": "magia",
+        "fala": ("A bruxa sorri na penumbra de sua tenda: \"Eles temem o que não entendem. "
+                 "Mas o poder arcano é a única coisa que aquelas sombras respeitam.\""),
+    },
 }
 
+MAPA_VILA = {
+    (0, 0): {"tipo": "praca", "exits": {"norte", "sul", "leste", "oeste"}, "visitada": True, "ceu_aberto": True},
+    (0, -1): {"tipo": "entrada_catacumbas", "exits": {"sul", "norte"}, "visitada": True, "escada": True, "ceu_aberto": True}, 
+    (0, 1): {"tipo": "forja", "exits": {"norte"}, "visitada": True, "npc": "ferreiro", "ceu_aberto": True},
+    (1, 0): {"tipo": "loja_alquimia", "exits": {"oeste"}, "visitada": True, "npc": "mira", "ceu_aberto": True},
+    (-1, 0): {"tipo": "tenda_sabio", "exits": {"leste"}, "visitada": True, "npc": "anciao", "ceu_aberto": True},
+    (1, -1): {"tipo": "tenda_cura", "exits": {"oeste"}, "visitada": True, "npc": "curandeiro", "ceu_aberto": True},
+    (-1, 1): {"tipo": "cabana_bruxa", "exits": {"leste", "sul"}, "visitada": True, "npc": "bruxa", "ceu_aberto": True},
+    (-2, 1): {"tipo": "ruas", "exits": {"leste"}, "visitada": True, "ceu_aberto": True},
+}
+# Liga a tenda da bruxa ao sabio (oeste) ou norte da praca
+MAPA_VILA[(0, 0)]["exits"].add("norte")
+MAPA_VILA[(0, 1)]["exits"].add("norte")
+MAPA_VILA[(-1, 0)]["exits"].add("norte")
+MAPA_VILA[(-1, 1)]["exits"].add("sul")
+MAPA_VILA[(0, -1)]["exits"].add("leste")
+MAPA_VILA[(1, -1)]["exits"].add("oeste")
+
+for coord in MAPA_VILA:
+    MAPA_VILA[coord].setdefault("armadilha", None)
+    MAPA_VILA[coord].setdefault("armadilha_ativa", False)
+    MAPA_VILA[coord].setdefault("cofre", False)
+    MAPA_VILA[coord].setdefault("trancado", False)
+    MAPA_VILA[coord].setdefault("inimigo", None)
+    MAPA_VILA[coord].setdefault("altar", False)
+    MAPA_VILA[coord].setdefault("tesouro", None)
+    MAPA_VILA[coord].setdefault("npc", None)
+    MAPA_VILA[coord].setdefault("lore", None)
+    MAPA_VILA[coord].setdefault("escada_sobe", False)
+    MAPA_VILA[coord].setdefault("saqueada", False)
+    MAPA_VILA[coord].setdefault("loot", [])
+    MAPA_VILA[coord].setdefault("boss", False)
+    MAPA_VILA[coord].setdefault("chefe_morto", False)
 # Aba: Magias (o Mago é dono delas; o Ladino toca de leve). Dano de magia IGNORA a
 # defesa do alvo — é o que faz o feitiço furar o Golem melhor que o aço. 'custo' = mana.
 # Efeitos: 'dano' (nuke), 'cura' (HP), 'dreno' (dano + cura pelo mesmo valor),
@@ -305,16 +358,27 @@ DIRECOES_ABS = {
 ORDEM_HORARIA = ["norte", "leste", "sul", "oeste"]   # p/ girar esquerda/direita/trás
 RELATIVAS = {"frente", "tras", "esquerda", "direita"}
 MOVIMENTOS = set(DIRECOES_ABS) | RELATIVAS           # tokens válidos p/ o verbo 'mover'
-N_SALAS = 24                                         # masmorra maior (campanha estratégica; cabe hordas + cofre)
+N_SALAS = 50                                         # masmorra maior (campanha estratégica; cabe hordas + cofre)
 
 # Aba: Progressão (engine é dona — o LLM nunca decide XP nem nível). Até nível 4.
 # 'xp' = total ACUMULADO exigido p/ ALCANÇAR aquele nível. Sobe de nível ganha os bônus
 # (+HP, +dano, +mana). Limpar a masmorra maior leva ~nível 4; o Golem fica vencível.
-NIVEL_MAX = 4
+NIVEL_MAX = 15
 PROGRESSAO = {
     2: {"xp": 6,  "hp_max": 5, "dano_base": 1, "mana_max": 3},
     3: {"xp": 14, "hp_max": 5, "dano_base": 1, "mana_max": 3},
     4: {"xp": 26, "hp_max": 6, "dano_base": 1, "mana_max": 4},
+    5: {"xp": 42, "hp_max": 6, "dano_base": 1, "mana_max": 4},
+    6: {"xp": 62, "hp_max": 6, "dano_base": 1, "mana_max": 4},
+    7: {"xp": 86, "hp_max": 6, "dano_base": 1, "mana_max": 4},
+    8: {"xp": 114, "hp_max": 7, "dano_base": 1, "mana_max": 5},
+    9: {"xp": 146, "hp_max": 7, "dano_base": 1, "mana_max": 5},
+    10: {"xp": 182, "hp_max": 7, "dano_base": 1, "mana_max": 5},
+    11: {"xp": 222, "hp_max": 8, "dano_base": 1, "mana_max": 5},
+    12: {"xp": 266, "hp_max": 8, "dano_base": 1, "mana_max": 6},
+    13: {"xp": 314, "hp_max": 8, "dano_base": 1, "mana_max": 6},
+    14: {"xp": 366, "hp_max": 9, "dano_base": 1, "mana_max": 6},
+    15: {"xp": 422, "hp_max": 9, "dano_base": 1, "mana_max": 7},
 }
 
 # Afixos Procedurais (Loot)
@@ -340,14 +404,14 @@ SUFIXOS_ARMADURA = [
 # 'peso' em armadura = classe de peso (leve/media/pesada) p/ restrição de classe.
 # 'carga' = unidades de peso p/ encumbrance (equipados contam metade).
 ITENS = {
-    "espada_enferrujada": {"nome": "Espada Enferrujada", "tipo": "arma",       "dano": 2, "carga": 3},
-    "adaga_aco":          {"nome": "Adaga de Aço",       "tipo": "arma",       "dano": 1, "carga": 1},
-    "cajado_carvalho":    {"nome": "Cajado de Carvalho", "tipo": "arma",       "dano": 2, "carga": 2},
-    "espada_longa":       {"nome": "Espada Longa",       "tipo": "arma",       "dano": 4, "carga": 4},
-    "lamina_runica":      {"nome": "Lâmina Rúnica",      "tipo": "arma",       "dano": 5, "carga": 3},
-    "roupas_pano":        {"nome": "Roupas de Pano",     "tipo": "armadura",   "defesa": 1, "peso": "leve", "carga": 2},
-    "gibao_couro":        {"nome": "Gibão de Couro",     "tipo": "armadura",   "defesa": 3, "peso": "media", "carga": 5},
-    "cota_malha":         {"nome": "Cota de Malha",      "tipo": "armadura",   "defesa": 5, "peso": "pesada", "carga": 10},
+    "espada_enferrujada": {"nome": "Espada Enferrujada", "tipo": "arma",       "dano": 2, "carga": 3, "durabilidade_max": 25},
+    "adaga_aco":          {"nome": "Adaga de Aço",       "tipo": "arma",       "dano": 1, "carga": 1, "durabilidade_max": 30},
+    "cajado_carvalho":    {"nome": "Cajado de Carvalho", "tipo": "arma",       "dano": 2, "carga": 2, "durabilidade_max": 20},
+    "espada_longa":       {"nome": "Espada Longa",       "tipo": "arma",       "dano": 4, "carga": 4, "durabilidade_max": 40},
+    "lamina_runica":      {"nome": "Lâmina Rúnica",      "tipo": "arma",       "dano": 5, "carga": 3, "durabilidade_max": 50},
+    "roupas_pano":        {"nome": "Roupas de Pano",     "tipo": "armadura",   "defesa": 1, "peso": "leve", "carga": 2, "durabilidade_max": 20},
+    "gibao_couro":        {"nome": "Gibão de Couro",     "tipo": "armadura",   "defesa": 3, "peso": "media", "carga": 5, "durabilidade_max": 35},
+    "cota_malha":         {"nome": "Cota de Malha",      "tipo": "armadura",   "defesa": 5, "peso": "pesada", "carga": 10, "durabilidade_max": 50},
     "pocao_cura":         {"nome": "Poção de Cura",      "tipo": "consumivel", "cura": 15, "carga": 1},
     "pocao_mana":         {"nome": "Poção de Mana",      "tipo": "consumivel", "mana": 12, "carga": 1},
     "grimorio_fogo":      {"nome": "Grimório: Bola de Fogo",  "tipo": "grimorio", "magia": "bola_fogo", "carga": 2},
@@ -491,7 +555,8 @@ ACOES_PERMITIDAS = {
     # v2.1 vila
     "comprar":          {"item": "item_id"},         # loja de Pedralume (ouro)
     "vender":           {"item": "item_id"},         # vende do inventário (não equipado)
-    "falar":            {"alvo": "str"},             # NPC da vila (mira|anciao)
+    "consertar":        {"item": "item_id"},         # conserta item no ferreiro (ouro)
+    "falar":            {"alvo": "str"},             # NPC da vila (mira|anciao|ferreiro)
 }
 
 
@@ -573,13 +638,24 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
         salas[fundo]["tipo"] = "camara"
         salas[fundo]["boss"] = True
         salas[fundo]["inimigo"] = OBJETIVO_BOSS
+        salas[fundo]["grupo"] = ["cultista", "cultista"]
+        salas[fundo]["nome"] = "Nascente Envenenada"
         boss_cell = fundo
     elif profundidade == 2:
-        # Câmara elite (horda) — sem Golem.
+        # Câmara elite (horda) - sem Golem.
         salas[fundo]["tipo"] = "camara"
         salas[fundo]["inimigo"] = "zumbi"
         salas[fundo]["grupo"] = ["cultista", "esqueleto_animado"]
         boss_cell = None
+
+        # O Carrasco (Sidequest - Andar 2)
+        carrasco_cell = next(it)
+        salas[carrasco_cell]["tipo"] = "camara"
+        salas[carrasco_cell]["boss"] = True
+        salas[carrasco_cell]["inimigo"] = "carrasco"
+        salas[carrasco_cell]["nome"] = "Câmara do Carrasco"
+        salas[carrasco_cell]["grupo"] = []
+        salas[carrasco_cell]["loot"] = ["lamina_runica", "pocao_cura"]
     else:
         # Andar 3: câmara do minichefe (Capitão de Ossos) + horda.
         salas[fundo]["tipo"] = "camara"
@@ -1057,7 +1133,7 @@ def xp_para_proximo(player):
     return PROGRESSAO[prox]["xp"] - player["xp"]
 
 
-def ganhar_xp(state, xp):
+def ganhar_xp(state, xp, mlvl=None):
     """
     Concede XP e sobe de nível quantas vezes o total acumulado permitir (até NIVEL_MAX).
     Cada nível dá +hp_max e +dano_base; o bônus de HP também entra no HP atual (não é
@@ -1065,11 +1141,22 @@ def ganhar_xp(state, xp):
     Humanos: +xp_pct% (ceil). Elfo: +mana_por_nivel ao subir de nível.
     """
     p = state["player"]
+    
+    # Diablo 1 Soft Cap: Penalidade de XP se o jogador for muito mais forte que o monstro.
+    if mlvl is not None:
+        diff = p["nivel"] - mlvl
+        if diff >= 3:
+            xp = 0
+            print(f"  [xp] Monstro muito fraco (mlvl {mlvl} vs nível {p['nivel']}). Ganho 0 XP.")
+        elif diff > 0:
+            xp = int(xp * (1.0 - (diff * 0.3)))
+            print(f"  [xp] Penalidade de diferença de nível (mlvl {mlvl} vs {p['nivel']}). Ganho {xp} XP.")
+
     pct = RACAS.get(p.get("raca", "Humano"), {}).get("xp_pct", 0)
     if pct and xp > 0:
         xp = xp + (xp * pct // 100)     # floor — bônus só aparece em pacotes grandes (ex.: chefe)
     p["xp"] += xp
-    msgs = [f"+{xp} XP (total: {p['xp']})."]
+    msgs = [f"+{xp} XP (total: {p['xp']})."] if xp > 0 else []
     while p["nivel"] < NIVEL_MAX and p["xp"] >= PROGRESSAO[p["nivel"] + 1]["xp"]:
         prox = p["nivel"] + 1
         bonus = PROGRESSAO[prox]
@@ -1183,6 +1270,8 @@ def serializar_estado(state):
             "cofre_trancado": bool(s.get("cofre") and s.get("trancado")),
             "escada": bool(s.get("escada")),
             "escada_sobe": bool(s.get("escada_sobe")),
+            "npc": s.get("npc"),
+            "ceu_aberto": bool(s.get("ceu_aberto")),
             "exits": sorted(s["exits"]),
         })
 
@@ -1484,7 +1573,8 @@ AÇÕES PERMITIDAS (use APENAS estas — qualquer outra é proibida):
   do inventário. A engine decide sucesso e revela o nome real; NÃO declare o afixo antes.
 - {{"tipo": "comprar", "item": "<id>"}}  -> comprar na loja de Pedralume (só na superfície).
 - {{"tipo": "vender", "item": "<id>"}}  -> vender item do inventário na Vila (não equipado).
-- {{"tipo": "falar", "alvo": "mira"|"anciao"}}  -> falar com NPC da Vila.
+- {{"tipo": "consertar", "item": "<id>"}} -> consertar arma ou armadura na forja de Kaelen.
+- {{"tipo": "falar", "alvo": "mira"|"anciao"|"ferreiro"}}  -> falar com NPC da Vila.
 
 REGRA DE OURO SOBRE ITENS (leia com atenção — foi fonte de bugs):
 - "pego/acho/ganho X"      -> dar_item     (só se for loot novo mesmo)
@@ -1926,6 +2016,10 @@ def executar_acao(state, acao):
         vender_item(state, acao.get("item") or "")
         return None
 
+    if tipo == "consertar":
+        consertar_item(state, acao.get("item") or "")
+        return None
+
     if tipo == "falar":
         falar_npc(state, acao.get("alvo") or "")
         return None
@@ -2077,6 +2171,50 @@ def _tentar_auto_identificar(state, item_id, rng):
     state["historico"].append(f"intuiu {info['nome']}")
     return f"Seu olhar treinado decifra o artefato: {info['nome']}."
 
+
+def desgastar_item(state, item_id_ou_inst, slot):
+    """
+    Desgasta arma ou armadura e a quebra (remove) se chegar a 0.
+    slot pode ser 'arma' ou 'armadura'.
+    Retorna a mensagem de aviso/quebra.
+    """
+    if not item_id_ou_inst or item_id_ou_inst == "desarmado":
+        return None
+        
+    p = state["player"]
+    # Se for string base (não gerada proceduralmente), instanciar
+    if item_id_ou_inst not in state.get("itens_gerados", {}):
+        base = ITENS.get(item_id_ou_inst)
+        if not base or base["tipo"] not in ("arma", "armadura"): return None
+        inst = base.copy()
+        inst["durabilidade"] = inst.get("durabilidade_max", 30)
+        
+        if "itens_gerados" not in state: state["itens_gerados"] = {}
+        novo_id = f"{item_id_ou_inst}_{len(state['itens_gerados'])}_{random.randint(100, 999)}"
+        state["itens_gerados"][novo_id] = inst
+        
+        # Atualiza as referências
+        if item_id_ou_inst in p.get("inventario", []):
+            idx = p["inventario"].index(item_id_ou_inst)
+            p["inventario"][idx] = novo_id
+        if p.get(slot) == item_id_ou_inst:
+            p[slot] = novo_id
+            
+        item_id_ou_inst = novo_id
+
+    # Aplica o desgaste
+    inst = state["itens_gerados"][item_id_ou_inst]
+    if "durabilidade" in inst:
+        inst["durabilidade"] -= 1
+        if inst["durabilidade"] <= 0:
+            if item_id_ou_inst in p["inventario"]:
+                p["inventario"].remove(item_id_ou_inst)
+            if p.get(slot) == item_id_ou_inst:
+                p[slot] = None
+            return f"Sua {inst['nome']} QUEBROU durante o combate!"
+        elif inst["durabilidade"] == 5:
+            return f"AVISO: Sua {inst['nome']} está muito danificada e vai quebrar em breve!"
+    return None
 
 def saquear_sala(state, sala):
     """
@@ -2382,6 +2520,8 @@ def descer_escada(state):
     if state.get("na_superficie"):
         state["na_superficie"] = False
         state["local"] = "Entrada das Catacumbas Esquecidas"
+        # Restaura o Andar 1
+        state["masmorra"] = state.get("andares_gerados", {}).get("1", state["masmorra"])
         state["pos"] = {"x": 0, "y": 0}
         state["facing"] = facing_para_saida(state["masmorra"], (0, 0))
         state["historico"].append("reentrou nas catacumbas")
@@ -2398,13 +2538,15 @@ def descer_escada(state):
         return ["Não há como descer mais."], None
 
     # snapshot do andar atual p/ poder subir de volta
-    state.setdefault("pilha_andares", []).append({
-        "masmorra": state["masmorra"],
-        "pos": dict(state["pos"]),
-        "facing": state["facing"],
-        "profundidade": state["profundidade"],
-        "local": state.get("local"),
-    })
+    if not state.get("na_superficie"):
+        state.setdefault("pilha_andares", []).append({
+            "masmorra": state["masmorra"],
+            "pos": state["pos"],
+            "facing": state["facing"],
+            "profundidade": state.get("profundidade", 1),
+            "local": state.get("local")
+        })
+        state.setdefault("andares_gerados", {})[str(state.get("profundidade", 1))] = state["masmorra"]
     nova_p = state["profundidade"] + 1
     # Andar já visitado fica em cache (senão re-descer regeneraria loot/inimigos = farm infinito).
     cache = state.setdefault("andares_gerados", {})
@@ -2468,6 +2610,9 @@ def subir_escada(state):
         return ["Só se volta à Vila pela entrada das catacumbas."], None
 
     state["na_superficie"] = True
+    state["masmorra"] = MAPA_VILA
+    state["pos"] = {"x": 0, "y": -1}
+    state["facing"] = "norte"
     state["local"] = "Pedralume — praça da fonte seca"
     state["player"]["escondido"] = False
     state["historico"].append("voltou a Pedralume")
@@ -2546,10 +2691,6 @@ def aplicar_movimento(state, token):
     destino = resolver_direcao(state["facing"], token)
     state["facing"] = destino                       # você passa a encarar aquela direção
 
-    if state.get("na_superficie"):
-        return {"moveu": False, "direcao": destino, "combate": None, "loot": [],
-                "motivo": "superficie", "exits": []}
-
     if destino not in salas[pos]["exits"]:
         return {"moveu": False, "direcao": destino, "combate": None, "loot": [],
                 "exits": sorted(salas[pos]["exits"])}
@@ -2612,7 +2753,7 @@ def resolver_armadilha(state, sala):
     as outras classes disparam e levam o dano. Anão reduz dano; escuridão agrava.
     Retorna msg ou None. Só ocorre uma vez.
     """
-    if not sala["armadilha"] or not sala["armadilha_ativa"]:
+    if not sala.get("armadilha") or not sala.get("armadilha_ativa"):
         return None
     sala["armadilha_ativa"] = False                 # resolvida (não repete)
     arm = ARMADILHAS[sala["armadilha"]]
@@ -2780,7 +2921,7 @@ def _vencer_combate(state, enemy_id):
     """Aplica as consequências de derrotar UM inimigo (XP, ouro, chefe único). Retorna mensagens."""
     state["historico"].append(f"derrotou {BESTIARIO[enemy_id]['nome']}")
     msgs = [f"{BESTIARIO[enemy_id]['nome']} é destruído!"]
-    msgs += ganhar_xp(state, BESTIARIO[enemy_id].get("xp", 0))
+    msgs += ganhar_xp(state, BESTIARIO[enemy_id].get("xp", 0), mlvl=BESTIARIO[enemy_id].get("mlvl", 1))
     ouro = BESTIARIO[enemy_id].get("ouro", BESTIARIO[enemy_id].get("xp", 0))
     if ouro > 0:
         state["player"]["ouro"] = state["player"].get("ouro", 0) + ouro
@@ -2825,24 +2966,38 @@ def loja_json(state):
     if not state.get("na_superficie"):
         return None
     ouro = state["player"].get("ouro", 0)
+    
+    pos = (state["pos"]["x"], state["pos"]["y"])
+    sala = state["masmorra"].get(pos, {})
+    npc_id = sala.get("npc")
+    
     itens = []
-    for iid, preco in LOJA_VILA.items():
-        info = ITENS[iid]
-        itens.append({
-            "id": iid, "nome": info["nome"], "preco": preco,
-            "tipo": info["tipo"],
-            "pode_comprar": ouro >= preco,
-        })
-    npcs = [{"id": nid, "nome": n["nome"], "papel": n["papel"]} for nid, n in NPCS_VILA.items()]
+    # Só mostra itens se estiver na loja da Mira
+    if npc_id == "mira":
+        for iid, preco in LOJA_VILA.items():
+            info = ITENS[iid]
+            itens.append({
+                "id": iid, "nome": info["nome"], "preco": preco,
+                "tipo": info["tipo"],
+                "pode_comprar": ouro >= preco,
+            })
+            
+    npcs = []
+    if npc_id and npc_id in NPCS_VILA:
+        n = NPCS_VILA[npc_id]
+        npcs.append({"id": npc_id, "nome": n["nome"], "papel": n["papel"]})
+        
     return {"itens": itens, "npcs": npcs, "ouro": ouro}
 
 
 def comprar_item(state, item_id):
     """Compra na loja de Pedralume. Engine-only."""
     p = state["player"]
-    if not state.get("na_superficie"):
-        print("  [loja] Só se compra na Vila (Pedralume).")
-        return ["Só se compra na Vila de Pedralume."]
+    pos = (state["pos"]["x"], state["pos"]["y"])
+    if state["masmorra"].get(pos, {}).get("npc") != "mira":
+        print("  [loja] Não há vendedores aqui.")
+        return ["Você precisa estar na tenda da Mira para comprar."]
+    
     preco = preco_compra(item_id)
     if preco is None:
         print(f"  [loja] '{item_id}' não está à venda.")
@@ -2862,9 +3017,11 @@ def comprar_item(state, item_id):
 def vender_item(state, item_id):
     """Vende item do inventário (não equipado) na Vila."""
     p = state["player"]
-    if not state.get("na_superficie"):
-        print("  [loja] Só se vende na Vila.")
-        return ["Só se vende na Vila de Pedralume."]
+    pos = (state["pos"]["x"], state["pos"]["y"])
+    if state["masmorra"].get(pos, {}).get("npc") != "mira":
+        print("  [loja] Não há vendedores aqui.")
+        return ["Você precisa estar na tenda da Mira para vender."]
+    
     if item_id not in p["inventario"]:
         print("  [loja] você não tem esse item.")
         return ["Você não tem esse item."]
@@ -2887,11 +3044,48 @@ def vender_item(state, item_id):
     return [msg]
 
 
+def consertar_item(state, item_id):
+    """Conserta item (arma ou armadura) no ferreiro."""
+    p = state["player"]
+    pos = (state["pos"]["x"], state["pos"]["y"])
+    if state["masmorra"].get(pos, {}).get("npc") != "ferreiro":
+        print("  [forja] Não há ferreiro aqui.")
+        return ["Você precisa estar na forja de Kael para consertar itens."]
+    
+    if item_id not in p["inventario"] and p.get("arma") != item_id and p.get("armadura") != item_id:
+        return ["Você não tem esse item."]
+        
+    info = get_item_data(item_id, state)
+    if not info or info["tipo"] not in ("arma", "armadura"):
+        return ["Isso não pode ser consertado."]
+        
+    if item_id not in state.get("itens_gerados", {}):
+        return [f"{info['nome']} já está em perfeito estado."]
+        
+    inst = state["itens_gerados"][item_id]
+    max_d = inst.get("durabilidade_max", 30)
+    atual = inst.get("durabilidade", max_d)
+    if atual >= max_d:
+        return [f"{inst['nome']} já está em perfeito estado."]
+        
+    custo = 10
+    if p.get("ouro", 0) < custo:
+        return [f"Ouro insuficiente para consertar (custa {custo} ouro)."]
+        
+    p["ouro"] -= custo
+    inst["durabilidade"] = max_d
+    state["historico"].append(f"consertou {inst['nome']}")
+    msg = f"Kael consertou {inst['nome']} por {custo} ouro."
+    print(f"  [forja] {msg}")
+    return [msg]
+
 def falar_npc(state, alvo):
     """Diálogo com NPC da Vila (sem efeito mecânico além de lore no histórico)."""
-    if not state.get("na_superficie"):
-        print("  [npc] Não há aldeões aqui nas catacumbas.")
-        return ["Não há aldeões aqui nas catacumbas."]
+    pos = (state["pos"]["x"], state["pos"]["y"])
+    npc_local = state["masmorra"].get(pos, {}).get("npc")
+    if npc_local != alvo:
+        print(f"  [npc] O NPC {alvo} não está nesta sala.")
+        return [f"Não há ninguém chamado {alvo} aqui."]
     npc = NPCS_VILA.get(alvo)
     if not npc:
         print(f"  [npc] ninguém responde a '{alvo}'.")
@@ -2989,6 +3183,10 @@ def combate_passo(state, cb, escolha):
         elif arma_info.get("efeito") == "gelo" and random.random() < 0.25:
             cb.setdefault("debuffs", {})["atordoado"] = {"duracao": 1, "valor": 0}
             linhas.append("O frio da arma entorpece o alvo!")
+
+        msg_quebra = desgastar_item(state, p.get("arma"), "arma")
+        if msg_quebra: linhas.append(msg_quebra)
+        
     elif escolha and escolha.startswith("magia:"):
         magia_id = escolha.split(":", 1)[1]
         if magia_id not in p["magias"]:
@@ -3097,6 +3295,9 @@ def combate_passo(state, cb, escolha):
             dano_in = max(1, st_e["dano"] - defesa_total(p, state))
             p["hp"] -= dano_in
             linhas.append(f"{st_e['nome']} contra-ataca: {dano_in} de dano.")
+            
+            msg_quebra_arm = desgastar_item(state, p.get("armadura"), "armadura")
+            if msg_quebra_arm: linhas.append(msg_quebra_arm)
             # Aranha: a mordida pode envenenar (dano contínuo; renova a duração).
             ven = st_e.get("veneno")
             if ven and random.random() < ven.get("chance", 0):
@@ -3422,8 +3623,8 @@ def rodar_demo():
     _dbg(ganhar_xp(prog, 12))                                    # 26 -> nível 4 (máx)
     assert prog["player"]["nivel"] == 4, "26 XP -> nível 4"
     assert prog["player"]["hp_max"] == hp0 + 5 + 5 + 6 and prog["player"]["dano_base"] == 6, "bônus do nível 4"
-    _dbg(ganhar_xp(prog, 999))                                   # excesso não passa do teto
-    assert prog["player"]["nivel"] == 4, "não deve passar de NIVEL_MAX"
+    _dbg(ganhar_xp(prog, 9999))                                   # excesso não passa do teto
+    assert prog["player"]["nivel"] == 15, "não deve passar de NIVEL_MAX"
     assert xp_para_proximo(prog["player"]) is None, "no nível máximo não falta XP"
 
     # Sanidade do balanceamento: no nível máximo, o Guerreiro fura a defesa do Golem.
@@ -3532,7 +3733,8 @@ def rodar_demo():
     assert val_aoe >= 8, "Nova Gélida no nível 1 = 8 de dano"
     st_aoe, _ = combate_passo(ha, cbh, "magia:nova_gelida")      # rato(8)+rato(8)+morcego(6): todos caem
     assert st_aoe == "vitoria", "AoE de 8 limpa a horda fraca de uma vez"
-    assert ha["player"]["xp"] == 3 + 3 + 3, "XP soma todos os inimigos da horda (3+3+3)"
+    # O jogador pega lvl 2 no meio (aos 6 XP), então o último inimigo de mlvl 1 dá XP reduzido (2 em vez de 3).
+    assert ha["player"]["xp"] == 3 + 3 + 2, "XP com soft-cap no último inimigo (3+3+2)"
     # single-target NÃO atinge os extras (ataque comum só no front)
     hs = novo_jogo("Guerreiro")
     cbs2 = novo_combate(hs, "zumbi", grupo=["rato_gigante"])
@@ -3876,20 +4078,23 @@ def rodar_demo():
     assert ml["profundidade"] == 2
     assert ml["pos"] == {"x": 0, "y": 0}
     assert ml["facing"] in sala_atual(ml)["exits"]
-    assert not any(s.get("boss") for s in ml["masmorra"].values()), "andar 2 sem Golem"
+    assert not any(s.get("inimigo") == "golem_barro" for s in ml["masmorra"].values()), "andar 2 sem Golem"
+    assert any(s.get("inimigo") == "carrasco" for s in ml["masmorra"].values()), "andar 2 tem Carrasco"
     st2 = stats_inimigo("rato_gigante", 2)
     assert st2["hp"] > BESTIARIO["rato_gigante"]["hp"]
     # subir de volta ao 1
     ml["pos"] = {"x": 0, "y": 0}
     subir_escada(ml)
     assert ml["profundidade"] == 1 and not ml.get("na_superficie")
-    # subir da entrada → Vila
+    # subir da entrada -> Vila
     ml["pos"] = {"x": 0, "y": 0}
     subir_escada(ml)
     assert ml.get("na_superficie")
+    assert ml["pos"] == {"x": 0, "y": -1}, "Aparece na entrada das catacumbas da vila"
     r_surf = aplicar_movimento(ml, "frente")
-    assert not r_surf["moveu"] and r_surf.get("motivo") == "superficie"
+    assert r_surf["moveu"], "Movimento na vila agora e permitido"
     # reentrar
+    ml["pos"] = {"x": 0, "y": -1}
     descer_escada(ml)
     assert not ml.get("na_superficie")
     print(f"  escada↔andares + Vila; rato hp escalado={st2['hp']}. OK")
@@ -4171,8 +4376,13 @@ def rodar_demo():
     print("\nVila (ouro / loja / NPCs):")
     vl = novo_jogo("Guerreiro", seed=1)
     assert vl["player"]["ouro"] == OURO_INICIAL
-    subir_escada(vl)  # entrada -> Vila
+    subir_escada(vl)  # entrada -> Vila (0, -1)
     assert vl.get("na_superficie")
+    
+    # Caminha até a loja da Mira (1, 0)
+    aplicar_movimento(vl, "frente")   # norte -> praca (0, 0)
+    aplicar_movimento(vl, "direita")  # leste -> loja (1, 0)
+    
     o0 = vl["player"]["ouro"]
     comprar_item(vl, "tocha")
     assert vl["player"]["ouro"] == o0 - LOJA_VILA["tocha"]
@@ -4185,7 +4395,7 @@ def rodar_demo():
     assert vl["player"]["inventario"].count("pocao_cura") == n_pot - 1
     # não vende na masmorra
     descer_escada(vl)
-    assert "Vila" in comprar_item(vl, "tocha")[0]
+    assert "Mira" in comprar_item(vl, "tocha")[0]
     # ouro ao matar
     cb_g = novo_combate(vl, "rato_gigante")
     cb_g["hp"] = 0
