@@ -410,6 +410,36 @@ function _onTexLoad() {
 TEXTURES.wall.onload = _onTexLoad; TEXTURES.wall.src = 'assets/textures/wall_stone.jpg';
 TEXTURES.wallDark.onload = _onTexLoad; TEXTURES.wallDark.src = 'assets/textures/wall_dark.jpg';
 
+// ==================== SPRITES ====================
+const SPRITE_MAP = {
+  aranha_cripta: 'assets/sprites/inimigo_aranha.png',
+  espectro_gelido: 'assets/sprites/inimigo_espectro.png',
+  sombra_vampirica: 'assets/sprites/inimigo_sombra_vampirica.png',
+  capitao_osso: 'assets/sprites/inimigo_capitao_osso.png',
+  sacerdote_lodo: 'assets/sprites/inimigo_sacerdote_lodo.png',
+  golem_barro: 'assets/sprites/inimigo_golem_barro.png',
+  enemy: 'assets/sprites/inimigo.png', // genérico
+  boss: 'assets/sprites/inimigo.png', // genérico caso chefe não tenha sprite
+  altar: 'assets/sprites/altar.png',
+  cofre: 'assets/sprites/bau_aberto.png',
+  cofre_fechado: 'assets/sprites/bau_fechado.png',
+  loot: 'assets/sprites/loot.png',
+  stairs: 'assets/sprites/escada.png',
+  stairs_up: 'assets/sprites/escada_sobe.png',
+  tablet: 'assets/sprites/tablet.png',
+  mira: 'assets/sprites/mira.png',
+  anciao: 'assets/sprites/anciao.png'
+};
+
+const spriteImages = {};
+function preloadSprites() {
+  Object.keys(SPRITE_MAP).forEach(key => {
+    const img = new Image();
+    img.src = SPRITE_MAP[key];
+    spriteImages[key] = img;
+  });
+}
+preloadSprites();
 const CLASSES = {
   "Guerreiro": "HP 25 · Def 2 — tanque seguro. Aço puro, sem magia.",
   "Mago":      "HP 16 · Mana 20 — glass cannon. Bola de Fogo ignora armadura.",
@@ -1317,9 +1347,9 @@ const ENTITY_GLYPH = {
 };
 
 function entityMeta(id, isBoss){
-  if(id && ENTITY_GLYPH[id]) return Object.assign({kind: ENTITY_GLYPH[id].kind}, ENTITY_GLYPH[id]);
-  if(isBoss) return Object.assign({}, ENTITY_GLYPH.boss);
-  return Object.assign({}, ENTITY_GLYPH.enemy);
+  if(id && ENTITY_GLYPH[id]) return Object.assign({kind: ENTITY_GLYPH[id].kind, spriteId: id}, ENTITY_GLYPH[id]);
+  if(isBoss) return Object.assign({spriteId: "boss"}, ENTITY_GLYPH.boss);
+  return Object.assign({spriteId: "enemy"}, ENTITY_GLYPH.enemy);
 }
 
 function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pulseAtk, glyph, label){
@@ -1337,27 +1367,40 @@ function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pul
   ctx.ellipse(cx + t*0.3, y + h*0.88, w*0.28, h*0.06, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // placa escura (contraste p/ o glifo)
-  const pw = w*0.55, ph = h*0.62;
-  ctx.fillStyle = "rgba(10,12,18,0.72)";
-  ctx.strokeStyle = col;
-  ctx.lineWidth = Math.max(1.5, w*0.02);
-  if(combatPulse){ ctx.shadowColor = col; ctx.shadowBlur = 18; }
-  roundRect(ctx, cx - pw/2 + t, cy - ph*0.55, pw, ph, Math.max(4, w*0.04));
-  ctx.fill();
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+  const spriteKey = (g.spriteId) ? g.spriteId : kind;
+  const img = spriteImages[spriteKey];
 
-  // glifo ASCII principal
-  const fontPx = Math.max(14, Math.min(h*0.42, w*0.42));
-  ctx.font = `bold ${fontPx}px "Cascadia Mono","Consolas","Courier New",monospace`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = col;
-  ctx.shadowColor = col;
-  ctx.shadowBlur = combatPulse ? 14 : 6;
-  ctx.fillText(g.ch || "?", cx + t, cy - ph*0.08);
-  ctx.shadowBlur = 0;
+  if (img && img.complete) {
+    if(combatPulse) {
+      ctx.shadowColor = col; 
+      ctx.shadowBlur = 15;
+    }
+    // Efeito visual de "piscar/pular" (t no eixo X e Y)
+    ctx.drawImage(img, cx - w/2 + t, cy - h/2 + Math.abs(t)*1.5, w, h);
+    ctx.shadowBlur = 0;
+  } else {
+    // placa escura (contraste p/ o glifo)
+    const pw = w*0.55, ph = h*0.62;
+    ctx.fillStyle = "rgba(10,12,18,0.72)";
+    ctx.strokeStyle = col;
+    ctx.lineWidth = Math.max(1.5, w*0.02);
+    if(combatPulse){ ctx.shadowColor = col; ctx.shadowBlur = 18; }
+    roundRect(ctx, cx - pw/2 + t, cy - ph*0.55, pw, ph, Math.max(4, w*0.04));
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // glifo ASCII principal
+    const fontPx = Math.max(14, Math.min(h*0.42, w*0.42));
+    ctx.font = `bold ${fontPx}px "Cascadia Mono","Consolas","Courier New",monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = combatPulse ? 14 : 6;
+    ctx.fillText(g.ch || "?", cx + t, cy - ph*0.08);
+    ctx.shadowBlur = 0;
+  }
 
   // rótulo curto
   const lab = label || g.name || "";
@@ -1366,11 +1409,6 @@ function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pul
     ctx.fillStyle = "rgba(231,233,239,0.9)";
     ctx.fillText(lab.length>14 ? lab.slice(0,13)+"…" : lab, cx + t, cy + ph*0.32);
   }
-
-  // Barra de HP
-  if(hp !== undefined && maxHp !== undefined && maxHp > 0){
-    const barW = Math.min(w * 0.7, 120), barH = Math.max(4, h * 0.045);
-    const barX = cx - barW/2, barY = y + h*0.02;
     ctx.fillStyle = "rgba(0,0,0,0.7)";
     ctx.fillRect(barX, barY, barW, barH);
     const p = Math.max(0, Math.min(1, hp/maxHp));
@@ -1396,8 +1434,14 @@ function desenharVila2D(ctx, W, H, dpr, e){
   ctx.fillStyle = "rgba(255,220,160,0.15)";
   ctx.beginPath(); ctx.arc(W*0.78, H*0.16, H*0.12, 0, Math.PI*2); ctx.fill();
 
-  // silhueta de casas
-  ctx.fillStyle = "#1e2433";
+  // Chão da praça de terra/pedra
+  const chao = ctx.createLinearGradient(0,H*0.55,0,H);
+  chao.addColorStop(0,"#2a2015");
+  chao.addColorStop(1,"#1f1810");
+  ctx.fillStyle = chao; ctx.fillRect(0, H*0.55, W, H*0.45);
+
+  // silhueta de casas (fundo)
+  ctx.fillStyle = "#161b22";
   const roofs = [[0.02,0.28,0.18],[0.16,0.32,0.2],[0.55,0.3,0.22],[0.78,0.26,0.2]];
   roofs.forEach(([x,y,w])=>{
     ctx.fillRect(W*x, H*y, W*w, H*(0.55-y));
@@ -1407,67 +1451,54 @@ function desenharVila2D(ctx, W, H, dpr, e){
     ctx.lineTo(W*(x+w) + 4, H*y);
     ctx.closePath(); ctx.fill();
   });
+  
+  // Loja (Centro Direita)
+  ctx.fillStyle = "#2d241c";
+  ctx.fillRect(W*0.5, H*0.4, W*0.35, H*0.15);
+  // Toldo da Loja
+  ctx.fillStyle = "#8a3a3a";
+  ctx.fillRect(W*0.48, H*0.38, W*0.39, H*0.04);
+  // Placa LOJA
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${Math.max(12, H*0.03)}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.fillText('LOJA', W*0.67, H*0.35);
+
+  // NPCs usando sprites
+  if (spriteImages.mira && spriteImages.mira.complete) {
+    // Mira atrás do balcão
+    ctx.drawImage(spriteImages.mira, W*0.6, H*0.42, H*0.18, H*0.18);
+    // Balcão
+    ctx.fillStyle = "#4a3b2c";
+    ctx.fillRect(W*0.55, H*0.54, W*0.25, H*0.08);
+  }
+  
+  if (spriteImages.anciao && spriteImages.anciao.complete) {
+    // Ancião à esquerda
+    ctx.drawImage(spriteImages.anciao, W*0.2, H*0.48, H*0.18, H*0.18);
+  }
+
+  // Fonte no centro
+  ctx.fillStyle = '#4a6b7a';
+  ctx.beginPath();
+  ctx.ellipse(W*0.4, H*0.65, W*0.1, H*0.03, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#3a4b5a';
+  ctx.fillRect(W*0.38, H*0.58, W*0.04, H*0.07);
+
   // janelas acesas
-  ctx.fillStyle = "rgba(255,200,80,0.55)";
-  [[0.08,0.38],[0.22,0.4],[0.62,0.36],[0.86,0.34]].forEach(([x,y])=>{
-    ctx.fillRect(W*x, H*y, W*0.03, H*0.035);
-  });
+  ctx.fillStyle = "rgba(255,200,100,0.6)";
+  ctx.fillRect(W*0.06, H*0.4, W*0.03, H*0.06);
+  ctx.fillRect(W*0.85, H*0.38, W*0.03, H*0.06);
+  ctx.fillStyle = "rgba(255,200,100,0.3)";
+  ctx.fillRect(W*0.22, H*0.45, W*0.02, H*0.04);
 
-  // chão da praça
-  const floor = ctx.createLinearGradient(0,H*0.55,0,H);
-  floor.addColorStop(0,"#4a5348");
-  floor.addColorStop(0.4,"#3a4238");
-  floor.addColorStop(1,"#2a3028");
-  ctx.fillStyle = floor; ctx.fillRect(0,H*0.55,W,H*0.45);
-  // lajes
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 1;
-  for(let i=0;i<8;i++){
-    const y = H*0.55 + (H*0.45)*(i/8)*(i/8+0.2);
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
-  }
-
-  // fonte central
-  const fx = W*0.5, fy = H*0.68;
-  ctx.fillStyle = "#5a6570";
-  ctx.beginPath(); ctx.ellipse(fx, fy, W*0.12, H*0.04, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = e.missao_cumprida ? "rgba(80,160,200,0.75)" : "rgba(40,50,55,0.8)";
-  ctx.beginPath(); ctx.ellipse(fx, fy, W*0.08, H*0.025, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#8a9098";
-  ctx.fillRect(fx-W*0.012, fy-H*0.12, W*0.024, H*0.12);
-  if(e.missao_cumprida){
-    ctx.fillStyle = "rgba(120,200,255,0.5)";
-    ctx.fillRect(fx-W*0.008, fy-H*0.14, W*0.016, H*0.04);
-  }
-
-  // NPCs ASCII
-  function drawNpc(px, py, ch, col, name){
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath(); ctx.ellipse(px, py+H*0.04, W*0.04, H*0.015, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "rgba(12,14,20,0.75)";
-    ctx.strokeStyle = col; ctx.lineWidth = 2;
-    const bw = W*0.07, bh = H*0.14;
-    roundRect(ctx, px-bw/2, py-bh*0.7, bw, bh, 6); ctx.fill(); ctx.stroke();
-    ctx.font = `bold ${Math.max(18, H*0.07)}px "Cascadia Mono","Consolas",monospace`;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
-    ctx.fillText(ch, px, py - bh*0.15);
-    ctx.shadowBlur = 0;
-    ctx.font = `${Math.max(11, H*0.035)}px system-ui`;
-    ctx.fillStyle = "#e7e9ef";
-    ctx.fillText(name, px, py + bh*0.45);
-  }
-  drawNpc(W*0.22, H*0.72, "M", "#e8c95a", "Mira");
-  drawNpc(W*0.78, H*0.72, "A", "#9ab0d0", "Ancião");
-
-  // placa de loja
-  ctx.fillStyle = "rgba(20,18,12,0.8)";
-  ctx.fillRect(W*0.14, H*0.58, W*0.16, H*0.06);
-  ctx.strokeStyle = "#e8c95a"; ctx.strokeRect(W*0.14, H*0.58, W*0.16, H*0.06);
-  ctx.fillStyle = "#e8c95a";
-  ctx.font = `${Math.max(11, H*0.032)}px system-ui`;
-  ctx.textAlign = "center";
-  ctx.fillText("⚒ LOJA", W*0.22, H*0.618);
+  // vinheta p/ mesclar as bordas
+  const grad = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, W*0.6);
+  grad.addColorStop(0, "rgba(0,0,0,0)");
+  grad.addColorStop(1, "rgba(0,0,0,0.85)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
 
   // título
   ctx.textAlign = "left";

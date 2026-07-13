@@ -319,6 +319,11 @@ em modo online:
   - `GET /api/estado` limpa o jogo da memória e retorna `precisa_novo: True` se detectar estado finalizado. Isso força a interface a retornar para a aba de criar personagem ao clicar em "Jogar de novo".
   - O save manual explícito (botão "Salvar") recebeu um parâmetro `force=True`, garantindo que um jogador ainda possa salvar manualmente um final.
 
+### Atualização Visual com Sprites PNG e Vila Detalhada (v2.6)
+- **Substituição de Billboards ASCII:** Os glifos de texto puro para inimigos, NPCs e objetos foram substituídos por 16 assets visuais PNG em estilo *Pixel Art Dark Fantasy* transparentes (`assets/sprites/`).
+- **Engine Raycaster Aprimorada:** O método `drawBillboard` agora desenha os sprites e implementa um sistema simulado de pulo nos eixos X/Y (via variável `t`) quando sob ataque, substituindo a necessidade imediata de *sprite sheets* para hit reactions. A lógica de *Z-Buffer* foi melhorada no combate para garantir que inimigos próximos (pulso de combate e barra de vida) não tenham clipagem indevida ou sumam ao chegar perto.
+- **Vila 2D Imersiva:** O cenário de superfície foi expandido: o fundo agora traz chão gradiente detalhado, loja texturizada com letreiro, fonte de água retrabalhada, luz e sombra dinâmicas, além de posicionar as artes dos NPCs (Mira e Ancião) de modo unificado e orgânico no layout.
+
 ---
 
 ### (histórico) Vila, Andar 3 e multi-save (v2.1)
