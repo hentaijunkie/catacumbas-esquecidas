@@ -604,6 +604,7 @@ ACOES_PERMITIDAS = {
     "vender":           {"item": "item_id"},         # vende do inventário (não equipado)
     "consertar":        {"item": "item_id"},         # conserta item no ferreiro (ouro proporcional)
     "falar":            {"alvo": "str"},             # NPC da vila (mira|anciao|ferreiro|curandeiro|bruxa)
+    "puxar_alavanca":   {},                          # puxa uma alavanca na parede
     # v2.8 serviços de NPC + reparo de campo
     "curar_vila":       {},                          # cura paga do Silas (tenda_cura)
     "reparar":          {"item": "item_id"},         # reparo de campo do Guerreiro (corrói dur. máx.)
@@ -2146,6 +2147,20 @@ def executar_acao(state, acao):
 
     if tipo == "falar":
         falar_npc(state, acao.get("alvo") or "")
+        return None
+
+    if tipo == "puxar_alavanca":
+        pos = (state["pos"]["x"], state["pos"]["y"])
+        sala = state["masmorra"].get(pos)
+        if sala and sala.get("alavanca") and not sala.get("alavanca_ativa"):
+            sala["alavanca_ativa"] = True
+            state["alavancas_puxadas"] = state.get("alavancas_puxadas", 0) + 1
+            state["historico"].append("puxou a alavanca")
+            print(f"  [puzzle] Você puxa a alavanca de ferro frio com esforço. Um mecanismo range nas profundezas... ({state['alavancas_puxadas']}/3)")
+            if state["alavancas_puxadas"] == 3:
+                print("  [puzzle] Um eco profundo ressoa pelo andar. A imensa porta de pedra do Templo Esquecido foi destrancada!")
+        else:
+            print("  [puzzle] Não há mecanismo para puxar, ou ele já está travado na posição.")
         return None
 
     if tipo == "iniciar_combate":
