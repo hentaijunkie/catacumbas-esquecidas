@@ -314,6 +314,11 @@ def _salvar_estado_locked(slot):
     meta = _ler_meta()
     meta.setdefault("slots", {})[str(slot)] = _resumo_slot(GAME["state"], GAME.get("combate"))
     meta["active"] = slot
+    # Salvar conquistas globais
+    globais = meta.setdefault("conquistas", [])
+    atuais = GAME["state"]["player"].get("conquistas", [])
+    meta["conquistas"] = list(set(globais + atuais))
+    
     _escrever_meta(meta)
     GAME["active_slot"] = slot
     return True

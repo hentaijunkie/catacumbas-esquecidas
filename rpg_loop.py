@@ -352,6 +352,7 @@ MAGIAS = {
     "pressa":          {"nome": "Pressa",             "custo": 5,  "efeito": "buff",  "buff": "pressa", "duracao": 3},
     "nuvem_veneno":    {"nome": "Nuvem de Veneno",    "custo": 7,  "efeito": "debuff", "buff": "veneno", "duracao": 3, "escala": 2, "valor": 3},
     "atordoar":        {"nome": "Atordoar",           "custo": 5,  "efeito": "debuff", "buff": "atordoado", "duracao": 1, "escala": 0, "valor": 0},
+    "tempestade":      {"nome": "Tempestade Arcana",  "custo": 8,  "efeito": "aoe",    "valor": 15, "escala": 3},
 }
 # Efeito 'aoe' = dano (ignora armadura) em TODOS os inimigos da luta de uma vez. Só vale a
 # pena contra 'hordas' (salas com grupo). Contra 1 inimigo, um nuke single rende mais.
@@ -359,6 +360,33 @@ MAGIAS = {
 # Efeitos de magia que o jogador pode conjurar FORA de combate (sem alvo hostil): só cura.
 # Ofensivas (dano/dreno/aoe) exigem inimigo e buffs só valem em combate -> engine recusa.
 MAGIAS_EXPLORACAO = {"cura"}
+
+CONQUISTAS = {
+    "purificador": {"nome": "Purificador", "desc": "Purificou o Golem Guardião.", "beneficio": "Ganhou +5 HP Máximo e luz divina interna (+1 luz)."},
+    "famoso": {"nome": "Famoso", "desc": "Atingiu 50 de Fama na vila.", "beneficio": "10% de desconto adicional nas lojas."},
+    "explorador": {"nome": "Explorador", "desc": "Descobriu os segredos mais profundos.", "beneficio": "Resistência mental à escuridão e armadilhas."}
+}
+
+def conceder_conquista(state, cid):
+    p = state["player"]
+    if "conquistas" not in p:
+        p["conquistas"] = []
+    if cid in p["conquistas"]:
+        return
+    p["conquistas"].append(cid)
+    conq = CONQUISTAS[cid]
+    print(f"  [conquista] DESBLOQUEADA: {conq['nome']} - {conq['beneficio']}")
+    state["historico"].append(f"desbloqueou conquista: {conq['nome']}")
+    
+    if cid == "purificador":
+        p["hp_max"] += 5
+        p["hp"] += 5
+        p["luz"] = max(p.get("luz", 0), 0) + 1
+    elif cid == "explorador":
+        pass # Benefício passivo
+    elif cid == "famoso":
+        pass # Benefício aplicado na loja
+
 
 # Golpe furtivo do Ladino (identidade 'furtivo'): o 1º ataque de uma luta, com surpresa,
 # multiplica o dano. A engine é dona do número; o LLM só narra a facada nas costas.
@@ -3098,21 +3126,40 @@ def _vencer_combate(state, enemy_id):
     return msgs
 
 
+def catalogo_mira(state):
+    cat = LOJA_VILA.copy()
+    if state["player"].get("fama", 0) >= 30:
+        cat["pocao_cura_maior"] = 25
+        cat["espada_magica"] = 100
+    return cat
+
+def catalogo_morrigan(state):
+    cat = LOJA_BRUXA.copy()
+    if state["player"].get("fama", 0) >= 50:
+        cat["grimorio_tempestade"] = 150
+    return cat
+
 def loja_do_tile(state):
     """(npc_id, catálogo) da loja no tile atual da vila, ou (npc_id, None) se não há loja."""
     pos = (state["pos"]["x"], state["pos"]["y"])
     npc = state["masmorra"].get(pos, {}).get("npc")
     if npc == "mira":
-        return npc, LOJA_VILA
+        return npc, catalogo_mira(state)
     if npc == "bruxa":
-        return npc, LOJA_BRUXA
+        return npc, catalogo_morrigan(state)
     return npc, None
 
 
-def preco_compra(item_id, catalogo=None):
-    if catalogo is not None:
-        return catalogo.get(item_id)
-    return LOJA_VILA.get(item_id) or LOJA_BRUXA.get(item_id)
+def preco_compra(item_id, catalogo=None, state=None):
+    if catalogo is None:
+        return LOJA_VILA.get(item_id) or LOJA_BRUXA.get(item_id)
+    base = catalogo.get(item_id)
+    if base is None:
+        return None
+    # Desconto Famoso
+    if state and "famoso" in state["player"].get("conquistas", []):
+        base = int(base * 0.9)
+    return base
 
 
 def preco_venda(item_id, state=None):
@@ -3192,7 +3239,7 @@ def comprar_item(state, item_id):
         print("  [loja] Não há vendedores aqui.")
         return ["Você precisa estar na tenda da Mira ou na cabana de Morrigan para comprar."]
 
-    preco = preco_compra(item_id, catalogo)
+    preco = preco_compra(item_id, catalogo, state)
     if preco is None:
         print(f"  [loja] '{item_id}' não está à venda aqui.")
         vendedor = "Morrigan" if npc == "bruxa" else "Mira"

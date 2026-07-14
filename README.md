@@ -190,4 +190,4 @@ Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 �
 
 ---
 
-*Protótipo v2.9.0 - Sidequest "O Templo Esquecido" com puzzles de alavancas (andar 3); Sistema de Fama (reputação) com descontos escalonados nas lojas; O Abismo (andar 4) com a sidequest "A Lança Perdida"; Silas cura e Morrigan vende grimórios; reparo de campo do Guerreiro e conserto proporcional no Kael.*
+*Protótipo v3.0.0 - A Grande Evolução da Vila: Sistema global de Conquistas (Purificador, Famoso, Explorador) com benefícios mecânicos, diálogos de NPCs dinâmicos baseados na Fama, novos estoques exclusivos desbloqueáveis por Fama (Morrigan e Mira), além da fundação de novas interações procedurais (botões e estátuas).*
