@@ -142,6 +142,10 @@ Não publique a chave no repositório.
 - **Mira** vende consumíveis (e compra usados) · **Morrigan** vende os 9 grimórios de magia · **Irmão Silas** cura tudo por ouro (HP + veneno + sangramento + fadiga) · **Kael** conserta equipamento · **Ancião Brum** conta a lore
 - **Toque/clique no NPC** na cena para conversar; transição vila↔catacumbas com **fade**
 
+### Fama & Conquistas (reputação persistente)
+- **Fama** sobe ao derrotar chefes/minichefes e resolver sidequests (abrir o Templo Esquecido, purificar o Golem). Ela **desbloqueia catálogo exclusivo**: Mira a partir de 30 de Fama (poção maior, espada mágica), Morrigan a partir de 50 (grimório de tempestade).
+- **Conquistas** com benefício mecânico, **globais por conta** (persistem entre personagens): **Purificador** (purificar o Golem → +5 HP máx, +1 luz) · **Famoso** (Fama ≥50 → 10% de desconto nas lojas) · **Explorador** (vencer o Guardião da Lança no Abismo). Aparecem na ficha do aventureiro.
+
 ### Combate e magia
 - Turnos 100% engine, hordas, 10 magias (scaling, buffs, debuffs, AoE)
 - Bestiário com debuffs: **Aranha** (envenena), **Espectro** (fadiga), **Sombra Vampírica** e **Bruxo Abissal** (fraqueza)
@@ -190,4 +194,4 @@ Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 �
 
 ---
 
-*Protótipo v3.0.0 - A Grande Evolução da Vila: Sistema global de Conquistas (Purificador, Famoso, Explorador) com benefícios mecânicos, diálogos de NPCs dinâmicos baseados na Fama, novos estoques exclusivos desbloqueáveis por Fama (Morrigan e Mira), além da fundação de novas interações procedurais (botões e estátuas).*
+*Protótipo v3.1.1 - Fama e Conquistas conectadas de verdade: a Fama sobe ao vencer chefes e sidequests, as conquistas (Purificador/Famoso/Explorador) disparam nos eventos certos com benefício mecânico e persistem globais por conta, e o HUD mostra Fama + conquistas. (As v2.9–v3.1 traziam o sistema como esqueleto ainda não conectado.)*

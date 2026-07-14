@@ -196,6 +196,16 @@ def _ler_meta():
         return {"slots": {}, "active": 1}
 
 
+def _aplicar_conquistas_globais(state):
+    """Conquistas são GLOBAIS por conta (meta do save): ao criar/carregar um jogo,
+    reaplica as já desbloqueadas em qualquer slot — benefícios (ex.: +5 HP do Purificador,
+    desconto do Famoso) valem para o novo personagem. conceder_conquista é idempotente."""
+    if not state:
+        return
+    for cid in _ler_meta().get("conquistas", []):
+        eng.conceder_conquista(state, cid)
+
+
 def _escrever_meta(meta):
     _ensure_save_dir()
     caminho = _meta_path()
@@ -352,6 +362,7 @@ def _carregar_slot_locked(slot):
     GAME["state"] = eng.reidratar_estado(data.get("state"))
     GAME["combate"] = data.get("combate")
     GAME["active_slot"] = slot
+    _aplicar_conquistas_globais(GAME["state"])   # herda conquistas ganhas em outros slots
     meta = _ler_meta()
     meta["active"] = slot
     if GAME["state"]:
@@ -585,6 +596,7 @@ def acao_novo(dados):
         raca = "Humano"
     seed = dados.get("seed")
     GAME["state"] = eng.novo_jogo(classe, seed, raca=raca)
+    _aplicar_conquistas_globais(GAME["state"])   # meta-progressão: conquistas globais da conta
     GAME["combate"] = None
     game_log.log_estado_resumo(GAME["state"], f"novo_jogo {raca} {classe}")
     narrativa = narrar_sala(GAME["state"],

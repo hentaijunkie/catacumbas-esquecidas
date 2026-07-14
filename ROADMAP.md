@@ -417,8 +417,39 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Expansão v2.9.0 - Templo Esquecido e Fama - **atual**
-- **Sistema de Fama (Reputação):** O jogador agora ganha Pontos de Fama ao derrotar chefes (Golem, Capitão de Ossos, Sacerdote do Lodo, Guardião da Lança) e resolver sidequests. A Fama garante descontos proporcionais (até 50%) nas lojas e serviços da Vila.
+### Fama & Conquistas LIGADAS de verdade (v3.1.1) - **atual**
+- **Contexto:** as v2.9–v3.1 (feitas fora das minhas sessões) tinham o *andaime* de Fama
+  e Conquistas — `CONQUISTAS`, `conceder_conquista`, `catalogo_mira/morrigan`, itens
+  exclusivos e desconto do "famoso" — mas **nada estava conectado**: `conceder_conquista`
+  não era chamada em lugar nenhum, `fama` nunca era incrementada (ficava presa em 0, então
+  os catálogos ≥30/≥50 e o desconto eram inalcançáveis), o meta gravava conquistas mas
+  nunca as lia de volta, e o HUD de Fama da v3.1 dependia de uma linha de serialização
+  **não-commitada**. Esta versão liga tudo:
+- **Ganho de Fama:** novo `ganhar_fama(state, pontos, motivo)`. Chefes/minichefes únicos
+  rendem `mlvl×2` de Fama em `_vencer_combate` (Golem 14, Guardião 20, Carrasco/Capitão 10,
+  Sacerdote 12); abrir o Templo Esquecido (3 alavancas) rende 15; purificar o Golem, 25.
+  Inimigo comum não dá Fama. Ao cruzar 50 → concede a conquista **Famoso** automaticamente.
+- **Conquistas disparadas nos eventos certos:** purificar o Golem → **Purificador**
+  (+5 HP máx, +1 luz, aplicado uma vez); Fama≥50 → **Famoso** (10% de desconto real em
+  `preco_compra`); matar o Guardião da Lança → **Explorador**. `conceder_conquista` virou
+  idempotente e retorna mensagens (surgem no log de combate/ação).
+- **Persistência global:** `_aplicar_conquistas_globais` relê `meta["conquistas"]` ao
+  **criar** e ao **carregar** um jogo, reaplicando os benefícios — meta-progressão por conta
+  (purificou uma vez → todo personagem novo começa com o bônus). `reidratar_estado` dá
+  `fama`/`conquistas` a saves legados.
+- **Correção do desconto anunciado:** o ROADMAP dizia "descontos proporcionais até 50%" —
+  isso nunca existiu. O real é: Fama **desbloqueia catálogo** (Mira ≥30, Morrigan ≥50) e a
+  conquista Famoso dá **10% fixo**; serviços do Silas/Kael não têm desconto.
+- **UI:** commitada a serialização de `fama`/`conquistas` (o HUD da v3.1 dependia dela);
+  nova linha "Conquistas" na ficha (Purificador 💧 · Famoso 👑 · Explorador 🗺️), escondida
+  quando vazia.
+- Verificado: `--demo` com bloco dedicado (ganho por chefe, Famoso ao cruzar 50, catálogo
+  30/50, desconto 10%, +5 HP do Purificador idempotente, Explorador no Guardião, save
+  legado); no browser (serialização expõe os campos, HUD renderiza Fama + linha de
+  Conquistas). `conceder_conquista` deixou de ser código morto.
+
+### Expansão v2.9.0 - Templo Esquecido e Fama
+- **Sistema de Fama (Reputação):** _(o esqueleto entrou aqui; foi de fato conectado só na v3.1.1 — ver acima)._ A Fama desbloqueia catálogos exclusivos na Vila (Mira ≥30, Morrigan ≥50) e, via conquista Famoso (≥50), 10% de desconto nas lojas.
 - **Sidequest O Templo Esquecido:** Nova sidequest procedimental no Andar 3. Três alavancas são espalhadas pelo andar, que precisam ser puxadas para abrir a porta selada da câmara do Templo Esquecido, guardada por dois Sacerdotes do Lodo e contendo loot nobre.
 - **Nova Ação e Interface:** Adicionado `puxar_alavanca`, motor gráfico 3D modificado para renderizar alavancas na parede, e UI do front-end com um novo botão para ação, com verificação bloqueando passagem caso os puzzles não estejam resolvidos.
 
@@ -561,4 +592,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.0.0 - A Grande Evolução da Vila: Sistema global de Conquistas, lojas dinâmicas e reações de NPCs à Fama.*
+*Última atualização: v3.1.1 - Fama e Conquistas conectadas de verdade (ganho por chefes/sidequests, disparo das conquistas, persistência global, HUD) — o andaime das v2.9–v3.1 virou mecânica funcional.*

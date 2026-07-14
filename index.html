@@ -256,6 +256,7 @@
         style="width:0;background:var(--xp)"></i></div>
       <div class="stat" style="margin-top:10px"><span>Ouro</span><b id="ouro" style="color:var(--gold)">0</b></div>
       <div class="stat"><span>Fama</span><b id="fama" style="color:#a8e6cf">0</b></div>
+      <div class="stat" id="conqrow" style="display:none"><span>Conquistas</span><b id="conquistas" style="color:#e8c95a">—</b></div>
       <div class="stat"><span>Arma</span><b id="arma">—</b></div>
       <div class="stat"><span>Armadura</span><b id="armadura">—</b></div>
       <div class="stat"><span>Dano / Defesa</span><b id="df">—</b></div>
@@ -665,6 +666,10 @@ function aplicar(resp){
     montarBotoesConjurar(p);
     $("#ouro").textContent = (p.ouro!=null ? p.ouro : 0) + " 💰";
     $("#fama").textContent = (p.fama!=null ? p.fama : 0) + " 👑";
+    const CONQ_NOMES = {purificador:"Purificador 💧", famoso:"Famoso 👑", explorador:"Explorador 🗺️"};
+    const conq = p.conquistas || [];
+    $("#conqrow").style.display = conq.length ? "" : "none";
+    $("#conquistas").textContent = conq.map(c=>CONQ_NOMES[c]||c).join(" · ");
     $("#arma").textContent = p.arma || "—";
     $("#armadura").textContent = p.armadura || "nenhuma";
     const bfor = p.bonus_for||0;

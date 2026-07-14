@@ -368,16 +368,21 @@ CONQUISTAS = {
 }
 
 def conceder_conquista(state, cid):
+    """Desbloqueia uma conquista (idempotente) e aplica o benefício mecânico UMA vez.
+    Retorna a lista de mensagens (vazia se já tinha) e IMPRIME (a web captura stdout)."""
     p = state["player"]
+    if cid not in CONQUISTAS:
+        return []
     if "conquistas" not in p:
         p["conquistas"] = []
     if cid in p["conquistas"]:
-        return
+        return []
     p["conquistas"].append(cid)
     conq = CONQUISTAS[cid]
-    print(f"  [conquista] DESBLOQUEADA: {conq['nome']} - {conq['beneficio']}")
+    msg = f"CONQUISTA DESBLOQUEADA: {conq['nome']} — {conq['beneficio']}"
+    print(f"  [conquista] {msg}")
     state["historico"].append(f"desbloqueou conquista: {conq['nome']}")
-    
+
     if cid == "purificador":
         p["hp_max"] += 5
         p["hp"] += 5
@@ -386,6 +391,28 @@ def conceder_conquista(state, cid):
         pass # Benefício passivo
     elif cid == "famoso":
         pass # Benefício aplicado na loja
+    return [msg]
+
+
+# Fama: reputação persistente ganha ao superar chefes e sidequests. Ela abre catálogos
+# exclusivos na Vila (Mira ≥30, Morrigan ≥50) e, ao cruzar 50, concede a conquista Famoso
+# (10% de desconto). É estado do jogador (dono: a engine); o LLM só narra.
+FAMA_FAMOSO = 50                 # limiar da conquista Famoso
+
+def ganhar_fama(state, pontos, motivo=""):
+    """Soma Fama ao jogador (com feedback) e concede a conquista Famoso ao cruzar o limiar.
+    Retorna a lista de mensagens e IMPRIME (a web captura stdout via executar_capturando)."""
+    if pontos <= 0:
+        return []
+    p = state["player"]
+    p["fama"] = p.get("fama", 0) + pontos
+    msg = f"Sua fama cresce em Pedralume (+{pontos} Fama — total {p['fama']})."
+    print(f"  [fama] {msg}" + (f" [{motivo}]" if motivo else ""))
+    state["historico"].append(f"ganhou fama ({motivo})" if motivo else "ganhou fama")
+    msgs = [msg]
+    if p["fama"] >= FAMA_FAMOSO:
+        msgs += conceder_conquista(state, "famoso")
+    return msgs
 
 
 # Golpe furtivo do Ladino (identidade 'furtivo'): o 1º ataque de uma luta, com surpresa,
@@ -1013,6 +1040,8 @@ def novo_jogo(classe, seed=None, raca="Humano"):
             "sangramento": None,           # dano contínuo {dano, passos} (armadilha lâminas)
             "fraqueza_stacks": 0,          # stacks de Fraqueza da Sombra Vampírica (máx. 3)
             "ouro":      OURO_INICIAL,      # moedas p/ loja da Vila
+            "fama":      0,                 # reputação em Pedralume (chefes/sidequests) → catálogos + conquista
+            "conquistas": [],              # ids de CONQUISTAS desbloqueadas (persistem globais no meta do save)
         },
         "itens_gerados": {},                # cache de instâncias procedurais de itens mágicos (Loot)
         "local":     "Entrada das Catacumbas Esquecidas",
@@ -1435,7 +1464,9 @@ def serializar_estado(state):
             "hp": p["hp"], "hp_max": p["hp_max"],
             "mana": p["mana"], "mana_max": p["mana_max"],
             "nivel": p["nivel"], "xp": p["xp"], "xp_prox": xp_para_proximo(p),
+            "ouro": p.get("ouro", 0), "fama": p.get("fama", 0),
             "dano_base": p["dano_base"], "dano_arma": dano_da_arma(p, state),
+            "conquistas": p.get("conquistas", []),
             "bonus_for": bonus_dano_fisico(p, state), "defesa": defesa_total(p, state),
             "arma": nome_item_display(p["arma"], state) if p.get("arma") else "desarmado",
             "armadura": nome_item_display(p["armadura"], state) if p.get("armadura") else None,
@@ -1538,6 +1569,9 @@ def reidratar_estado(state):
     p = state.get("player") or {}
     if isinstance(p.get("armaduras"), list):
         p["armaduras"] = set(p["armaduras"])
+    # Saves anteriores à v3.x não têm Fama/Conquistas — garante os campos p/ a UI e a economia.
+    p.setdefault("fama", 0)
+    p.setdefault("conquistas", [])
 
     def _fix_masmorra(m):
         for s in (m or {}).values():
@@ -2187,6 +2221,8 @@ def executar_acao(state, acao):
             print(f"  [puzzle] Você puxa a alavanca de ferro frio com esforço. Um mecanismo range nas profundezas... ({state['alavancas_puxadas']}/3)")
             if state["alavancas_puxadas"] == 3:
                 print("  [puzzle] Um eco profundo ressoa pelo andar. A imensa porta de pedra do Templo Esquecido foi destrancada!")
+                # Sidequest concluída (as 3 alavancas): rende Fama em Pedralume (ganhar_fama já imprime).
+                ganhar_fama(state, 15, "abriu o Templo Esquecido")
         else:
             print("  [puzzle] Não há mecanismo para puxar, ou ele já está travado na posição.")
         return None
@@ -2850,7 +2886,11 @@ def purificar_golem(state):
     msg = ("Você ergue o Coração de Cristal. O Golem hesita — água limpa brota das rachaduras. "
            "O Guardião se dissolve em rio vivo. Pedralume terá água outra vez.")
     print(f"  [purificar] {msg}")
-    return [msg], "purificacao"
+    msgs = [msg]
+    # Purificar (em vez de matar) é a façanha máxima: Fama alta + a conquista Purificador.
+    msgs += ganhar_fama(state, 25, "purificou o Golem")
+    msgs += conceder_conquista(state, "purificador")
+    return msgs, "purificacao"
 
 
 def _descrever_sala_engine(sala):
@@ -3123,6 +3163,12 @@ def _vencer_combate(state, enemy_id):
         msgs.append(f"+{ouro} ouro (total: {state['player']['ouro']}).")
     if BESTIARIO[enemy_id].get("unico"):
         state["derrotados_unicos"].append(enemy_id)
+        # Chefes e minichefes rendem Fama (proporcional ao mlvl) — reputação em Pedralume.
+        msgs += ganhar_fama(state, BESTIARIO[enemy_id].get("mlvl", 1) * 2,
+                            f"derrotou {BESTIARIO[enemy_id]['nome']}")
+        # Vencer o Guardião da Lança = chegou ao fundo do Abismo → Explorador.
+        if enemy_id == "guardiao_lanca":
+            msgs += conceder_conquista(state, "explorador")
     return msgs
 
 
@@ -4948,6 +4994,60 @@ def rodar_demo():
     assert sc["player"]["xp"] == antes_xp + int(45 * 0.4), "diff>=3 → 0 XP (Golem não dá nada a nv12)"
     assert ITENS["lanca_perdida"]["dano"] == 6, "a Lança supera a Lâmina Rúnica"
     print("  Guardião solo no fundo, Lança no loot, NIVEL_MAX 12 coerente. OK")
+
+    # --- Fama + Conquistas (v3.x "ligar o andaime") ---
+    print("\nFama e Conquistas (ganho, conquistas, catálogo, desconto):")
+    fc = novo_jogo("Guerreiro", seed=5)
+    assert fc["player"]["fama"] == 0 and fc["player"]["conquistas"] == [], "novo jogo começa sem fama/conquista"
+    # derrotar chefe único rende Fama proporcional ao mlvl (Golem mlvl 7 → 14)
+    msgs_v = _vencer_combate(fc, "golem_barro")
+    assert fc["player"]["fama"] == 14, "Golem (mlvl 7) rende 14 de Fama"
+    assert any("fama" in m.lower() for m in msgs_v), "vitória de chefe informa o ganho de Fama"
+    # inimigo comum NÃO dá Fama
+    _vencer_combate(fc, "rato_gigante")
+    assert fc["player"]["fama"] == 14, "inimigo comum não rende Fama"
+    # catálogo da Mira: Fama < 30 não mostra exclusivos; >= 30 mostra
+    assert "espada_magica" not in catalogo_mira(fc), "sem Fama 30, sem itens exclusivos"
+    fc["player"]["fama"] = 35
+    assert "espada_magica" in catalogo_mira(fc) and "pocao_cura_maior" in catalogo_mira(fc)
+    assert "grimorio_tempestade" not in catalogo_morrigan(fc), "Morrigan exige Fama 50"
+    # cruzar 50 de Fama concede a conquista Famoso automaticamente
+    msgs_f = ganhar_fama(fc, 20, "teste")           # 35 -> 55
+    assert fc["player"]["fama"] == 55 and "famoso" in fc["player"]["conquistas"], "Fama>=50 → Famoso"
+    assert any("FAMOSO" in m.upper() for m in msgs_f), "desbloqueio de Famoso é anunciado"
+    assert "grimorio_tempestade" in catalogo_morrigan(fc), "Fama 50 abre o grimório de tempestade na Morrigan"
+    # desconto do Famoso: 10% em preco_compra (com state)
+    base = catalogo_mira(fc)["pocao_cura_maior"]
+    assert preco_compra("pocao_cura_maior", catalogo_mira(fc), fc) == int(base * 0.9), "Famoso dá 10% de desconto"
+    # conquista Purificador: benefício mecânico (+5 HP máx, +1 luz) aplicado UMA vez
+    pc = novo_jogo("Mago", seed=5)
+    hp0, luz0 = pc["player"]["hp_max"], pc["player"].get("luz", 0)
+    m1 = conceder_conquista(pc, "purificador")
+    assert pc["player"]["hp_max"] == hp0 + 5 and pc["player"]["luz"] == luz0 + 1, "Purificador: +5 HP máx, +1 luz"
+    assert m1, "conceder retorna mensagem no 1º desbloqueio"
+    assert conceder_conquista(pc, "purificador") == [], "idempotente: não reaplica benefício"
+    assert pc["player"]["hp_max"] == hp0 + 5, "benefício não empilha"
+    # purificar o Golem concede Fama + Purificador de fato
+    pu = novo_jogo("Mago", seed=7)
+    pu["player"]["atributos"]["sab"] = SAB_MIN_PURIFICAR
+    pu["player"]["inventario"].append("coracao_cristal")
+    cell = next(c for c, s in pu["masmorra"].items() if s.get("inimigo") == OBJETIVO_BOSS)
+    pu["pos"] = {"x": cell[0], "y": cell[1]}
+    _msgs, fim = purificar_golem(pu)
+    assert fim == "purificacao" and "purificador" in pu["player"]["conquistas"], "purificar → conquista Purificador"
+    assert pu["player"]["fama"] >= 25, "purificar rende Fama alta"
+    # Guardião da Lança → Explorador
+    ex = novo_jogo("Guerreiro", seed=9)
+    _vencer_combate(ex, "guardiao_lanca")
+    assert "explorador" in ex["player"]["conquistas"], "matar o Guardião → Explorador"
+    # whitelist não muda; serialização expõe fama/conquistas p/ a UI
+    serial = serializar_estado(fc)
+    assert serial["player"]["fama"] == 55 and "famoso" in serial["player"]["conquistas"], "UI vê fama/conquistas"
+    # saves antigos (sem os campos) são reidratados sem quebrar
+    velho = {"player": {"armaduras": []}, "masmorra": {}}
+    reidratar_estado(velho)
+    assert velho["player"]["fama"] == 0 and velho["player"]["conquistas"] == [], "save legado ganha os campos"
+    print("  Fama por chefe/sidequest, conquistas c/ benefício, catálogo e desconto por Fama. OK")
 
     print("\n>>> DEMO OK — inventário final:", state["player"]["inventario"],
           "| arma:", state["player"]["arma"], "| HP:", state["player"]["hp"])
