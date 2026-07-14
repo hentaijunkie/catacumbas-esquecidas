@@ -170,4 +170,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.7.2 — Vila em cenas 2D por local: o raycaster deixou de renderizar a superfície (paredes de catacumba não são praça); cada tile da vila é uma cena composta com NPC grande, legível e interagível exatamente onde os botões do painel funcionam. Corrigido o rótulo "Inimigo" nos NPCs.*
+*Protótipo v2.7.3 — Todos os NPCs de Pedralume e os chefes das sidequests agora possuem sprites próprios, substituindo totalmente os placeholders. Vila em cenas 2D por local, sem raycaster na superfície.*

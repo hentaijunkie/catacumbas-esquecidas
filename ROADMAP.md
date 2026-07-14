@@ -350,7 +350,7 @@ em modo online:
   - As armas sofrem dano ao atacar inimigos e armaduras ao receber dano - ambas podem ser completamente destruídas. 
 - **O Ferreiro Kaelen:** Ação `{"tipo": "consertar", "item": "<id>"}` na whitelist, executada na forja de Kael por 10 moedas de ouro. (O endpoint `/api/consertar` prometido aqui só chegou de fato na v2.7.1.)
 
-### Vila em cenas 2D por local (v2.7.2) — **atual**
+### Vila em cenas 2D por local (v2.7.2)
 Feedback do playtest da v2.7.1: NPCs com rótulo "Inimigo", casario "vazando" entre as
 paredes (conflito entre pano de fundo 2D em screen-space e a geometria 3D do raycaster)
 e NPC invisível exatamente no tile onde o botão Falar funciona (billboard fica atrás da
@@ -417,6 +417,15 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
+### Sprites Originais para todos os NPCs e Carrasco (v2.7.3) - **atual**
+- **Placeholders Removidos:** Até a v2.7.2, Kaelen (Ferreiro) e Silas (Curandeiro) repetiam a arte do Ancião Brum, e Morrigan (Bruxa) repetia a arte da Mira. O mini-chefe Carrasco sequer possuía sprite mapeado e recaía no fallback genérico.
+- **Novas Artes Integradas:** Quatro novos assets de arte (*Pixel Art Dark Fantasy*) foram gerados e limpos de seus fundos brancos (convertidos para Alpha/Transparência):
+  - `ferreiro.png` para Kaelen.
+  - `curandeiro.png` para Irmão Silas.
+  - `bruxa.png` para Morrigan.
+  - `inimigo_carrasco.png` para o chefe da Câmara do Carrasco (Andar 2).
+- **Mapeamento:** O dicionário `SPRITE_MAP` no `index.html` foi atualizado para apontar corretamente cada ID para seu respectivo arquivo recém-criado na pasta `assets/sprites/`.
+
 
 ---
 
@@ -482,4 +491,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.7.2 - Vila em cenas 2D por local (superfície fora do raycaster, NPCs grandes e nomeados, setas de saída com destino, fix do rótulo "Inimigo").*
+*Última atualização: v2.7.3 - Todos os NPCs e Carrasco ganharam sprites próprios (remoção completa dos placeholders).*
