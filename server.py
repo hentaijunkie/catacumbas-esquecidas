@@ -14,6 +14,8 @@ Multi-jogador:
 Uso:
     set REGISTER_KEY=sua-chave-secreta
     set DEEPSEEK_API_KEY=...   # opcional
+    set LLM_BASE_URL=...       # opcional: LLM local OpenAI-compatível (Ollama /v1)
+    set LLM_MODEL=...          # opcional: modelo do endpoint acima
     python server.py           # http://0.0.0.0:8000
 """
 
@@ -33,7 +35,9 @@ import auth
 
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8000"))
-ONLINE = bool(os.environ.get("DEEPSEEK_API_KEY"))
+# Online = há um LLM para narrar: chave da DeepSeek OU endpoint local/custom
+# (LLM_BASE_URL, ex.: Ollama em http://localhost:11434/v1 — ver rpg_loop.py).
+ONLINE = bool(os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("LLM_BASE_URL"))
 AQUI = os.path.dirname(os.path.abspath(__file__))
 log = game_log.get_logger("game")
 llm_log = game_log.get_logger("llm")   # turnos do LLM (debug de jogadas online)
@@ -1272,7 +1276,7 @@ def main():
         os.makedirs(SAVE_ROOT, exist_ok=True)
     except OSError as e:
         log.warning("não foi possível criar data/saves: %s", e)
-    modo = "ONLINE (DeepSeek)" if ONLINE else "OFFLINE (narração por template)"
+    modo = f"ONLINE ({eng.MODELO} @ {eng.BASE_URL})" if ONLINE else "OFFLINE (narração por template)"
     convite = "configurada" if auth.invite_key() else "AUSENTE (cadastro desativado)"
     print(f"As Catacumbas Esquecidas — servidor web [{modo}]")
     print(f"Escutando http://{HOST}:{PORT}")

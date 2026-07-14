@@ -417,7 +417,36 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Sprites Originais para todos os NPCs e Carrasco (v2.7.3) - **atual**
+### Controles de toque (mobile) + LLM local via env (v2.7.4) - **atual**
+- **Mobile jogável:** até a v2.7.3 mover/virar era exclusivamente por teclado
+  (setas/WASD) — no celular o jogador ficava parado na entrada. Agora:
+  - **Toque/clique na própria visão** (`#view`): zonas casadas com as setas da
+    vila — bordas esquerda/direita viram, centro avança, faixa de baixo recua.
+    Funciona também com mouse no desktop (as setas ▲◀▶▼ da vila deixaram de ser
+    decorativas).
+  - **D-pad na tela** (`#dpad` sobre a visão, canto inferior direito): aparece
+    em telas de toque via `@media(pointer:coarse)` + fallback JS
+    (`ontouchstart`/`maxTouchPoints`) p/ navegadores que não casam o media query.
+    Botões ≥44px (alvo de toque), `touch-action:manipulation` (sem delay de
+    double-tap).
+  - **Refactor:** teclado, D-pad e toque no canvas convergem em `acaoDirecao(dir)`
+    — mesma semântica (esquerda/direita viram, frente/trás movem), mesmos guards
+    (`combatendo`, `_inputBusy`) + guards novos: sem jogo (`window._estado`) ou
+    com overlay aberto (`.overlay:not(.hidden)`) o input é ignorado.
+  - Dica de controles e tutorial (? Ajuda) atualizados.
+- **LLM local / endpoint custom:** `LLM_BASE_URL` e `LLM_MODEL` no ambiente
+  sobrescrevem DeepSeek (`rpg_loop.MODELO`/`BASE_URL`). Com `LLM_BASE_URL`
+  setado a chave da DeepSeek é dispensável (endpoints locais tipo Ollama
+  `http://localhost:11434/v1` aceitam qualquer string) e o servidor entra em
+  modo ONLINE — o banner de startup mostra modelo@endpoint ativos. Modelos
+  pequenos erram mais o contrato JSON; o loop de reparo e o fallback offline
+  já cobrem.
+- Verificado: `--demo` verde; overrides de env testados por import; no browser
+  (online): clique borda→virou, centro→moveu (e caiu em combate narrado),
+  clique ignorado durante combate, D-pad virou, layout 1 coluna @375px com
+  D-pad interno à visão; zero erros de console.
+
+### Sprites Originais para todos os NPCs e Carrasco (v2.7.3)
 - **Placeholders Removidos:** Até a v2.7.2, Kaelen (Ferreiro) e Silas (Curandeiro) repetiam a arte do Ancião Brum, e Morrigan (Bruxa) repetia a arte da Mira. O mini-chefe Carrasco sequer possuía sprite mapeado e recaía no fallback genérico.
 - **Novas Artes Integradas:** Quatro novos assets de arte (*Pixel Art Dark Fantasy*) foram gerados e limpos de seus fundos brancos (convertidos para Alpha/Transparência):
   - `ferreiro.png` para Kaelen.
@@ -454,7 +483,7 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 ## Proximos passos (curto prazo)
 
 ### Expansão da Gameplay
-- [ ] Nenhum item de curto prazo pendente — próxima leva: Godot / LLM local (longo prazo).
+- [ ] Nenhum item de curto prazo pendente — próxima leva: Godot (longo prazo).
 
 ---
 
@@ -463,7 +492,7 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 | Tema | Notas |
 |---|---|
 | Cliente Godot 4 | Mesmo `server.py`; export Web |
-| LLM local | Ollama / llama.cpp embutido |
+| ~~LLM local~~ | ✅ v2.7.4: `LLM_BASE_URL`/`LLM_MODEL` apontam p/ Ollama ou qualquer endpoint OpenAI-compatível |
 
 ---
 
@@ -491,4 +520,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.7.3 - Todos os NPCs e Carrasco ganharam sprites próprios (remoção completa dos placeholders).*
+*Última atualização: v2.7.4 - Controles de toque (mobile jogável: D-pad + zonas de toque na visão) e LLM local/custom via LLM_BASE_URL/LLM_MODEL.*

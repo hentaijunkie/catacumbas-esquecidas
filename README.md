@@ -47,6 +47,8 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 | `↑` / `W` | Frente (relativo ao facing) |
 | `↓` / `S` | Trás |
 | `←` `→` / `A` `D` | Virar no lugar |
+| **Toque/clique na visão** | Bordas viram · centro avança · base recua |
+| **D-pad na tela** (📱) | ▲◀▼▶ sobre a visão, aparece em telas de toque |
 | Texto / inventário | Interagir, equipar, usar |
 | **Descer** / **Subir · Vila** | Andar 2 ↔ 1; entrada ↔ Pedralume |
 | Botões de combate | Atacar, poção, magia, fugir |
@@ -65,6 +67,20 @@ Sem chave: modo offline (template). Com chave:
 
 - env `DEEPSEEK_API_KEY`, ou
 - `key.txt` na raiz (**não commitar** — ver `.gitignore`).
+
+**LLM local ou endpoint custom** (Ollama, llama.cpp, vLLM — qualquer API OpenAI-compatível):
+
+```bash
+# PowerShell:
+$env:LLM_BASE_URL = "http://localhost:11434/v1"   # Ollama
+$env:LLM_MODEL    = "llama3.1"
+python server.py
+```
+
+Com `LLM_BASE_URL` setado a chave da DeepSeek é dispensável (endpoints locais aceitam
+qualquer string) e o servidor entra em modo online — o banner de startup mostra o
+modelo/endpoint ativos. Modelos pequenos erram mais o contrato JSON do narrador;
+o loop de reparo (3 tentativas) e o fallback offline seguram o jogo mesmo assim.
 
 ### Contas e multi-jogador
 
@@ -166,8 +182,8 @@ python server.py          # logs em logs/
 
 ## Visão de longo prazo
 
-Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/persistência.
+Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 → Vila/persistência.
 
 ---
 
-*Protótipo v2.7.3 — Todos os NPCs de Pedralume e os chefes das sidequests agora possuem sprites próprios, substituindo totalmente os placeholders. Vila em cenas 2D por local, sem raycaster na superfície.*
+*Protótipo v2.7.4 — Jogável no celular: D-pad na tela + zonas de toque na visão (bordas viram, centro avança). LLM local/custom via `LLM_BASE_URL`/`LLM_MODEL` (Ollama e afins).*

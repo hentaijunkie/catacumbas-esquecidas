@@ -33,6 +33,18 @@
            font-size:11px;color:var(--dim);pointer-events:none;text-shadow:0 1px 3px #000;gap:8px;flex-wrap:wrap}
   #viewHud b{color:var(--accent)}
   #viewFlash{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s}
+  /* D-pad de toque: sobre a visão, só em telas de toque (pointer:coarse).
+     No desktop o canvas também aceita clique (zonas: bordas viram, centro avança). */
+  #dpad{position:absolute;right:10px;bottom:28px;display:none;z-index:5;
+        grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,46px);gap:6px}
+  #dpad button{padding:0;font-size:19px;line-height:1;border-radius:10px;
+               background:rgba(26,29,38,.7);border-color:#ffffff22;color:#e7e9ef;
+               text-shadow:0 1px 3px #000;touch-action:manipulation;user-select:none}
+  #dpad button:active{background:rgba(75,191,115,.35)}
+  #dpad .up{grid-column:2;grid-row:1} #dpad .lf{grid-column:1;grid-row:2}
+  #dpad .dn{grid-column:2;grid-row:2} #dpad .rt{grid-column:3;grid-row:2}
+  @media(pointer:coarse){ #dpad{display:grid} }
+  #view{cursor:pointer;touch-action:manipulation}
   /* centralização SEGURA: margin:auto no canvas (não justify/align center no flex) —
      senão o excedente acima/à esquerda fica fora do alcance da rolagem */
   #miniWrap{display:flex;margin-top:10px;padding:8px;
@@ -190,6 +202,12 @@
           <span id="hudLuz">luz</span>
           <span id="hudLocal" style="color:var(--gold)"></span>
         </div>
+        <div id="dpad">
+          <button class="up" data-dir="frente" aria-label="Avançar">▲</button>
+          <button class="lf" data-dir="esquerda" aria-label="Virar à esquerda">◀</button>
+          <button class="dn" data-dir="tras" aria-label="Recuar">▼</button>
+          <button class="rt" data-dir="direita" aria-label="Virar à direita">▶</button>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -215,6 +233,7 @@
       <div class="hint">
         <kbd>↑</kbd>/<kbd>W</kbd> frente · <kbd>↓</kbd>/<kbd>S</kbd> trás ·
         <kbd>←</kbd>/<kbd>→</kbd> ou <kbd>A</kbd>/<kbd>D</kbd> virar.
+        Ou toque/clique na visão: bordas viram, centro avança, base recua.
         Interagir: digite abaixo.
       </div>
     </div>
@@ -349,6 +368,8 @@
       <li><b>Mover (1ª pessoa):</b> <kbd>↑</kbd>/<kbd>W</kbd> frente, <kbd>↓</kbd>/<kbd>S</kbd> trás,
         <kbd>←</kbd><kbd>→</kbd> virar. Passagens abertas mostram portais; paredes sólidas são pedra.
         <kbd>F3</kbd> debug da vista.</li>
+      <li><b>Toque / mouse:</b> toque ou clique na própria visão — <b>bordas</b> viram, <b>centro</b> avança,
+        <b>base</b> recua. No celular há também um <b>direcional</b> ▲◀▼▶ sobre a visão.</li>
       <li><b>Andares:</b> 3 níveis — <em>Descer</em> (escada) ou reentrar da Vila.
         <em>Subir / Vila</em> sobe andares ou emerge em Pedralume. Andar 3 tem <b>minichefes</b>.</li>
       <li><b>Vila:</b> em Pedralume a visão vira um <b>painel 2D</b> (praça + Mira/Ancião). Loja e ouro no painel direito.</li>
@@ -1859,25 +1880,55 @@ document.addEventListener("keydown", async ev=>{
   if(ev.key==="?" || ev.key==="h" || ev.key==="H"){ toggleAjuda(true); return; }
   if(combatendo || _inputBusy) return;
   const k = ev.key;
-  let acao = null;
-  if(k==="ArrowUp" || k==="w" || k==="W") acao = {tipo:"mover", direcao:"frente"};
-  else if(k==="ArrowDown" || k==="s" || k==="S") acao = {tipo:"mover", direcao:"tras"};
-  else if(k==="ArrowLeft" || k==="a" || k==="A") acao = {tipo:"virar", direcao:"esquerda"};
-  else if(k==="ArrowRight" || k==="d" || k==="D") acao = {tipo:"virar", direcao:"direita"};
-  if(!acao) return;
+  let dir = null;
+  if(k==="ArrowUp" || k==="w" || k==="W") dir = "frente";
+  else if(k==="ArrowDown" || k==="s" || k==="S") dir = "tras";
+  else if(k==="ArrowLeft" || k==="a" || k==="A") dir = "esquerda";
+  else if(k==="ArrowRight" || k==="d" || k==="D") dir = "direita";
+  if(!dir) return;
   ev.preventDefault();
+  await acaoDirecao(dir);
+});
+
+/* Movimento compartilhado por teclado, D-pad e toque/clique no canvas.
+   esquerda/direita = virar; frente/tras = mover (mesma semântica das setas). */
+async function acaoDirecao(dir){
+  if(combatendo || _inputBusy || !window._estado) return;
+  if(document.querySelector(".overlay:not(.hidden)")) return;
   _inputBusy = true;
   try{
-    if(acao.tipo==="virar"){
-      clog("debug", "virar "+acao.direcao);
-      aplicar(await api("/api/virar",{direcao:acao.direcao}));
+    if(dir==="esquerda" || dir==="direita"){
+      clog("debug", "virar "+dir);
+      aplicar(await api("/api/virar",{direcao:dir}));
     } else {
-      clog("debug", "mover "+acao.direcao);
-      aplicar(await api("/api/mover",{direcao:acao.direcao}));
+      clog("debug", "mover "+dir);
+      aplicar(await api("/api/mover",{direcao:dir}));
     }
   } catch(err){
     clog("error", "input falhou: "+(err&&err.message));
   } finally { _inputBusy = false; }
+}
+
+/* D-pad (telas de toque) */
+document.querySelectorAll("#dpad button").forEach(b=>{
+  b.onclick = ()=>acaoDirecao(b.dataset.dir);
+});
+/* fallback: alguns navegadores têm toque sem casar (pointer:coarse) */
+if("ontouchstart" in window || navigator.maxTouchPoints > 0)
+  $("#dpad").style.display = "grid";
+
+/* Toque/clique direto na visão: zonas casadas com as setas da vila
+   (◀ borda esq · ▲ centro/topo · ▶ borda dir · ▼ faixa de baixo). */
+$("#view").addEventListener("click", ev=>{
+  const r = ev.currentTarget.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / r.width;
+  const y = (ev.clientY - r.top) / r.height;
+  let dir;
+  if(x < 0.22) dir = "esquerda";
+  else if(x > 0.78) dir = "direita";
+  else if(y > 0.74) dir = "tras";
+  else dir = "frente";
+  acaoDirecao(dir);
 });
 window.addEventListener("resize", ()=>{
   if(window._estado) solicitarVista(window._estado, combatendo ? {nome:$("#cbNome").textContent} : null);

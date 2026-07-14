@@ -24,6 +24,13 @@ Uso:
     pip install openai
     python rpg_loop.py            # jogo real (chama a API)
     python rpg_loop.py --demo     # roda a lógica offline, sem API nem token
+
+LLM local (Ollama/llama.cpp ou qualquer endpoint OpenAI-compatível):
+    export LLM_BASE_URL="http://localhost:11434/v1"
+    export LLM_MODEL="llama3.1"
+    # DEEPSEEK_API_KEY é dispensável com LLM_BASE_URL (endpoints locais
+    # aceitam qualquer string como chave). Modelos pequenos erram mais o
+    # contrato JSON — o loop de reparo (MAX_RETRIES) e o fallback já cobrem.
 """
 
 import os
@@ -67,8 +74,8 @@ _carregar_chave_local()
 # ---------------------------------------------------------------------------
 # CONFIG
 # ---------------------------------------------------------------------------
-MODELO      = "deepseek-chat"                 # roteia p/ o v4-flash: rápido e barato
-BASE_URL    = "https://api.deepseek.com"
+MODELO      = os.environ.get("LLM_MODEL") or "deepseek-chat"   # v4-flash: rápido e barato
+BASE_URL    = os.environ.get("LLM_BASE_URL") or "https://api.deepseek.com"
 MAX_TOKENS  = 800                             # alto o bastante p/ o JSON não truncar
 MAX_RETRIES = 3                               # tentativas de "reparo" do JSON inválido
 
@@ -1686,6 +1693,8 @@ def _get_client():
     if _client is None:
         from openai import OpenAI  # import tardio: modo --demo não precisa do pacote
         key = os.environ.get("DEEPSEEK_API_KEY")
+        if not key and os.environ.get("LLM_BASE_URL"):
+            key = "sem-chave"  # Ollama e afins só exigem uma string não-vazia
         if not key:
             print("ERRO: defina DEEPSEEK_API_KEY no ambiente (ou rode com --demo).")
             sys.exit(1)
