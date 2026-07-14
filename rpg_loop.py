@@ -151,6 +151,10 @@ LORE = {
         "titulo": "Lembrete de Pedralume",
         "texto": "Pedralume seca há três gerações. Os anciãos dizem: o rio chora nas profundezas. Traga-o de volta.",
     },
+    "tablet_lanca": {
+        "titulo": "A Lança Perdida",
+        "texto": "O primeiro guardião desceu ao Abismo com a Lança do Rio e nunca voltou. Dizem que ela ainda espera, cravada onde a água morreu.",
+    },
 }
 
 # Luz: tocha acesa tem duração em "passos" (cada movimento consome 1). Sem luz = escuridão.
@@ -161,7 +165,7 @@ SAB_MIN_PURIFICAR = 12           # Sabedoria mínima p/ purificar o Golem (com o
 # --- v1.1: Fadiga / Encumbrance / Multi-nível / Altares ---
 FADIGA_MAX = 3                   # níveis de fadiga (0 = fresco)
 PASSOS_POR_FADIGA = 10           # a cada N passos sem descanso bom, +1 fadiga
-MAX_PROFUNDIDADE = 3             # andares da masmorra (1 chefe · 2 elite · 3 minichefes)
+MAX_PROFUNDIDADE = 4             # andares (1 chefe · 2 elite · 3 minichefes · 4 abismo/Lança)
 EMBOSCADA_MULT = 3               # backstab após 'esconder' com sucesso (Ladino)
 CHANCE_FURTO = 0.55              # base de sucesso ao furtar (modificada por DES/fadiga)
 # Ladino (disarma): ao saquear, chance de auto-identificar item afixado (sem gastar pergaminho).
@@ -218,6 +222,15 @@ BESTIARIO = {
                          "veneno": {"dano": 2, "passos": 3, "chance": 0.40}},
     "golem_barro":      {"nome": "Golem de Barro",     "hp": 40, "dano": 7, "defesa": 3, "xp": 20, "ouro": 30, "mlvl": 7,
                          "unico": True},
+    # Andar 4 (o Abismo, mlvl 8-10). Stats BASE moderados de propósito: stats_inimigo
+    # aplica +20% HP/dano por andar extra, então no andar 4 tudo chega multiplicado por 1.6.
+    "larva_abissal":    {"nome": "Larva Abissal",      "hp": 16, "dano": 6, "defesa": 1, "xp": 16, "ouro": 8,  "mlvl": 8},
+    "cavaleiro_tumulo": {"nome": "Cavaleiro do Túmulo","hp": 30, "dano": 6, "defesa": 5, "xp": 20, "ouro": 15, "mlvl": 8},
+    "bruxo_abissal":    {"nome": "Bruxo Abissal",      "hp": 22, "dano": 7, "defesa": 1, "xp": 22, "ouro": 18, "mlvl": 9,
+                         "fraqueza": {"dano_red": 1, "max_stacks": 3}},
+    # Chefe da sidequest "A Lança Perdida" (guarda a arma no fundo do Abismo).
+    "guardiao_lanca":   {"nome": "Guardião da Lança",  "hp": 60, "dano": 9, "defesa": 5, "xp": 45, "ouro": 60, "mlvl": 10,
+                         "unico": True, "minichefe": True},
 }
 
 # Loja de Pedralume (só na superfície). Preços de compra; venda = floor(preco * MULT_VENDA).
@@ -229,6 +242,24 @@ LOJA_VILA = {
     "gazua": 18,
     "chave_ferro": 22,
 }
+
+# Loja da Morrigan (cabana_bruxa): grimórios — antes só dropavam na masmorra.
+# Preços seguem a potência da magia; a bruxa não compra nada de volta (venda = Mira).
+LOJA_BRUXA = {
+    "grimorio_raio": 25,
+    "grimorio_cura": 30,
+    "grimorio_escudo": 30,
+    "grimorio_dreno": 35,
+    "grimorio_pressa": 35,
+    "grimorio_veneno": 40,
+    "grimorio_atordoar": 40,
+    "grimorio_nova": 45,
+    "grimorio_explosao": 55,
+}
+
+# Cura do Irmão Silas (tenda_cura): HP cheio + remove veneno/sangramento/fadiga.
+# Mais forte que descansar (que cura metade e NÃO remove veneno) — por isso paga.
+CUSTO_CURA_SILAS = 8
 
 NPCS_VILA = {
     "mira": {
@@ -378,10 +409,10 @@ N_SALAS = 50                                         # masmorra maior (campanha 
 # Aba: Progressão (engine é dona — o LLM nunca decide XP nem nível). Até nível 4.
 # 'xp' = total ACUMULADO exigido p/ ALCANÇAR aquele nível. Sobe de nível ganha os bônus
 # (+HP, +dano, +mana). Limpar a masmorra maior leva ~nível 4; o Golem fica vencível.
-# Teto coerente com o soft-cap de XP (ganhar_xp): o maior mlvl do bestiário é 7
-# (Golem); com a penalidade zerando o XP a partir de diff>=3, o nível 10 é o último
+# Teto coerente com o soft-cap de XP (ganhar_xp): o maior mlvl do bestiário é 10
+# (Guardião da Lança); com a penalidade zerando o XP a partir de diff>=3, o 12 é o último
 # alcançável de fato — níveis acima disso seriam letra morta na tabela.
-NIVEL_MAX = 10
+NIVEL_MAX = 12
 PROGRESSAO = {
     2: {"xp": 6,  "hp_max": 5, "dano_base": 1, "mana_max": 3},
     3: {"xp": 14, "hp_max": 5, "dano_base": 1, "mana_max": 3},
@@ -392,6 +423,8 @@ PROGRESSAO = {
     8: {"xp": 114, "hp_max": 7, "dano_base": 1, "mana_max": 5},
     9: {"xp": 146, "hp_max": 7, "dano_base": 1, "mana_max": 5},
     10: {"xp": 182, "hp_max": 7, "dano_base": 1, "mana_max": 5},
+    11: {"xp": 222, "hp_max": 7, "dano_base": 1, "mana_max": 5},
+    12: {"xp": 266, "hp_max": 8, "dano_base": 1, "mana_max": 6},
 }
 
 # Afixos Procedurais (Loot)
@@ -422,6 +455,7 @@ ITENS = {
     "cajado_carvalho":    {"nome": "Cajado de Carvalho", "tipo": "arma",       "dano": 2, "carga": 2, "durabilidade_max": 20},
     "espada_longa":       {"nome": "Espada Longa",       "tipo": "arma",       "dano": 4, "carga": 4, "durabilidade_max": 40},
     "lamina_runica":      {"nome": "Lâmina Rúnica",      "tipo": "arma",       "dano": 5, "carga": 3, "durabilidade_max": 50},
+    "lanca_perdida":      {"nome": "A Lança Perdida",    "tipo": "arma",       "dano": 6, "carga": 4, "durabilidade_max": 60},
     "roupas_pano":        {"nome": "Roupas de Pano",     "tipo": "armadura",   "defesa": 1, "peso": "leve", "carga": 2, "durabilidade_max": 20},
     "gibao_couro":        {"nome": "Gibão de Couro",     "tipo": "armadura",   "defesa": 3, "peso": "media", "carga": 5, "durabilidade_max": 35},
     "cota_malha":         {"nome": "Cota de Malha",      "tipo": "armadura",   "defesa": 5, "peso": "pesada", "carga": 10, "durabilidade_max": 50},
@@ -566,10 +600,13 @@ ACOES_PERMITIDAS = {
     # v2.0 identificação
     "identificar":      {"alvo": "item_id"},         # consome pergaminho; revela afixos
     # v2.1 vila
-    "comprar":          {"item": "item_id"},         # loja de Pedralume (ouro)
+    "comprar":          {"item": "item_id"},         # loja do tile: Mira (itens) ou Morrigan (grimórios)
     "vender":           {"item": "item_id"},         # vende do inventário (não equipado)
-    "consertar":        {"item": "item_id"},         # conserta item no ferreiro (ouro)
-    "falar":            {"alvo": "str"},             # NPC da vila (mira|anciao|ferreiro)
+    "consertar":        {"item": "item_id"},         # conserta item no ferreiro (ouro proporcional)
+    "falar":            {"alvo": "str"},             # NPC da vila (mira|anciao|ferreiro|curandeiro|bruxa)
+    # v2.8 serviços de NPC + reparo de campo
+    "curar_vila":       {},                          # cura paga do Silas (tenda_cura)
+    "reparar":          {"item": "item_id"},         # reparo de campo do Guerreiro (corrói dur. máx.)
 }
 
 
@@ -618,7 +655,8 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
     Random walk num grid. Determinístico c/ seed.
     profundidade=1: campanha + Golem + escada p/ 2.
     profundidade=2: elite (debuffs) + escada p/ 3.
-    profundidade=3: minichefes únicos + loot premium (fundo).
+    profundidade=3: minichefes únicos + loot premium + escada p/ 4.
+    profundidade=4: o Abismo (mlvl 8-10) + sidequest "A Lança Perdida" (fundo).
     """
     rng = random.Random(seed)
     # Andares profundos são um pouco menores, mas mais densos em perigo.
@@ -626,6 +664,8 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
         n_salas = max(14, n_salas - 8)
     if profundidade >= 3:
         n_salas = max(12, n_salas - 2)
+    if profundidade >= 4:
+        n_salas = max(12, n_salas - 4)
     salas = {(0, 0): _sala("entrada")}
     atual = (0, 0)
     while len(salas) < n_salas:
@@ -675,12 +715,22 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
         salas[carrasco_cell]["nome"] = "Câmara do Carrasco"
         salas[carrasco_cell]["grupo"] = []
         salas[carrasco_cell]["loot"] = ["lamina_runica", "pocao_cura"]
-    else:
+    elif profundidade == 3:
         # Andar 3: câmara do minichefe (Capitão de Ossos) + horda.
         salas[fundo]["tipo"] = "camara"
         salas[fundo]["boss"] = True  # minichefe (automapa marca B)
         salas[fundo]["inimigo"] = "capitao_osso"
         salas[fundo]["grupo"] = ["esqueleto_animado", "sombra_vampirica"]
+        boss_cell = fundo
+    else:
+        # Andar 4 — sidequest "A Lança Perdida": o Guardião solo no fundo do Abismo,
+        # com a Lança como recompensa (o balance_sim simula o chefe SOLO).
+        salas[fundo]["tipo"] = "camara"
+        salas[fundo]["boss"] = True
+        salas[fundo]["inimigo"] = "guardiao_lanca"
+        salas[fundo]["nome"] = "Repouso da Lança"
+        salas[fundo]["grupo"] = []
+        salas[fundo]["loot"] = ["lanca_perdida"]
         boss_cell = fundo
 
     # Encontros
@@ -695,11 +745,18 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
                     + [rng.choice(["zumbi", "cultista", "aranha_cripta", "espectro_gelido",
                                    "sombra_vampirica"])
                        for _ in range(max(0, n_salas // 3))])
-    else:
+    elif profundidade == 3:
         # Andar 3: segundo minichefe + elite densa.
         inimigos = (["sacerdote_lodo", "espectro_gelido", "sombra_vampirica", "zumbi",
                      "aranha_cripta", "cultista"]
                     + [rng.choice(["espectro_gelido", "sombra_vampirica", "zumbi", "cultista"])
+                       for _ in range(max(0, n_salas // 4))])
+    else:
+        # Andar 4: bestiário do Abismo (mlvl 8-9) — cavaleiro couraçado (magia fura),
+        # bruxo com Fraqueza e larvas de tropa p/ o XP fluir até o nível 12.
+        inimigos = (["cavaleiro_tumulo", "cavaleiro_tumulo", "bruxo_abissal",
+                     "larva_abissal", "larva_abissal", "espectro_gelido"]
+                    + [rng.choice(["larva_abissal", "cavaleiro_tumulo", "bruxo_abissal"])
                        for _ in range(max(0, n_salas // 4))])
     for inim in inimigos:
         c = next(it, None)
@@ -715,9 +772,12 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
             elif profundidade == 2:
                 salas[c]["inimigo"] = "esqueleto_animado"
                 salas[c]["grupo"] = [rng.choice(["rato_gigante", "morcego", "cultista"]) for _ in range(2)]
-            else:
+            elif profundidade == 3:
                 salas[c]["inimigo"] = "zumbi"
                 salas[c]["grupo"] = ["cultista", "espectro_gelido"]
+            else:
+                salas[c]["inimigo"] = "bruxo_abissal"
+                salas[c]["grupo"] = ["larva_abissal", "larva_abissal"]
 
     for _ in range(3 if profundidade <= 1 else 4):
         c = next(it, None)
@@ -747,13 +807,22 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
             ["gazua", "pocao_mana"],
             ["pergaminho_identificacao", "pergaminho_identificacao"],
         ]
-    else:
+    elif profundidade == 3:
         tesouros = [
             ["lamina_runica", "cota_malha"],
             ["grimorio_veneno", "grimorio_atordoar"],
             ["pocao_cura", "pocao_mana", "pocao_cura"],
             ["pergaminho_identificacao", "gazua", "chave_ferro"],
             ["espada_longa", "pocao_mana"],
+        ]
+    else:
+        # Andar 4: loot premium porém ESCASSO em consumível (desça preparado —
+        # a volta ao Silas/Kael é parte do custo do Abismo).
+        tesouros = [
+            ["lamina_runica", "pergaminho_identificacao"],
+            ["cota_malha", "pocao_cura"],
+            ["pocao_mana", "tocha"],
+            ["pergaminho_identificacao"],
         ]
     for loot in tesouros:
         c = next(it, None)
@@ -818,15 +887,23 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
         c_alt = candidatas[0] if candidatas else None
         if c_alt:
             salas[c_alt]["altar"] = "altar_lodo"
-    else:
-        # Andar 3 (fundo): sobe p/ 2; minichefe já na câmara do fundo
+    elif profundidade == 3:
+        # Andar 3: sobe p/ 2; minichefe na câmara do fundo; escada p/ o Abismo (4)
         salas[(0, 0)]["tablet"] = "tablet_culto"
         salas[(0, 0)]["escada_sobe"] = True
         if boss_cell:
             salas[boss_cell]["tablet"] = "tablet_coracao"
+        for c in sorted(candidatas, key=lambda x: dist[x], reverse=True):
+            if not salas[c].get("boss") and not salas[c]["cofre"] and not salas[c]["escada"]:
+                salas[c]["escada"] = True
+                break
         c_alt = candidatas[0] if candidatas else None
         if c_alt and not salas[c_alt].get("boss"):
             salas[c_alt]["altar"] = "altar_lodo"
+    else:
+        # Andar 4 (o Abismo, fundo de verdade): só sobe; a lore da Lança na entrada
+        salas[(0, 0)]["tablet"] = "tablet_lanca"
+        salas[(0, 0)]["escada_sobe"] = True
 
     salas[(0, 0)]["visitada"] = True
     return salas
@@ -1268,6 +1345,9 @@ def _inventario_json(state):
             d["durabilidade_max"] = dmax
             if identificado:
                 d["stat"] += f" · {info['durabilidade']}/{dmax}"
+            # Custo do conserto no Kael (proporcional) — a UI mostra no botão.
+            if info["durabilidade"] < dmax and iid in state.get("itens_gerados", {}):
+                d["custo_conserto"] = custo_conserto(state["itens_gerados"][iid])
         dados[iid] = d
         ordem.append(iid)
     return [dados[i] for i in ordem]
@@ -1605,8 +1685,10 @@ AÇÕES PERMITIDAS (use APENAS estas — qualquer outra é proibida):
   do inventário. A engine decide sucesso e revela o nome real; NÃO declare o afixo antes.
 - {{"tipo": "comprar", "item": "<id>"}}  -> comprar na loja de Pedralume (só na superfície).
 - {{"tipo": "vender", "item": "<id>"}}  -> vender item do inventário na Vila (não equipado).
-- {{"tipo": "consertar", "item": "<id>"}} -> consertar arma ou armadura na forja de Kaelen.
-- {{"tipo": "falar", "alvo": "mira"|"anciao"|"ferreiro"|"curandeiro"|"bruxa"}}  -> falar com o NPC da sala atual da Vila.
+- {{"tipo": "consertar", "item": "<id>"}} -> consertar arma ou armadura na forja de Kaelen (ouro proporcional ao dano).
+- {{"tipo": "curar_vila"}} -> tratamento pago do Irmão Silas (só na tenda de cura da Vila): HP cheio, remove veneno/sangramento/fadiga.
+- {{"tipo": "reparar", "item": "<id>"}} -> reparo de campo (SÓ Guerreiro, em qualquer lugar): restaura durabilidade mas corrói a durabilidade máxima.
+- {{"tipo": "falar", "alvo": "mira"|"anciao"|"ferreiro"|"curandeiro"|"bruxa"}}  -> falar com o NPC da sala atual da Vila. Mira vende itens; Morrigan (bruxa) vende grimórios.
 
 REGRA DE OURO SOBRE ITENS (leia com atenção — foi fonte de bugs):
 - "pego/acho/ganho X"      -> dar_item     (só se for loot novo mesmo)
@@ -2052,6 +2134,14 @@ def executar_acao(state, acao):
 
     if tipo == "consertar":
         consertar_item(state, acao.get("item") or "")
+        return None
+
+    if tipo == "curar_vila":
+        curar_no_silas(state)
+        return None
+
+    if tipo == "reparar":
+        reparar_campo(state, acao.get("item") or "")
         return None
 
     if tipo == "falar":
@@ -2983,17 +3073,30 @@ def _vencer_combate(state, enemy_id):
     return msgs
 
 
-def preco_compra(item_id):
-    return LOJA_VILA.get(item_id)
+def loja_do_tile(state):
+    """(npc_id, catálogo) da loja no tile atual da vila, ou (npc_id, None) se não há loja."""
+    pos = (state["pos"]["x"], state["pos"]["y"])
+    npc = state["masmorra"].get(pos, {}).get("npc")
+    if npc == "mira":
+        return npc, LOJA_VILA
+    if npc == "bruxa":
+        return npc, LOJA_BRUXA
+    return npc, None
+
+
+def preco_compra(item_id, catalogo=None):
+    if catalogo is not None:
+        return catalogo.get(item_id)
+    return LOJA_VILA.get(item_id) or LOJA_BRUXA.get(item_id)
 
 
 def preco_venda(item_id, state=None):
     """Preço de venda: catálogo da loja * MULT_VENDA; afixos identificados +3."""
-    preco_ref = LOJA_VILA.get(item_id)
+    preco_ref = LOJA_VILA.get(item_id) or LOJA_BRUXA.get(item_id)
     if preco_ref is None and item_id and item_id not in ITENS and "_" in item_id:
         parts = item_id.rsplit("_", 1)
         if len(parts[1]) == 6:  # sufixo hex de loot procedural
-            preco_ref = LOJA_VILA.get(parts[0])
+            preco_ref = LOJA_VILA.get(parts[0]) or LOJA_BRUXA.get(parts[0])
     if preco_ref is None:
         info0 = get_item_data(item_id, state) or ITENS.get(item_id) or {}
         if info0.get("tipo") == "arma":
@@ -3024,36 +3127,51 @@ def loja_json(state):
     npc_id = sala.get("npc")
     
     itens = []
-    # Só mostra itens se estiver na loja da Mira
-    if npc_id == "mira":
-        for iid, preco in LOJA_VILA.items():
+    # Catálogo do tile: Mira (consumíveis) ou Morrigan (grimórios)
+    catalogo = LOJA_VILA if npc_id == "mira" else (LOJA_BRUXA if npc_id == "bruxa" else None)
+    if catalogo:
+        magias_sabidas = set(state["player"].get("magias", []))
+        for iid, preco in catalogo.items():
             info = ITENS[iid]
+            ja_sabe = info.get("tipo") == "grimorio" and info.get("magia") in magias_sabidas
             itens.append({
                 "id": iid, "nome": info["nome"], "preco": preco,
                 "tipo": info["tipo"],
-                "pode_comprar": ouro >= preco,
+                "pode_comprar": ouro >= preco and not ja_sabe,
+                "ja_sabe": ja_sabe,
             })
-            
+
     npcs = []
     if npc_id and npc_id in NPCS_VILA:
         n = NPCS_VILA[npc_id]
         npcs.append({"id": npc_id, "nome": n["nome"], "papel": n["papel"]})
-        
-    return {"itens": itens, "npcs": npcs, "ouro": ouro}
+
+    # Serviço do Silas (tenda_cura): a UI mostra o botão com custo
+    servico_cura = None
+    if npc_id == "curandeiro":
+        p = state["player"]
+        precisa = (p["hp"] < p["hp_max"] or p.get("veneno") or p.get("sangramento")
+                   or p.get("fadiga", 0) > 0)
+        servico_cura = {"custo": CUSTO_CURA_SILAS,
+                        "pode_pagar": ouro >= CUSTO_CURA_SILAS,
+                        "precisa": bool(precisa)}
+
+    return {"itens": itens, "npcs": npcs, "ouro": ouro, "servico_cura": servico_cura}
 
 
 def comprar_item(state, item_id):
-    """Compra na loja de Pedralume. Engine-only."""
+    """Compra na loja do tile atual (Mira ou Morrigan). Engine-only."""
     p = state["player"]
-    pos = (state["pos"]["x"], state["pos"]["y"])
-    if state["masmorra"].get(pos, {}).get("npc") != "mira":
+    npc, catalogo = loja_do_tile(state)
+    if catalogo is None:
         print("  [loja] Não há vendedores aqui.")
-        return ["Você precisa estar na tenda da Mira para comprar."]
-    
-    preco = preco_compra(item_id)
+        return ["Você precisa estar na tenda da Mira ou na cabana de Morrigan para comprar."]
+
+    preco = preco_compra(item_id, catalogo)
     if preco is None:
-        print(f"  [loja] '{item_id}' não está à venda.")
-        return ["Esse item não está à venda."]
+        print(f"  [loja] '{item_id}' não está à venda aqui.")
+        vendedor = "Morrigan" if npc == "bruxa" else "Mira"
+        return [f"{vendedor} não vende isso."]
     if p.get("ouro", 0) < preco:
         print(f"  [loja] ouro insuficiente ({p.get('ouro', 0)}/{preco}).")
         return [f"Ouro insuficiente ({p.get('ouro', 0)}/{preco})."]
@@ -3096,6 +3214,94 @@ def vender_item(state, item_id):
     return [msg]
 
 
+def custo_conserto(inst):
+    """Custo do conserto no Kael: proporcional ao dano do item (mín. 3 ouro).
+    Um item quase quebrado custa mais caro que um arranhado — economia punitiva."""
+    max_d = inst.get("durabilidade_max", 30)
+    faltante = max(0, max_d - inst.get("durabilidade", max_d))
+    return max(3, -(-faltante // 2))     # ceil(faltante/2)
+
+
+def curar_no_silas(state):
+    """Cura paga do Irmão Silas (tenda_cura): HP cheio + remove veneno, sangramento
+    e fadiga. Mais forte que descansar (metade + não remove veneno) — por isso paga.
+    Toda mensagem é IMPRESSA (a web captura stdout via executar_capturando)."""
+    def _resp(msg):
+        print(f"  [cura] {msg}")
+        return [msg]
+
+    p = state["player"]
+    pos = (state["pos"]["x"], state["pos"]["y"])
+    if state["masmorra"].get(pos, {}).get("npc") != "curandeiro":
+        return _resp("Você precisa estar na tenda do Irmão Silas para ser tratado.")
+
+    precisa = (p["hp"] < p["hp_max"] or p.get("veneno") or p.get("sangramento")
+               or p.get("fadiga", 0) > 0)
+    if not precisa:
+        return _resp("Silas sorri: \"Você está são. Guarde seu ouro para quem precisa.\"")
+
+    if p.get("ouro", 0) < CUSTO_CURA_SILAS:
+        return _resp(f"Ouro insuficiente para o tratamento (custa {CUSTO_CURA_SILAS} ouro).")
+
+    p["ouro"] -= CUSTO_CURA_SILAS
+    partes = []
+    if p["hp"] < p["hp_max"]:
+        partes.append(f"+{p['hp_max'] - p['hp']} HP")
+        p["hp"] = p["hp_max"]
+    if p.get("veneno"):
+        p["veneno"] = None
+        partes.append("veneno purgado")
+    if p.get("sangramento"):
+        p["sangramento"] = None
+        partes.append("sangramento estancado")
+    if p.get("fadiga", 0) > 0:
+        p["fadiga"] = 0
+        p["passos"] = 0
+        partes.append("fadiga aliviada")
+    state["historico"].append("foi curado por Silas")
+    return _resp(f"Silas impõe as mãos ({', '.join(partes)}) — {CUSTO_CURA_SILAS} ouro. "
+                 f"\"A luz ainda não nos abandonou.\"")
+
+
+def reparar_campo(state, item_id):
+    """Reparo de campo do GUERREIRO (identidade de classe, estilo Diablo): conserta
+    em qualquer lugar, de graça — mas o remendo tosco CORRÓI a durabilidade máxima
+    (20% do que foi restaurado, piso 10). Kael conserta sem perda; isto é o preço
+    da autonomia. Toda mensagem é IMPRESSA (a web captura stdout)."""
+    def _resp(msg):
+        print(f"  [reparo] {msg}")
+        return [msg]
+
+    p = state["player"]
+    if p.get("classe") != "Guerreiro":
+        return _resp("Só o Guerreiro sabe martelar o próprio equipamento no campo.")
+
+    if item_id not in p["inventario"] and p.get("arma") != item_id and p.get("armadura") != item_id:
+        return _resp("Você não tem esse item.")
+
+    info = get_item_data(item_id, state)
+    if not info or info["tipo"] not in ("arma", "armadura"):
+        return _resp("Isso não pode ser reparado.")
+
+    if item_id not in state.get("itens_gerados", {}):
+        return _resp(f"{info['nome']} já está em perfeito estado.")
+
+    inst = state["itens_gerados"][item_id]
+    max_d = inst.get("durabilidade_max", 30)
+    atual = inst.get("durabilidade", max_d)
+    if atual >= max_d:
+        return _resp(f"{inst['nome']} já está em perfeito estado.")
+
+    restaurado = max_d - atual
+    desgaste = max(1, -(-restaurado // 5))            # ceil(restaurado*0.2)
+    novo_max = max(10, max_d - desgaste)
+    inst["durabilidade_max"] = novo_max
+    inst["durabilidade"] = novo_max
+    state["historico"].append(f"reparou {inst['nome']} no campo")
+    return _resp(f"Você martela {inst['nome']} com o que tem à mão: inteiro de novo, "
+                 f"mas o metal cede (durabilidade máxima {max_d} → {novo_max}).")
+
+
 def consertar_item(state, item_id):
     """Conserta item (arma ou armadura) no ferreiro. Toda mensagem é IMPRESSA
     (a web captura stdout via executar_capturando — retorno sem print fica mudo)."""
@@ -3124,7 +3330,7 @@ def consertar_item(state, item_id):
     if atual >= max_d:
         return _resp(f"{inst['nome']} já está em perfeito estado.")
 
-    custo = 10
+    custo = custo_conserto(inst)
     if p.get("ouro", 0) < custo:
         return _resp(f"Ouro insuficiente para consertar (custa {custo} ouro).")
 
@@ -4537,9 +4743,91 @@ def rodar_demo():
     msg_c = consertar_item(du, "lamina_teste")[0]
     assert "consertou" in msg_c.lower() or "Kael" in msg_c
     assert du["itens_gerados"]["lamina_teste"]["durabilidade"] == 50, "conserto restaura tudo"
-    assert p_du["ouro"] == 15, "conserto custa 10 ouro"
+    assert p_du["ouro"] == 22, "conserto proporcional: faltante 1 → mínimo 3 ouro"
     assert "perfeito estado" in consertar_item(du, "lamina_teste")[0], "não cobra à toa"
-    print("  desgaste/quebra/afixado/conserto na forja. OK")
+    # custo proporcional: item muito danificado custa mais (ceil(faltante/2), mín. 3)
+    du["itens_gerados"]["lamina_teste"]["durabilidade"] = 10   # faltante 40
+    assert custo_conserto(du["itens_gerados"]["lamina_teste"]) == 20
+    inv_dan = _inventario_json(du)
+    row_dan = next(i for i in inv_dan if i["id"] == "lamina_teste")
+    assert row_dan.get("custo_conserto") == 20, "UI vê o custo do conserto"
+    p_du["ouro"] = 50
+    consertar_item(du, "lamina_teste")
+    assert p_du["ouro"] == 30, "cobrou 20 pelo item quase quebrado"
+    print("  desgaste/quebra/afixado/conserto proporcional na forja. OK")
+
+    # --- Reparo de campo do Guerreiro (corrói durabilidade máxima) ---
+    print("\nReparo de campo (Guerreiro):")
+    rc = novo_jogo("Guerreiro", seed=11)
+    rc["itens_gerados"]["lamina_rc"] = {"nome": "Lâmina Surrada", "tipo": "arma",
+                                        "dano": 5, "carga": 3,
+                                        "durabilidade_max": 50, "durabilidade": 20}
+    rc["player"]["inventario"].append("lamina_rc")
+    msg_rc = reparar_campo(rc, "lamina_rc")[0]
+    inst_rc = rc["itens_gerados"]["lamina_rc"]
+    # restaurou 30 → corrói ceil(30*0.2)=6: máx 50→44, durabilidade = novo máx
+    assert inst_rc["durabilidade_max"] == 44 and inst_rc["durabilidade"] == 44, msg_rc
+    assert "44" in msg_rc, "mensagem mostra a perda de máximo"
+    assert "perfeito estado" in reparar_campo(rc, "lamina_rc")[0], "não repara à toa"
+    # piso 10: nunca corrói abaixo disso
+    inst_rc["durabilidade_max"] = 11
+    inst_rc["durabilidade"] = 1
+    reparar_campo(rc, "lamina_rc")
+    assert inst_rc["durabilidade_max"] == 10, "piso 10 de durabilidade máxima"
+    # só Guerreiro; funciona em qualquer lugar (na masmorra, sem forja)
+    rc_m = novo_jogo("Mago", seed=11)
+    rc_m["itens_gerados"]["lamina_rc"] = {"nome": "L", "tipo": "arma", "dano": 5,
+                                          "carga": 3, "durabilidade_max": 50,
+                                          "durabilidade": 20}
+    rc_m["player"]["inventario"].append("lamina_rc")
+    assert "Guerreiro" in reparar_campo(rc_m, "lamina_rc")[0], "Mago não repara"
+    assert rc_m["itens_gerados"]["lamina_rc"]["durabilidade"] == 20
+    ok_rep, _ = validar_resposta(
+        {"texto_narrativo": "x", "acao": {"tipo": "reparar", "item": "lamina_rc"}}, rc)
+    assert ok_rep, "ação reparar na whitelist"
+    print("  Guerreiro repara no campo (corrói máx, piso 10); Mago não. OK")
+
+    # --- Serviços da Vila: Silas (cura paga) e Morrigan (grimórios) ---
+    print("\nServiços da Vila (Silas / Morrigan):")
+    sv = novo_jogo("Ladino", seed=7)
+    subir_escada(sv)
+    psv = sv["player"]
+    # Silas: precisa estar na tenda_cura
+    assert "Silas" in curar_no_silas(sv)[0], "recusa fora da tenda"
+    tenda = next(c for c, s in sv["masmorra"].items() if s.get("npc") == "curandeiro")
+    sv["pos"] = {"x": tenda[0], "y": tenda[1]}
+    psv["hp"] = 5
+    psv["veneno"] = {"dano": 2, "passos": 3}
+    psv["fadiga"] = 2
+    psv["ouro"] = 20
+    msg_sv = curar_no_silas(sv)[0]
+    assert psv["hp"] == psv["hp_max"] and psv["veneno"] is None and psv["fadiga"] == 0
+    assert psv["ouro"] == 20 - CUSTO_CURA_SILAS, msg_sv
+    assert "são" in curar_no_silas(sv)[0], "não cobra de quem está são"
+    psv["hp"] = 1
+    psv["ouro"] = 2
+    assert "insuficiente" in curar_no_silas(sv)[0], "sem ouro não há milagre"
+    # Morrigan: grimórios só na cabana; Mira não vende grimório
+    assert "comprar" in comprar_item(sv, "grimorio_raio")[0].lower() or \
+           "Morrigan" in comprar_item(sv, "grimorio_raio")[0], "recusa fora de loja"
+    cabana = next(c for c, s in sv["masmorra"].items() if s.get("npc") == "bruxa")
+    sv["pos"] = {"x": cabana[0], "y": cabana[1]}
+    psv["ouro"] = 30
+    assert "não vende" in comprar_item(sv, "pocao_cura")[0], "bruxa não vende poção"
+    msg_gr = comprar_item(sv, "grimorio_raio")[0]
+    assert "grimorio_raio" in psv["inventario"] and psv["ouro"] == 30 - LOJA_BRUXA["grimorio_raio"], msg_gr
+    executar_acao(sv, {"tipo": "usar_item", "item": "grimorio_raio"})
+    assert "relampago" in psv["magias"], "grimório comprado ensina a magia"
+    lj = loja_json(sv)
+    row_gr = next(i for i in lj["itens"] if i["id"] == "grimorio_raio")
+    assert row_gr["ja_sabe"] and not row_gr["pode_comprar"], "loja marca magia já sabida"
+    mira_t = next(c for c, s in sv["masmorra"].items() if s.get("npc") == "mira")
+    sv["pos"] = {"x": mira_t[0], "y": mira_t[1]}
+    assert "não vende" in comprar_item(sv, "grimorio_cura")[0], "Mira não vende grimório"
+    ok_cv, _ = validar_resposta(
+        {"texto_narrativo": "x", "acao": {"tipo": "curar_vila"}}, sv)
+    assert ok_cv, "ação curar_vila na whitelist"
+    print("  Silas cura tudo por ouro; Morrigan vende grimórios; lojas separadas. OK")
 
     # --- Sidequests procedurais ---
     print("\nSidequests (Nascente Envenenada / Carrasco):")
@@ -4557,10 +4845,37 @@ def rodar_demo():
     assert any(s.get("inimigo") == "capitao_osso" for s in a3.values())
     assert any(s.get("inimigo") == "sacerdote_lodo" for s in a3.values())
     assert a3[(0, 0)].get("escada_sobe")
-    assert not any(s.get("escada") for s in a3.values()), "andar 3 sem escada p/ baixo"
+    assert any(s.get("escada") for s in a3.values()), "andar 3 tem escada p/ o Abismo (4)"
     st3 = stats_inimigo("capitao_osso", 3)
     assert st3["hp"] > BESTIARIO["capitao_osso"]["hp"], "escala por profundidade"
-    print("  minichefes + escala no andar 3. OK")
+    print("  minichefes + escala + escada p/ o 4. OK")
+
+    # --- Andar 4: o Abismo + sidequest "A Lança Perdida" ---
+    print("\nAndar 4 (Abismo / A Lança Perdida):")
+    assert MAX_PROFUNDIDADE == 4
+    a4 = gerar_masmorra(seed=42, profundidade=4)
+    lanca_sala = next((s for s in a4.values() if s.get("nome") == "Repouso da Lança"), None)
+    assert lanca_sala and lanca_sala["inimigo"] == "guardiao_lanca" and lanca_sala["boss"]
+    assert not lanca_sala["grupo"], "Guardião luta SOLO (o balance_sim simula ele assim)"
+    assert "lanca_perdida" in lanca_sala["loot"], "a Lança é a recompensa da sidequest"
+    assert a4[(0, 0)].get("escada_sobe") and a4[(0, 0)]["tablet"] == "tablet_lanca"
+    assert not any(s.get("escada") for s in a4.values()), "andar 4 é o fundo (sem descer)"
+    assert any(s.get("inimigo") in ("cavaleiro_tumulo", "bruxo_abissal", "larva_abissal")
+               for s in a4.values()), "bestiário do Abismo povoado"
+    assert BESTIARIO["guardiao_lanca"]["unico"] and BESTIARIO["guardiao_lanca"]["mlvl"] == 10
+    # NIVEL_MAX coerente: mlvl máx 10 + soft-cap diff>=3 → 12 é o último alcançável
+    assert NIVEL_MAX == 12 and 12 in PROGRESSAO and PROGRESSAO[12]["xp"] > PROGRESSAO[11]["xp"]
+    # soft-cap segue cruel: nv12 vs mlvl 10 (diff 2) reduz; diff>=3 zera
+    sc = novo_jogo("Guerreiro", seed=5)
+    sc["player"]["nivel"] = 12
+    sc["player"]["xp"] = PROGRESSAO[12]["xp"]
+    antes_xp = sc["player"]["xp"]
+    ganhar_xp(sc, 45, mlvl=10)
+    assert sc["player"]["xp"] == antes_xp + int(45 * 0.4), "diff 2 → 40% do XP"
+    ganhar_xp(sc, 45, mlvl=7)
+    assert sc["player"]["xp"] == antes_xp + int(45 * 0.4), "diff>=3 → 0 XP (Golem não dá nada a nv12)"
+    assert ITENS["lanca_perdida"]["dano"] == 6, "a Lança supera a Lâmina Rúnica"
+    print("  Guardião solo no fundo, Lança no loot, NIVEL_MAX 12 coerente. OK")
 
     print("\n>>> DEMO OK — inventário final:", state["player"]["inventario"],
           "| arma:", state["player"]["arma"], "| HP:", state["player"]["hp"])

@@ -33,6 +33,8 @@
            font-size:11px;color:var(--dim);pointer-events:none;text-shadow:0 1px 3px #000;gap:8px;flex-wrap:wrap}
   #viewHud b{color:var(--accent)}
   #viewFlash{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s}
+  /* Fade preto na troca de cena (vila↔masmorra, andares): esconde a troca de motor */
+  #viewFade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:4}
   /* D-pad de toque: sobre a visão, só em telas de toque (pointer:coarse).
      No desktop o canvas também aceita clique (zonas: bordas viram, centro avança). */
   #dpad{position:absolute;right:10px;bottom:28px;display:none;z-index:5;
@@ -193,6 +195,7 @@
       <div id="viewWrap">
         <canvas id="view" width="640" height="400"></canvas>
         <div id="viewFlash"></div>
+        <div id="viewFade"></div>
         <div id="poisonVignette"></div>
         <div id="fatigueVignette"></div>
         <div id="bleedVignette"></div>
@@ -370,9 +373,15 @@
         <kbd>F3</kbd> debug da vista.</li>
       <li><b>Toque / mouse:</b> toque ou clique na própria visão — <b>bordas</b> viram, <b>centro</b> avança,
         <b>base</b> recua. No celular há também um <b>direcional</b> ▲◀▼▶ sobre a visão.</li>
-      <li><b>Andares:</b> 3 níveis — <em>Descer</em> (escada) ou reentrar da Vila.
-        <em>Subir / Vila</em> sobe andares ou emerge em Pedralume. Andar 3 tem <b>minichefes</b>.</li>
-      <li><b>Vila:</b> em Pedralume a visão vira um <b>painel 2D</b> (praça + Mira/Ancião). Loja e ouro no painel direito.</li>
+      <li><b>Andares:</b> 4 níveis — <em>Descer</em> (escada) ou reentrar da Vila.
+        <em>Subir / Vila</em> sobe andares ou emerge em Pedralume. Andar 3 tem <b>minichefes</b>;
+        o andar 4 é o <b>Abismo</b> (mlvl 8–10) — no fundo, a sidequest <b>A Lança Perdida</b>.</li>
+      <li><b>Vila:</b> em Pedralume cada local é uma <b>cena 2D</b> — <b>toque no NPC</b> para conversar.
+        Mira <b>vende itens</b> · Morrigan (bruxa) <b>vende grimórios</b> · Irmão Silas <b>cura tudo</b>
+        (HP + veneno + fadiga) por ouro · Kael <b>conserta</b> (custo proporcional ao dano).</li>
+      <li><b>Reparo de campo:</b> só o <b>Guerreiro</b> repara equipamento na própria masmorra
+        (botão <em>Reparar ⚒</em>) — de graça, mas o remendo <b>corrói a durabilidade máxima</b>.
+        Conserto perfeito, só na forja do Kael.</li>
       <li><b>Visão 3D:</b> monstro/altar/baú/loot usam <b>glifos ASCII</b> (S=esqueleto, †=altar, $=loot…). Em combate o alvo fica sempre à frente da câmera.</li>
       <li><b>Interagir:</b> clique nos itens do inventário (<em>Equipar</em>/<em>Usar</em>/<em>Identificar</em>), ou digite na caixa —
         ex.: <i>"equipar espada longa"</i>, <i>"beber poção"</i>, <i>"ler grimório"</i>, <i>"examinar"</i>.</li>
@@ -454,6 +463,11 @@ const SPRITE_MAP = {
   stairs_up: 'assets/sprites/escada_sobe.png',
   tablet: 'assets/sprites/tablet.png',
   carrasco: 'assets/sprites/inimigo_carrasco.png',
+  // Andar 4 (v2.8): placeholders com arte existente — sprites próprios pendentes
+  larva_abissal: 'assets/sprites/inimigo_aranha.png',
+  cavaleiro_tumulo: 'assets/sprites/inimigo_capitao_osso.png',
+  bruxo_abissal: 'assets/sprites/inimigo_cultista.png',
+  guardiao_lanca: 'assets/sprites/inimigo_carrasco.png',
   mira: 'assets/sprites/mira.png',
   anciao: 'assets/sprites/anciao.png',
   ferreiro: 'assets/sprites/ferreiro.png',
@@ -541,6 +555,17 @@ function flashView(cor){
   f.style.opacity = "0.55";
   clearTimeout(flashView._t);
   flashView._t = setTimeout(()=>{ f.style.opacity = "0"; }, 140);
+}
+
+// Fade preto → cena nova (troca vila↔masmorra ou de andar). O preto entra seco
+// (a cena já trocou por baixo) e dissolve em ~0.45s — esconde a troca de motor.
+function fadeCena(){
+  const f = $("#viewFade");
+  f.style.transition = "none";
+  f.style.opacity = "1";
+  void f.offsetWidth;                       // força reflow p/ a transição valer
+  f.style.transition = "opacity .45s ease";
+  f.style.opacity = "0";
 }
 
 // ---- render ----
@@ -691,10 +716,24 @@ function aplicar(resp){
         b.onclick = async ()=>aplicar(await api("/api/falar",{alvo:n.id}));
         nb.appendChild(b);
       });
+      // Serviço do Silas (tenda_cura): cura completa paga
+      const sv = loja.servico_cura;
+      if(sv){
+        const b=document.createElement("button");
+        b.className="mini";
+        b.textContent = `✚ Tratamento (${sv.custo}🪙)`;
+        b.disabled = !(sv.pode_pagar && sv.precisa);
+        b.title = sv.precisa ? "HP cheio + remove veneno, sangramento e fadiga"
+                             : "Você está são";
+        b.onclick = async ()=>{ window._flashMagia = "rgba(75,191,115,0.9)";
+                                aplicar(await api("/api/curar_vila",{})); };
+        nb.appendChild(b);
+      }
       const li = $("#lojaItens");
       li.innerHTML = (loja.itens||[]).map(it=>{
         const dis = it.pode_comprar ? "" : " disabled";
-        return `<div class="itemrow"><span class="iname">${it.nome}</span>`
+        const nota = it.ja_sabe ? `<span class="istat">já sabe</span>` : "";
+        return `<div class="itemrow"><span class="iname">${it.nome}</span>${nota}`
           + `<span class="istat">${it.preco} ouro</span>`
           + `<button class="mini" data-comprar="${it.id}"${dis}>Comprar</button></div>`;
       }).join("") || `<span class="msg">sem estoque</span>`;
@@ -704,6 +743,10 @@ function aplicar(resp){
     window._npcLocal = (loja && loja.npcs && loja.npcs[0]) || null;
     renderInv(p);
     const prev = window._estado;
+    // Troca de cena/motor (vila↔masmorra ou mudança de andar): fade-in do preto
+    if(prev && (!!prev.na_superficie !== !!e.na_superficie
+                || (prev.profundidade||1) !== (e.profundidade||1)))
+      fadeCena();
     window._estado = e;
     window._player = p;
     // áudio de movimento / parede
@@ -1100,6 +1143,7 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
     desenharVilaLocal(ctx, W, H, dpr, e);
     return;
   }
+  window._npcHotspot = null;   // masmorra: sem NPC tocável na vista
 
   const {walk, rooms, frontier} = buildWalkable(e);
   const facing = e.facing || "norte";
@@ -1628,12 +1672,15 @@ function desenharVilaLocal(ctx, W, H, dpr, e){
   }
 
   // 5. NPC do local — grande, ancorado no chão, com nome (nunca "Inimigo")
+  window._npcHotspot = null;   // recalculado por frame; limpo se o tile não tem NPC
   const npc = sala.npc;
   if(npc && npc.id){
     const spr = img(npc.id);
     if(spr){
       const nh = H*0.46, nw = (nh / spr.height) * spr.width;
       const nx = W*0.5 - nw/2, ny = hor - nh*0.82;
+      // Hotspot de toque/clique (normalizado 0-1): tocar no NPC = falar, não mover
+      window._npcHotspot = {id: npc.id, x0: nx/W, y0: ny/H, x1: (nx+nw)/W, y1: (ny+nh)/H};
       // sombra no chão
       ctx.fillStyle = "rgba(0,0,0,0.35)";
       ctx.beginPath();
@@ -1919,10 +1966,21 @@ if("ontouchstart" in window || navigator.maxTouchPoints > 0)
 
 /* Toque/clique direto na visão: zonas casadas com as setas da vila
    (◀ borda esq · ▲ centro/topo · ▶ borda dir · ▼ faixa de baixo). */
-$("#view").addEventListener("click", ev=>{
+$("#view").addEventListener("click", async ev=>{
   const r = ev.currentTarget.getBoundingClientRect();
   const x = (ev.clientX - r.left) / r.width;
   const y = (ev.clientY - r.top) / r.height;
+  // Na vila, tocar no NPC = conversar (tem prioridade sobre as zonas de movimento)
+  const hs = window._npcHotspot;
+  if(hs && window._estado && window._estado.na_superficie
+     && x >= hs.x0 && x <= hs.x1 && y >= hs.y0 && y <= hs.y1){
+    if(combatendo || _inputBusy) return;
+    _inputBusy = true;
+    try{ aplicar(await api("/api/falar",{alvo:hs.id})); }
+    catch(err){ clog("error", "falar falhou: "+(err&&err.message)); }
+    finally{ _inputBusy = false; }
+    return;
+  }
   let dir;
   if(x < 0.22) dir = "esquerda";
   else if(x > 0.78) dir = "direita";
@@ -1954,9 +2012,14 @@ function renderInv(p){
     else if(it.usavel) acao += `<button class="mini" data-usar="${it.id}">Usar</button>`;
     if(naVila && !it.equipada && it.id!=="coracao_cristal")
       acao += `<button class="mini" data-vender="${it.id}">Vender</button>`;
+    const danificado = it.durabilidade != null && it.durabilidade < it.durabilidade_max;
     const naForja = naVila && window._npcLocal && window._npcLocal.id === "ferreiro";
-    if(naForja && it.durabilidade != null && it.durabilidade < it.durabilidade_max)
-      acao += `<button class="mini" data-consertar="${it.id}">Consertar (10🪙)</button>`;
+    if(naForja && danificado)
+      acao += `<button class="mini" data-consertar="${it.id}">Consertar (${it.custo_conserto||3}🪙)</button>`;
+    // Reparo de campo: identidade do Guerreiro — em qualquer lugar, corrói a dur. máxima
+    const ehGuerreiro = window._player && window._player.classe === "Guerreiro";
+    if(!naForja && ehGuerreiro && danificado)
+      acao += `<button class="mini" data-reparar="${it.id}" title="Repara na hora, mas reduz a durabilidade máxima">Reparar ⚒</button>`;
     
     let style = it.cor ? ` style="color: ${it.cor}; font-weight: bold;"` : "";
     if(it.identificado===false) style = ` style="color: #9aa0b4; font-style: italic;"`;
@@ -1967,9 +2030,10 @@ function renderInv(p){
 $("#inv").addEventListener("click", async ev=>{
   const eq=ev.target.dataset.equipar, us=ev.target.dataset.usar;
   const idf=ev.target.dataset.identificar, vd=ev.target.dataset.vender;
-  const cons=ev.target.dataset.consertar;
+  const cons=ev.target.dataset.consertar, rep=ev.target.dataset.reparar;
   if(idf) aplicar(await api("/api/identificar",{alvo:idf}));
   else if(cons) aplicar(await api("/api/consertar",{item:cons}));
+  else if(rep) aplicar(await api("/api/reparar",{item:rep}));
   else if(eq) aplicar(await api("/api/equipar",{item:eq}));
   else if(vd) aplicar(await api("/api/vender",{item:vd}));
   else if(us) {

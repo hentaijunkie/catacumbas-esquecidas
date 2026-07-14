@@ -170,6 +170,42 @@ def main():
                            **gear[classe])
         print(f"  {classe:10} {'OK' if r=='vitoria' else 'MORRE':7} HP={hp:>3} turnos={t}")
 
+    # ------ ANDAR 4 — O ABISMO (v2.8): mlvl 8-10, prof=4 => stats x1.6.
+    # Gear de fim de campanha (Lança/Lâmina/cota). O Guardião deve ser vencível
+    # em nv10-12 preparado e punir quem desce cedo (nv8, gear de andar 2). ------
+    print("\nANDAR 4 — O ABISMO (prof=4, stats x1.6):")
+    print(f"{'classe':10} {'nv':2} {'encontro':26} {'result':7} {'HP':>4} {'turnos':>6}")
+    print("-" * 62)
+    gear4 = {
+        "Guerreiro": dict(arma='lanca_perdida', armadura='cota_malha'),
+        "Mago":      dict(armadura='roupas_pano',
+                          magias_extra=('bola_fogo', 'explosao_arcana', 'nova_gelida',
+                                        'escudo_arcano')),
+        "Ladino":    dict(arma='lamina_runica', armadura='gibao_couro',
+                          magias_extra=('pressa',)),
+    }
+    encontros4 = [
+        ("cavaleiro (def 3)",   dict(alvo="cavaleiro_tumulo")),
+        ("bruxo (fraqueza)",    dict(alvo="bruxo_abissal")),
+        ("horda de larvas",     dict(alvo="bruxo_abissal",
+                                     grupo=["larva_abissal", "larva_abissal"])),
+        ("GUARDIÃO DA LANÇA",   dict(alvo="guardiao_lanca")),
+    ]
+    for classe in ("Guerreiro", "Mago", "Ladino"):
+        for nivel in (10, 12):
+            for nome, kw in encontros4:
+                r, hp, t = simular(classe, nivel, prof=4, pocoes=2, mana_pots=2,
+                                   **gear4[classe], **kw)
+                print(f"{classe:10} {nivel:<2} {nome:26} "
+                      f"{'OK' if r=='vitoria' else 'MORRE':7} {hp:>4} {t:>6}")
+        print()
+    # Desceu CEDO (nv8, gear do andar 2, 1 poção): o Abismo deve assustar.
+    print("Abismo cedo demais (nv8, gear de andar 2, 1 poção) — esperado: sofrimento:")
+    for classe in ("Guerreiro", "Mago", "Ladino"):
+        r, hp, t = simular(classe, 8, prof=4, pocoes=1, mana_pots=1,
+                           alvo="guardiao_lanca", **gear[classe])
+        print(f"  {classe:10} {'OK' if r=='vitoria' else 'MORRE':7} HP={hp:>3} turnos={t}")
+
 
 if __name__ == "__main__":
     main()

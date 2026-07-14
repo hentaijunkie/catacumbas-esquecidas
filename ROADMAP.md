@@ -417,7 +417,42 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Controles de toque (mobile) + LLM local via env (v2.7.4) - **atual**
+### Expansão "Diablo" — Abismo, serviços de NPC e reparo de campo (v2.8.0) - **atual**
+- **Andar 4 — o Abismo (sidequest "A Lança Perdida"):** `MAX_PROFUNDIDADE=4`; o andar 3
+  ganhou escada p/ baixo. Bestiário novo mlvl 8-10 (Larva Abissal, Cavaleiro do Túmulo
+  def 5, Bruxo Abissal c/ Fraqueza) com stats base moderados de propósito — `stats_inimigo`
+  multiplica ×1.6 no prof 4. No fundo, câmara "Repouso da Lança": **Guardião da Lança**
+  (único, mlvl 10, 60/9/5 base) solo, recompensa `lanca_perdida` (arma dano 6, dur. 60).
+  Tablet de lore novo (`tablet_lanca`). Loot do andar 4 escasso em consumível de propósito.
+- **NIVEL_MAX 10→12 + PROGRESSAO 11/12** (222/266 XP): coerente com o novo mlvl máximo 10
+  (soft-cap diff>=3 zera XP → 12 é o último nível alcançável; sem níveis letra-morta).
+- **Serviços de NPC (padrão Diablo):** Irmão Silas (tenda_cura) agora TRATA por 8 ouro —
+  HP cheio + remove veneno/sangramento/fadiga (mais forte que descansar, que cura metade
+  e não purga veneno); recusa se são, não cobra à toa. Morrigan (cabana_bruxa) vende os
+  9 grimórios (`LOJA_BRUXA`, 25-55 ouro; marca "já sabe" e bloqueia recompra inútil).
+  `comprar` agora funciona no tile de qualquer vendedor (`loja_do_tile`); vender segue
+  só na Mira. Ações novas na whitelist: `curar_vila` (+ endpoint `/api/curar_vila`).
+- **Reparo de campo do Guerreiro:** ação `reparar` (+ `/api/reparar`, botão "Reparar ⚒"
+  no inventário fora da forja): conserta em qualquer lugar de graça, mas CORRÓI a
+  durabilidade máxima (ceil(20% do restaurado), piso 10). Identidade de classe fiel ao
+  Warrior do Diablo. **Conserto do Kael ficou proporcional**: ceil(faltante/2), mín. 3
+  ouro (antes 10 fixos) — visível no botão via `custo_conserto` no inventário JSON.
+- **Fade de transição:** overlay #viewFade (0.45s do preto) dispara na troca
+  vila↔masmorra e entre andares — esconde a troca de motor 2D/3D.
+- **NPC tocável na vila:** o retângulo do sprite vira hotspot (`window._npcHotspot`);
+  tocar/clicar no NPC = `/api/falar` (prioridade sobre as zonas de movimento do toque).
+- **Balance (balance_sim, seção ANDAR 4):** nv10 c/ gear de fim: Guardião cai em 6-7
+  turnos custando 30-40 HP; nv12 mais folgado; nv8 c/ gear de andar 2 sobrevive por um
+  fio (HP ~20, poções queimadas). Todas as classes OK; andares 1-3 intocados.
+- Sprites do Abismo reusam arte existente (aranha/capitão/cultista/carrasco) — arte
+  própria pendente. Classificador offline: comprar cobre a bruxa; consertar vira
+  `reparar` na masmorra; "tratar/curar" na vila vira `curar_vila`.
+- Verificado: `--demo` verde (blocos novos: conserto proporcional, reparo de campo,
+  serviços Silas/Morrigan, andar 4/Lança/NIVEL_MAX); balance_sim; browser online
+  (fade 1× na subida, clique no Silas fala sem mover, loja da bruxa com 9 grimórios,
+  botão Tratamento desabilitado com HP cheio, endpoints novos roteando; zero erros).
+
+### Controles de toque (mobile) + LLM local via env (v2.7.4)
 - **Mobile jogável:** até a v2.7.3 mover/virar era exclusivamente por teclado
   (setas/WASD) — no celular o jogador ficava parado na entrada. Agora:
   - **Toque/clique na própria visão** (`#view`): zonas casadas com as setas da
@@ -520,4 +555,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.7.4 - Controles de toque (mobile jogável: D-pad + zonas de toque na visão) e LLM local/custom via LLM_BASE_URL/LLM_MODEL.*
+*Última atualização: v2.8.0 - Andar 4 (Abismo + "A Lança Perdida", mlvl 8-10, NIVEL_MAX 12), serviços do Silas/Morrigan, reparo de campo do Guerreiro, conserto proporcional, fade de transição e NPC tocável.*

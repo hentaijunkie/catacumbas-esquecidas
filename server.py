@@ -475,7 +475,7 @@ def classificar_offline(texto, state):
             return {"tipo": "identificar", "alvo": it}
         return {"tipo": "identificar", "alvo": ""}
     if any(k in t for k in ("compr", "quero comprar", "adquir")):
-        it = _achar_item(t, list(eng.LOJA_VILA.keys()), state)
+        it = _achar_item(t, list(eng.LOJA_VILA.keys()) + list(eng.LOJA_BRUXA.keys()), state)
         if it:
             return {"tipo": "comprar", "item": it}
     if any(k in t for k in ("vend", "quero vender")):
@@ -495,7 +495,11 @@ def classificar_offline(texto, state):
             if len(danificados) == 1:
                 it = danificados[0]
         if it:
-            return {"tipo": "consertar", "item": it}
+            # Na Vila = forja do Kael; na masmorra = reparo de campo (só Guerreiro).
+            tipo_rep = "consertar" if state.get("na_superficie") else "reparar"
+            return {"tipo": tipo_rep, "item": it}
+    if state.get("na_superficie") and any(k in t for k in ("tratar", "tratamento", "curar", "cure", "cura ")):
+        return {"tipo": "curar_vila"}
     if any(k in t for k in ("falar", "convers", "mira", "anci", " mercador", "loja",
                             "ferreiro", "kael", "forja", "curandeiro", "silas", "monge",
                             "bruxa", "morrigan", "ocultista")):
@@ -979,6 +983,21 @@ def acao_falar(dados):
     return resposta(mensagens=linhas)
 
 
+def acao_curar_vila(dados):
+    if GAME["combate"]:
+        return resposta(mensagens=["Termine o combate primeiro."])
+    _, linhas = executar_capturando(GAME["state"], {"tipo": "curar_vila"})
+    return resposta(mensagens=linhas)
+
+
+def acao_reparar(dados):
+    if GAME["combate"]:
+        return resposta(mensagens=["Termine o combate primeiro."])
+    item = dados.get("item")
+    _, linhas = executar_capturando(GAME["state"], {"tipo": "reparar", "item": item})
+    return resposta(mensagens=linhas)
+
+
 def acao_combate(dados):
     if not GAME["combate"]:
         return resposta(mensagens=["Não há combate em andamento."])
@@ -1072,6 +1091,8 @@ ROTAS = {
     "/api/vender": acao_vender,
     "/api/consertar": acao_consertar,
     "/api/falar": acao_falar,
+    "/api/curar_vila": acao_curar_vila,
+    "/api/reparar": acao_reparar,
     "/api/log": acao_client_log,
     "/api/feedback": acao_feedback,
 }

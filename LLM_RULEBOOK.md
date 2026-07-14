@@ -104,9 +104,12 @@ Fonte de verdade: `ACOES_PERMITIDAS` em `rpg_loop.py` — se divergir, o **códi
 | `descer_escada` | — | Descer ao próximo andar, ou reentrar nas catacumbas a partir da Vila. |
 | `subir_escada` | — | Subir ao andar acima, ou voltar a Pedralume pela entrada. |
 | `identificar` | `alvo` (item_id) | Usar Pergaminho de Identificação num item do inventário. |
-| `comprar` | `item` (id) | Comprar na loja de Pedralume (só na superfície; gasta ouro). |
-| `vender` | `item` (id) | Vender item do inventário na Vila (não equipado). |
-| `falar` | `alvo`: `mira` \| `anciao` | Falar com NPC da Vila. |
+| `comprar` | `item` (id) | Comprar na loja do tile: Mira (itens) ou Morrigan/bruxa (grimórios). |
+| `vender` | `item` (id) | Vender item do inventário na Vila (não equipado; só na Mira). |
+| `consertar` | `item` (id) | Conserto perfeito na forja do Kael (ouro proporcional ao dano do item). |
+| `curar_vila` | — | Tratamento pago do Irmão Silas (tenda de cura): HP cheio + remove veneno/sangramento/fadiga. |
+| `reparar` | `item` (id) | **Guerreiro**: reparo de campo em qualquer lugar — restaura, mas corrói a durabilidade máxima. |
+| `falar` | `alvo`: `mira` \| `anciao` \| `ferreiro` \| `curandeiro` \| `bruxa` | Falar com o NPC da sala atual da Vila. |
 
 ### Regra de ouro sobre itens
 

@@ -47,7 +47,7 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 | `↑` / `W` | Frente (relativo ao facing) |
 | `↓` / `S` | Trás |
 | `←` `→` / `A` `D` | Virar no lugar |
-| **Toque/clique na visão** | Bordas viram · centro avança · base recua |
+| **Toque/clique na visão** | Bordas viram · centro avança · base recua · **NPC = falar** |
 | **D-pad na tela** (📱) | ▲◀▼▶ sobre a visão, aparece em telas de toque |
 | Texto / inventário | Interagir, equipar, usar |
 | **Descer** / **Subir · Vila** | Andar 2 ↔ 1; entrada ↔ Pedralume |
@@ -126,21 +126,25 @@ Não publique a chave no repositório.
 
 ### Personagem
 - 3 classes (Guerreiro / Mago / Ladino) × 4 raças (Humano, Anão, Elfo, Halfling)
-- 6 atributos (FOR/DES/CON/INT/SAB/CAR) · progressão até nível 10 (soft-cap de XP estilo Diablo: monstro muito abaixo do seu nível rende menos/zero XP)
+- 6 atributos (FOR/DES/CON/INT/SAB/CAR) · progressão até **nível 12** (soft-cap de XP estilo Diablo: monstro muito abaixo do seu nível rende menos/zero XP)
 
 ### Exploração
-- Masmorra procedural (~24 salas) + **andares 1-3** (sidequests e minichefes) + **superfície (Pedralume)**
-- **Ouro** e **loja/NPCs** na Vila; **3 slots de save** por conta (`saves/<usuario>/slot_N.json`)
+- Masmorra procedural + **andares 1-4**: sidequests (Nascente Envenenada, Câmara do Carrasco), minichefes e o **Abismo** (andar 4, mlvl 8-10) com a sidequest **"A Lança Perdida"** — o Guardião da Lança guarda a melhor arma do jogo
+- **Ouro** e **NPCs com serviços** na Vila (ver abaixo); **3 slots de save** por conta (`saves/<usuario>/slot_N.json`)
 - Luz/tocha, Pedra de Luz Eterna, fadiga, encumbrance, descanso + wandering
 - Lore tablets, altares (rezar/oferecer/saquear), armadilhas, cofres, gazua, **Loot Procedural (Afixos)** + **Identificação** (pergaminho)
 - **Dano contínuo:** Gás Venenoso envenena, Lâminas Giratórias causam sangramento (tick por passo)
-- **Durabilidade e Reparo:** Armas e armaduras (inclusive as mágicas/afixadas) desgastam em uso real no combate, com o estado visível no inventário (ex.: `23/25`); conserto na forja do Kael (botão no inventário, `/api/consertar` ou pedindo ao narrador) por 10 ouro.
+- **Durabilidade e Reparo:** armas e armaduras (inclusive mágicas/afixadas) desgastam em combate, estado visível no inventário (ex.: `23/25`). Conserto perfeito na forja do Kael por **ouro proporcional ao dano**; o **Guerreiro** repara no campo de graça — mas o remendo **corrói a durabilidade máxima** (estilo Diablo).
 - Facing inicial aponta para uma **saída real** (entrada jogável em 1ª pessoa)
 - **Auto-save:** salva a cada combate, troca de andar, poção de cura, descanso e a cada 12 passos.
 
+### Vila de Pedralume (cenas 2D, NPC tocável)
+- **Mira** vende consumíveis (e compra usados) · **Morrigan** vende os 9 grimórios de magia · **Irmão Silas** cura tudo por ouro (HP + veneno + sangramento + fadiga) · **Kael** conserta equipamento · **Ancião Brum** conta a lore
+- **Toque/clique no NPC** na cena para conversar; transição vila↔catacumbas com **fade**
+
 ### Combate e magia
 - Turnos 100% engine, hordas, 10 magias (scaling, buffs, debuffs, AoE)
-- Bestiário com debuffs: **Aranha** (envenena), **Espectro** (fadiga) e **Sombra Vampírica** (drena força -> fraqueza)
+- Bestiário com debuffs: **Aranha** (envenena), **Espectro** (fadiga), **Sombra Vampírica** e **Bruxo Abissal** (fraqueza)
 - Backstab / emboscada (Ladino); dois finais (matar ou purificar o Golem)
 
 Contrato LLM: [`LLM_RULEBOOK.md`](LLM_RULEBOOK.md) · Plano: [`ROADMAP.md`](ROADMAP.md)
@@ -186,4 +190,4 @@ Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 �
 
 ---
 
-*Protótipo v2.7.4 — Jogável no celular: D-pad na tela + zonas de toque na visão (bordas viram, centro avança). LLM local/custom via `LLM_BASE_URL`/`LLM_MODEL` (Ollama e afins).*
+*Protótipo v2.8.0 — O Abismo (andar 4) com a sidequest "A Lança Perdida" e nível máximo 12; Silas cura e Morrigan vende grimórios; reparo de campo do Guerreiro e conserto proporcional no Kael; fade de transição e NPCs tocáveis na Vila.*
