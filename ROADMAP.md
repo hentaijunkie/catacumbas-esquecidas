@@ -522,7 +522,9 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 ## Proximos passos (curto prazo)
 
 ### Expansão da Gameplay
-- [ ] Nenhum item de curto prazo pendente — próxima leva: Godot (longo prazo).
+- [ ] Novas interações procedurais: estátuas que giram e botões de pressão nas masmorras.
+- [ ] Ampliação do sistema de Conquistas: criar novos trackers (ex: Mestre das Chamas, Sangue de Ferro).
+- [ ] Áudio ambiental por andar: adicionar loops de áudio simples usando Web Audio API.
 
 ---
 
@@ -559,4 +561,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.9.0 - Sidequest O Templo Esquecido, Sistema de Fama e puzzles de alavanca.*
+*Última atualização: v3.0.0 - A Grande Evolução da Vila: Sistema global de Conquistas, lojas dinâmicas e reações de NPCs à Fama.*
