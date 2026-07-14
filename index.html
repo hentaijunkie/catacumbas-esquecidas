@@ -1071,7 +1071,13 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
   }
   const ctx = cv.getContext("2d");
 
-
+  // Superfície: cada local da vila é uma CENA 2D composta (v2.7.2) — sem raycaster.
+  // Muro de catacumba não é praça: o NPC fica grande e legível exatamente no tile
+  // onde os botões Falar/Comprar/Consertar do painel funcionam.
+  if(e.na_superficie){
+    desenharVilaLocal(ctx, W, H, dpr, e);
+    return;
+  }
 
   const {walk, rooms, frontier} = buildWalkable(e);
   const facing = e.facing || "norte";
@@ -1207,7 +1213,9 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
       sprites.push({x:r.x+0.5, y:r.y+0.5, kind: meta.kind, glyph: meta, scale: r.boss?1.05:0.95});
     }
     if(r.npc){
-      sprites.push({x:r.x+0.5, y:r.y+0.5, kind: r.npc, scale: 0.95});
+      // NPC nunca é inimigo: glyph próprio (sem HP, sem rótulo "Inimigo" do fallback)
+      sprites.push({x:r.x+0.5, y:r.y+0.5, kind: r.npc, scale: 0.95,
+                    glyph: {ch:"☺", col:"#9fd4a8", kind:"npc", name:""}});
     }
     if(r.altar) sprites.push({x:r.x+0.5, y:r.y+0.5, kind: 'altar', scale: 0.8});
     if(r.cofre)
@@ -1499,7 +1507,194 @@ function drawTorch(ctx, x, y, H) {
   ctx.restore();
 }
 
+/** Vila: cena 2D por LOCAL (v2.7.2). O mapa continua navegável (setas/automapa),
+ *  mas cada tile renderiza uma cena composta no estilo da praça da v2.6.3:
+ *  céu + casario ao fundo, chão sólido, NPC grande ancorado no chão e setas de
+ *  saída relativas ao facing. Interação fica no painel lateral (Falar/Comprar/
+ *  Consertar) — que funciona exatamente no tile onde o NPC está visível. */
+const VILA_LOCAIS = {
+  praca:              {nome:"Praça da Fonte",         desc:"O coração de Pedralume. A fonte de pedra aguarda o retorno da água."},
+  entrada_catacumbas: {nome:"Entrada das Catacumbas", desc:"Degraus úmidos descem para a escuridão sob a vila."},
+  forja:              {nome:"Forja de Kael",          desc:"O martelo ecoa. Brasas iluminam lâminas em reparo."},
+  loja_alquimia:      {nome:"Loja da Mira",           desc:"Frascos, tochas e pergaminhos — ouro na mão, mercadoria na bolsa."},
+  tenda_sabio:        {nome:"Tenda do Ancião",        desc:"Brum guarda as memórias de Pedralume."},
+  tenda_cura:         {nome:"Tenda de Cura",          desc:"Bandagens limpas e o cheiro de ervas amargas."},
+  cabana_bruxa:       {nome:"Cabana de Morrigan",     desc:"Runas tremeluzem na penumbra da ocultista."},
+  ruas:               {nome:"Ruas de Pedralume",      desc:"Casas fechadas. O vento arrasta folhas secas."},
+};
+const VILA_ORDEM = ["norte", "leste", "sul", "oeste"];
 
+function desenharVilaLocal(ctx, W, H, dpr, e){
+  const hor = H * 0.60;                       // linha do horizonte (receita v2.6.3)
+  const sala = e.sala || {};
+  const tipo = sala.tipo;
+  const loc = VILA_LOCAIS[tipo] || {nome:"Pedralume", desc:""};
+  const img = k => (spriteImages[k] && spriteImages[k].complete) ? spriteImages[k] : null;
+
+  // 1. Céu noturno
+  const ceu = img("vila_ceu");
+  if(ceu) ctx.drawImage(ceu, 0, 0, W, hor);
+  else { ctx.fillStyle = "#0f1626"; ctx.fillRect(0, 0, W, hor); }
+
+  // 2. Casario ao fundo (ancorado no horizonte)
+  const casas = img("vila_casas");
+  if(casas){
+    const sc = W / casas.width, ph = casas.height * sc;
+    ctx.drawImage(casas, 0, hor - ph + H*0.05, W, ph);
+  }
+
+  // 3. Chão sólido cor de terra (perspectiva estável, sem padrão de tijolo)
+  ctx.fillStyle = "#120c08";
+  ctx.fillRect(0, hor, W, H - hor);
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.fillRect(0, hor, W, 2*dpr);
+
+  // 4. Props por local
+  if(tipo === "praca"){
+    const fonte = img("vila_fonte");
+    if(fonte){
+      const fw = W*0.45, fh = (fw / fonte.width) * fonte.height;
+      ctx.drawImage(fonte, W*0.5 - fw/2, hor - fh*0.35, fw, fh);
+    }
+    drawTorch(ctx, W*0.10, hor - H*0.1, H);
+    drawTorch(ctx, W*0.90, hor - H*0.1, H);
+  } else if(tipo === "entrada_catacumbas"){
+    // arco de pedra escuro + escada descendo
+    ctx.fillStyle = "#1a1512";
+    ctx.beginPath();
+    ctx.moveTo(W*0.36, hor);
+    ctx.quadraticCurveTo(W*0.5, hor - H*0.34, W*0.64, hor);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#060403";
+    ctx.beginPath();
+    ctx.moveTo(W*0.40, hor);
+    ctx.quadraticCurveTo(W*0.5, hor - H*0.26, W*0.60, hor);
+    ctx.closePath(); ctx.fill();
+    // degraus descendo dentro do arco (sem sprite — o PNG da escada fica ilegível pequeno)
+    ctx.fillStyle = "#0d0a08";
+    for(let i = 0; i < 4; i++){
+      const dw = W*(0.16 - i*0.03);
+      ctx.fillRect(W*0.5 - dw/2, hor - H*0.028*(i+1), dw, H*0.02);
+    }
+    drawTorch(ctx, W*0.33, hor - H*0.16, H);
+    drawTorch(ctx, W*0.67, hor - H*0.16, H);
+  } else if(tipo === "forja"){
+    // brilho quente de brasa
+    const gl = ctx.createRadialGradient(W*0.5, hor, H*0.02, W*0.5, hor, H*0.45);
+    gl.addColorStop(0, "rgba(255,140,40,0.30)");
+    gl.addColorStop(1, "rgba(255,140,40,0)");
+    ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
+    drawTorch(ctx, W*0.18, hor - H*0.14, H);
+    drawTorch(ctx, W*0.82, hor - H*0.14, H);
+  } else if(tipo === "cabana_bruxa"){
+    // penumbra arcana
+    const gl = ctx.createRadialGradient(W*0.5, hor - H*0.1, H*0.02, W*0.5, hor - H*0.1, H*0.5);
+    gl.addColorStop(0, "rgba(150,80,220,0.22)");
+    gl.addColorStop(1, "rgba(150,80,220,0)");
+    ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
+  } else if(tipo === "tenda_cura"){
+    const gl = ctx.createRadialGradient(W*0.5, hor - H*0.1, H*0.02, W*0.5, hor - H*0.1, H*0.45);
+    gl.addColorStop(0, "rgba(220,230,200,0.14)");
+    gl.addColorStop(1, "rgba(220,230,200,0)");
+    ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
+    drawTorch(ctx, W*0.20, hor - H*0.12, H);
+  } else if(tipo === "ruas"){
+    drawTorch(ctx, W*0.25, hor - H*0.12, H);
+    drawTorch(ctx, W*0.75, hor - H*0.12, H);
+  } else if(tipo === "tenda_sabio"){
+    drawTorch(ctx, W*0.80, hor - H*0.12, H);
+  }
+
+  // 5. NPC do local — grande, ancorado no chão, com nome (nunca "Inimigo")
+  const npc = sala.npc;
+  if(npc && npc.id){
+    const spr = img(npc.id);
+    if(spr){
+      const nh = H*0.46, nw = (nh / spr.height) * spr.width;
+      const nx = W*0.5 - nw/2, ny = hor - nh*0.82;
+      // sombra no chão
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(W*0.5, ny + nh*0.97, nw*0.32, H*0.018, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.drawImage(spr, nx, ny, nw, nh);
+      // placa da loja acima da Mira
+      if(tipo === "loja_alquimia"){
+        const placa = img("vila_placa");
+        if(placa){
+          const pw = W*0.14, ph2 = (pw / placa.width) * placa.height;
+          ctx.drawImage(placa, W*0.5 - pw/2, ny - ph2 - H*0.02, pw, ph2);
+        }
+      }
+      // nome do NPC
+      ctx.font = `bold ${Math.max(12, 13*dpr)}px system-ui`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      const nomeNpc = npc.nome || npc.id;
+      const tw = ctx.measureText(nomeNpc).width + 16*dpr;
+      ctx.fillRect(W*0.5 - tw/2, ny + nh + H*0.015, tw, 20*dpr);
+      ctx.fillStyle = "#e8c95a";
+      ctx.fillText(nomeNpc, W*0.5, ny + nh + H*0.015 + 10*dpr);
+    }
+  }
+
+  // 6. Vinheta (mescla as bordas, como na v2.6.3)
+  const grad = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, W*0.6);
+  grad.addColorStop(0, "rgba(0,0,0,0)");
+  grad.addColorStop(1, "rgba(0,0,0,0.85)");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  // 7. Setas de saída RELATIVAS ao facing (frente=topo, esq/dir=bordas, trás=base)
+  const facing = e.facing || "norte";
+  const roomsIdx = {};
+  ((e.mapa && e.mapa.rooms) || []).forEach(r => { roomsIdx[r.x+","+r.y] = r; });
+  const fIdx = VILA_ORDEM.indexOf(facing);
+  let nomeFrente = null;
+  (sala.exits || []).forEach(d => {
+    const rel = (VILA_ORDEM.indexOf(d) - fIdx + 4) % 4;   // 0 frente 1 dir 2 trás 3 esq
+    const dd = FACE_DIR[d] || {dx:0, dy:0};
+    const viz = roomsIdx[(e.pos.x+dd.dx)+","+(e.pos.y+dd.dy)];
+    const nomeViz = viz ? (VILA_LOCAIS[viz.tipo] ? VILA_LOCAIS[viz.tipo].nome : viz.tipo) : "";
+    if(rel === 0) nomeFrente = nomeViz;
+    ctx.save();
+    ctx.font = `bold ${Math.max(16, 18*dpr)}px system-ui`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(231,233,239,0.85)";
+    ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 6;
+    const lblFont = `${Math.max(10, 11*dpr)}px system-ui`;
+    if(rel === 0){        // frente
+      ctx.fillText("▲", W/2, H*0.09);
+      ctx.font = lblFont; ctx.fillText(nomeViz, W/2, H*0.09 + 16*dpr);
+    } else if(rel === 1){ // direita
+      ctx.fillText("▶", W - 18*dpr, H*0.52);
+      ctx.font = lblFont; ctx.fillText(nomeViz, W - 18*dpr, H*0.52 + 16*dpr);
+    } else if(rel === 3){ // esquerda
+      ctx.fillText("◀", 18*dpr, H*0.52);
+      ctx.font = lblFont; ctx.fillText(nomeViz, 18*dpr, H*0.52 + 16*dpr);
+    } else {              // trás
+      ctx.fillText("▼", W/2, H*0.93);
+    }
+    ctx.restore();
+  });
+
+  // 8. Título do local + descrição
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#e7e9ef";
+  ctx.font = `bold ${Math.max(14, 15*dpr)}px system-ui`;
+  ctx.fillText(loc.nome, 16*dpr, 26*dpr);
+  ctx.fillStyle = "#9aa0b4";
+  ctx.font = `italic ${Math.max(11, 12*dpr)}px system-ui`;
+  const desc = (tipo === "praca" && e.missao_cumprida)
+    ? "A água cristalina volta a jorrar na fonte restaurada. A Vila respira de novo."
+    : loc.desc;
+  ctx.fillText(desc, 16*dpr, 46*dpr);
+
+  // HUD coerente com a cena
+  $("#hudFacing").textContent = facing;
+  $("#hudFrente").textContent = "à frente: " + (nomeFrente || "muros e casas");
+  $("#hudLuz").textContent = "noite estrelada";
+  $("#hudLuz").style.color = "var(--gold)";
+}
 
 function tileSala(ctx, x, y, T, r, ehJogador, prof = 1){
   const h=T/2, X=x-h, Y=y-h;

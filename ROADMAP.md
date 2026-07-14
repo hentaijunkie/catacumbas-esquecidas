@@ -350,7 +350,29 @@ em modo online:
   - As armas sofrem dano ao atacar inimigos e armaduras ao receber dano - ambas podem ser completamente destruídas. 
 - **O Ferreiro Kaelen:** Ação `{"tipo": "consertar", "item": "<id>"}` na whitelist, executada na forja de Kael por 10 moedas de ouro. (O endpoint `/api/consertar` prometido aqui só chegou de fato na v2.7.1.)
 
-### Hotfixes de revisão da v2.7.0 (v2.7.1) — **atual**
+### Vila em cenas 2D por local (v2.7.2) — **atual**
+Feedback do playtest da v2.7.1: NPCs com rótulo "Inimigo", casario "vazando" entre as
+paredes (conflito entre pano de fundo 2D em screen-space e a geometria 3D do raycaster)
+e NPC invisível exatamente no tile onde o botão Falar funciona (billboard fica atrás da
+câmera). Decisão de design: corredores de raycaster com textura de catacumba nunca vão
+parecer uma vila a céu aberto — a superfície saiu do raycaster de vez.
+- **`desenharVilaLocal` (index.html):** com `na_superficie`, cada tile renderiza uma
+  CENA 2D composta no estilo da praça da v2.6.3 — céu noturno + casario ancorado no
+  horizonte, chão sólido cor de terra, props por local (fonte na praça, brasas na forja,
+  arco com degraus na entrada, penumbra arcana na bruxa), NPC grande ancorado no chão
+  com placa de nome, vinheta, título e descrição do local.
+- **Setas de saída relativas ao facing:** ▲/◀/▶/▼ nas bordas da cena com o NOME do
+  destino (ex.: "▲ Forja de Kael"), derivadas de `sala.exits` + `mapa.rooms`. O HUD
+  "à frente" mostra o local de destino.
+- **Interação onde o NPC é visível:** o mapa continua navegável (automapa/setas iguais),
+  e o NPC agora aparece grande exatamente no tile em que os botões Falar/Comprar/
+  Consertar do painel funcionam — fim do "só vejo o NPC de longe".
+- **Fix "Inimigo" nos NPCs:** os billboards de NPC no raycaster caíam no fallback
+  `ENTITY_GLYPH.enemy` (sprite certo, rótulo errado); ganharam glyph próprio sem HP/rótulo.
+- Verificado no browser (tour completo pelos 8 locais via API real + colagem de pixels
+  das cenas; zero erros de console). Engine intocada — `--demo` segue verde.
+
+### Hotfixes de revisão da v2.7.0 (v2.7.1)
 Revisão completa pós-v2.7.0; bugs reproduzidos em código antes do fix e todos cobertos por
 testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
 - **CRÍTICO — andar 1 perdido ao visitar a Vila:** novo jogo → subir → descer devolvia o
@@ -460,4 +482,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.7.1 - Hotfixes da revisão pós-v2.7.0 (vila conexa e por sessão, andar 1 preservado, durabilidade visível/completa, /api/consertar, Golem solo, teto de nível 10).*
+*Última atualização: v2.7.2 - Vila em cenas 2D por local (superfície fora do raycaster, NPCs grandes e nomeados, setas de saída com destino, fix do rótulo "Inimigo").*

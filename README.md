@@ -54,7 +54,7 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 | `F3` | Debug da vista (distância, saídas, hit) |
 
 - **Vista 1ª pessoa** — raycaster com texturas de parede, billboards com **sprites PNG** em pixel art (inimigos, NPCs, altares, baús, loot, escadas). Combate com clamp de distância (alvo sempre legível e à frente dos props). Flash, vinhetas de status e fadiga.
-- **Vila navegável em 1ª pessoa:** Pedralume virou um mapa andável (praça, entrada das catacumbas, forja do Kael, loja da Mira, tenda do Ancião, curandeiro e cabana da bruxa) com céu aberto no raycaster. O NPC da sala atual aparece como botão "Falar" no painel; comprar/vender só na loja da Mira e consertar só na forja.
+- **Vila navegável em cenas 2D:** Pedralume é um mapa andável (praça, entrada das catacumbas, forja do Kael, loja da Mira, tenda do Ancião, curandeiro e cabana da bruxa), mas cada local renderiza uma **cena 2D composta** — céu noturno + casario ao fundo, NPC grande e nomeado no centro, props do local (fonte, brasas da forja, arco das catacumbas) e **setas de saída** com o nome do destino. O NPC da sala atual vira botão "Falar" no painel; comprar/vender só na loja da Mira e consertar só na forja.
 - **Automapa** com névoa de guerra e indicadores de **status** (☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento). O boss revela a identidade correta à distância.
 - Badge: `online · DeepSeek` ou `offline · template`.
 - **Áudio** via Web Audio API: batimento cardíaco com HP crítico, shake prolongado nas magias, impacto grave (hit) e áudio de fadiga (pitch e LFO dinâmicos).
@@ -170,4 +170,4 @@ Polimento FP → cliente Godot opcional → LLM local (Ollama/embed) → Vila/pe
 
 ---
 
-*Protótipo v2.7.1 — Hotfix da v2.7.0: vila navegável consertada (mapa conexo por sessão, andar 1 preservado ao subir/descer), durabilidade visível + conserto completo (UI, `/api/consertar`, offline), Nascente Envenenada em câmara própria (Golem volta a lutar solo) e teto de nível coerente (10).*
+*Protótipo v2.7.2 — Vila em cenas 2D por local: o raycaster deixou de renderizar a superfície (paredes de catacumba não são praça); cada tile da vila é uma cena composta com NPC grande, legível e interagível exatamente onde os botões do painel funcionam. Corrigido o rótulo "Inimigo" nos NPCs.*
