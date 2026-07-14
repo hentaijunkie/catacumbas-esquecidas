@@ -417,13 +417,17 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Expansão "Diablo" — Abismo, serviços de NPC e reparo de campo (v2.8.0) - **atual**
+### Expansão v2.9.0 - Templo Esquecido e Fama - **atual**
+- **Sistema de Fama (Reputação):** O jogador agora ganha Pontos de Fama ao derrotar chefes (Golem, Capitão de Ossos, Sacerdote do Lodo, Guardião da Lança) e resolver sidequests. A Fama garante descontos proporcionais (até 50%) nas lojas e serviços da Vila.
+- **Sidequest O Templo Esquecido:** Nova sidequest procedimental no Andar 3. Três alavancas são espalhadas pelo andar, que precisam ser puxadas para abrir a porta selada da câmara do Templo Esquecido, guardada por dois Sacerdotes do Lodo e contendo loot nobre.
+- **Nova Ação e Interface:** Adicionado `puxar_alavanca`, motor gráfico 3D modificado para renderizar alavancas na parede, e UI do front-end com um novo botão para ação, com verificação bloqueando passagem caso os puzzles não estejam resolvidos.
+
+### Expansão "Diablo" — Abismo, serviços de NPC e reparo de campo (v2.8.0)
 - **Andar 4 — o Abismo (sidequest "A Lança Perdida"):** `MAX_PROFUNDIDADE=4`; o andar 3
   ganhou escada p/ baixo. Bestiário novo mlvl 8-10 (Larva Abissal, Cavaleiro do Túmulo
   def 5, Bruxo Abissal c/ Fraqueza) com stats base moderados de propósito — `stats_inimigo`
   multiplica ×1.6 no prof 4. No fundo, câmara "Repouso da Lança": **Guardião da Lança**
   (único, mlvl 10, 60/9/5 base) solo, recompensa `lanca_perdida` (arma dano 6, dur. 60).
-  Tablet de lore novo (`tablet_lanca`). Loot do andar 4 escasso em consumível de propósito.
 - **NIVEL_MAX 10→12 + PROGRESSAO 11/12** (222/266 XP): coerente com o novo mlvl máximo 10
   (soft-cap diff>=3 zera XP → 12 é o último nível alcançável; sem níveis letra-morta).
 - **Serviços de NPC (padrão Diablo):** Irmão Silas (tenda_cura) agora TRATA por 8 ouro —
@@ -555,4 +559,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v2.8.0 - Andar 4 (Abismo + "A Lança Perdida", mlvl 8-10, NIVEL_MAX 12), serviços do Silas/Morrigan, reparo de campo do Guerreiro, conserto proporcional, fade de transição e NPC tocável.*
+*Última atualização: v2.9.0 - Sidequest O Templo Esquecido, Sistema de Fama e puzzles de alavanca.*

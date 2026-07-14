@@ -830,6 +830,12 @@ def acao_descer(_dados=None):
     return resposta(narrativa=narrar_sala(state, prefixo=linhas[0] if linhas else "Você desce."),
                     mensagens=linhas)
 
+def acao_puxar_alavanca(_dados=None):
+    if GAME["combate"]:
+        return resposta(mensagens=["Termine o combate primeiro."])
+    _, linhas = executar_capturando(GAME["state"], {"tipo": "puxar_alavanca"})
+    return resposta(narrativa=linhas[0] if linhas else "Você puxa a alavanca.", mensagens=linhas)
+
 
 def acao_subir(_dados=None):
     if GAME["combate"]:
@@ -1088,6 +1094,7 @@ ROTAS = {
     "/api/load": acao_load,
     "/api/saves": acao_saves,
     "/api/comprar": acao_comprar,
+    "/api/puxar_alavanca": acao_puxar_alavanca,
     "/api/vender": acao_vender,
     "/api/consertar": acao_consertar,
     "/api/falar": acao_falar,

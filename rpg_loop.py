@@ -2839,6 +2839,16 @@ def aplicar_movimento(state, token):
 
     dx, dy = DIRECOES_ABS[destino]
     novo = (pos[0] + dx, pos[1] + dy)
+    
+    # Bloqueio do Templo Esquecido (v2.9)
+    alvo = salas[novo]
+    if alvo.get("trancada_por_alavancas", 0) > state.get("alavancas_puxadas", 0):
+        faltam = alvo["trancada_por_alavancas"] - state.get("alavancas_puxadas", 0)
+        state["historico"].append("porta selada")
+        return {"moveu": False, "direcao": destino, "combate": None, "loot": [],
+                "exits": sorted(salas[pos]["exits"]),
+                "bloqueio": f"A imensa porta de pedra está selada. Faltam {faltam} mecanismos para abri-la."}
+
     state["pos"] = {"x": novo[0], "y": novo[1]}
     sala = salas[novo]
     sala["visitada"] = True

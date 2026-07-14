@@ -190,4 +190,4 @@ Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 �
 
 ---
 
-*Protótipo v2.8.0 — O Abismo (andar 4) com a sidequest "A Lança Perdida" e nível máximo 12; Silas cura e Morrigan vende grimórios; reparo de campo do Guerreiro e conserto proporcional no Kael; fade de transição e NPCs tocáveis na Vila.*
+*Protótipo v2.9.0 - Sidequest "O Templo Esquecido" com puzzles de alavancas (andar 3); Sistema de Fama (reputação) com descontos escalonados nas lojas; O Abismo (andar 4) com a sidequest "A Lança Perdida"; Silas cura e Morrigan vende grimórios; reparo de campo do Guerreiro e conserto proporcional no Kael.*

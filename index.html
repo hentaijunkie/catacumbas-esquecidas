@@ -268,6 +268,7 @@
         <button id="btnTablet" type="button" style="display:none">Ler tablet</button>
         <button id="btnEsconder" type="button" style="display:none">Esconder</button>
         <button id="btnGazua" type="button" style="display:none">Gazua</button>
+        <button id="btnAlavanca" type="button" style="display:none;border-color:var(--accent)">Puxar Alavanca</button>
         <button id="btnDescer" type="button" style="display:none">Descer</button>
         <button id="btnSubir" type="button" style="display:none">Subir / Vila</button>
         <button id="btnPurificar" type="button" style="display:none;border-color:var(--accent)">Purificar Golem</button>
@@ -682,6 +683,7 @@ function aplicar(resp){
     if(tab) $("#btnTablet").textContent = tab.lido ? "Reler tablet" : "Ler tablet";
     $("#btnPurificar").style.display = p.pode_purificar ? "inline-block" : "none";
     $("#btnEsconder").style.display = p.pode_esconder ? "inline-block" : "none";
+    $("#btnAlavanca").style.display = (e.sala && e.sala.alavanca && !e.sala.alavanca_ativa) ? "inline-block" : "none";
     $("#btnDescer").style.display = p.pode_descer ? "inline-block" : "none";
     $("#btnSubir").style.display = p.pode_subir ? "inline-block" : "none";
     if(e.na_superficie){
@@ -1272,6 +1274,24 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
       if(sal && (sal.boss || sal.entrada)){
         ctx.fillStyle = sal.boss ? `rgba(180,40,30,${shade*0.4})` : `rgba(40,160,180,${shade*0.3})`;
         ctx.fillRect(col, y0, 1, Math.max(1, y1-y0));
+      }
+      if(sal && sal.alavanca) {
+        if(texX > 26 && texX < 38) {
+           let leverActive = sal.alavanca_ativa;
+           ctx.fillStyle = `rgba(50,50,50,${shade})`;
+           let baseY = y0 + lineH * 0.5;
+           let baseH = lineH * 0.1;
+           ctx.fillRect(col, baseY, 1, baseH);
+           if(texX > 30 && texX < 34) {
+               ctx.fillStyle = `rgba(180,180,180,${shade})`;
+               let hasteY = leverActive ? baseY + baseH : baseY - lineH * 0.15;
+               let hasteH = lineH * 0.15;
+               ctx.fillRect(col, hasteY, 1, hasteH);
+               ctx.fillStyle = leverActive ? `rgba(50,220,50,${shade})` : `rgba(220,50,50,${shade})`;
+               let cabecaY = leverActive ? hasteY + hasteH : hasteY - lineH * 0.05;
+               ctx.fillRect(col, cabecaY, 1, lineH * 0.05);
+           }
+        }
       }
       if(!escuro && lineH > 24){
         // filete de topo (cornija)
@@ -2118,6 +2138,7 @@ $("#btnDescansar").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api
 $("#btnTablet").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/ler_tablet",{})); };
 $("#btnPurificar").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/purificar",{})); };
 $("#btnEsconder").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/esconder",{})); };
+$("#btnAlavanca").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/puxar_alavanca",{})); };
 $("#btnDescer").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/descer",{})); }};
 $("#btnSubir").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/subir",{})); }};
 $("#btnGazua").onclick = async ()=>{
