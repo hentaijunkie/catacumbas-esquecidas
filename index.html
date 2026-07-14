@@ -430,15 +430,21 @@ for(let y=0; y<64; y+=16) {
 }
 const wallTex = texCanvas;
 
-const TEXTURES = { wall: new Image(), wallDark: new Image() };
+const TEXTURES = { 
+  wall: new Image(), wallDark: new Image(),
+  wall_lvl2: new Image(), wall_lvl3: new Image(), wall_lvl4: new Image()
+};
 let texturesLoaded = false;
 let _loadedCount = 0;
 function _onTexLoad() {
   _loadedCount++;
-  if(_loadedCount === 2) texturesLoaded = true;
+  if(_loadedCount === 5) texturesLoaded = true;
 }
 TEXTURES.wall.onload = _onTexLoad; TEXTURES.wall.src = 'assets/textures/wall_stone.jpg';
 TEXTURES.wallDark.onload = _onTexLoad; TEXTURES.wallDark.src = 'assets/textures/wall_dark.jpg';
+TEXTURES.wall_lvl2.onload = _onTexLoad; TEXTURES.wall_lvl2.src = 'assets/textures/wall_level2.jpg';
+TEXTURES.wall_lvl3.onload = _onTexLoad; TEXTURES.wall_lvl3.src = 'assets/textures/wall_level3.jpg';
+TEXTURES.wall_lvl4.onload = _onTexLoad; TEXTURES.wall_lvl4.src = 'assets/textures/wall_level4.jpg';
 
 // ==================== SPRITES ====================
 const SPRITE_MAP = {
@@ -1248,9 +1254,14 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
       const sal = rooms[lastWX+","+lastWY];
       
       if(texturesLoaded) {
-        textureToUse = TEXTURES.wall;
+        let depth = window._estado && window._estado.profundidade ? window._estado.profundidade : 1;
+        if(depth === 2) textureToUse = TEXTURES.wall_lvl2;
+        else if(depth === 3) textureToUse = TEXTURES.wall_lvl3;
+        else if(depth === 4) textureToUse = TEXTURES.wall_lvl4;
+        else textureToUse = TEXTURES.wall;
+
         if(sal && sal.boss) textureToUse = TEXTURES.wallDark;
-        else if(escuro) textureToUse = TEXTURES.wallDark; 
+        else if(escuro) textureToUse = TEXTURES.wallDark;  
       }
       
       ctx.globalAlpha = shade * (side ? 0.75 : 1.0);
