@@ -628,12 +628,12 @@ function setUserUI(user){
 // Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
 // (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
-  versao: "v3.9",
+  versao: "v3.9.1",
   itens: [
-    "<b>Vila em cenas 2D:</b> Pedralume agora tem camadas (céu, casario, NPC grande, props e setas de saída nomeadas) — cada local da vila tem identidade visual própria.",
-    "<b>Billboards polidos:</b> inimigos com partículas e barra de HP mais legível; sprites estáveis na vista em 1ª pessoa (correção de um erro de JS que podia travar a visão).",
-    "<b>Saves multi-jogador:</b> o save antigo single-player não é mais copiado para contas novas — cada conta começa limpa (exceto a primeira migração legada, se existir).",
-    "<b>Métricas do narrador:</b> contadores LLM persistem em disco junto dos saves (`llm_metrics.json`) e carregam ao subir o servidor.",
+    "<b>Correção urgente:</b> vista em 1ª pessoa e <em>automapa</em> voltaram a desenhar — faltavam as funções de tile do mapa após o polish da Vila 2D.",
+    "<b>Vila em cenas 2D:</b> Pedralume com camadas (céu, casario, NPC grande, props e setas de saída nomeadas).",
+    "<b>Billboards polidos:</b> inimigos com partículas e barra de HP; sprites estáveis na vista.",
+    "<b>Saves multi-jogador:</b> o save legado single-player não contamina contas novas.",
   ],
 };
 function mostrarNovidades(){
@@ -999,8 +999,17 @@ const FACE_DIR = {
 const EMOJI_FONT = "'Segoe UI Emoji','Noto Color Emoji',system-ui";
 
 function desenharMapa(e){
+  try{
+    _desenharMapaInner(e);
+  }catch(err){
+    // Nunca deixe o automapa derrubar a vista 1ª pessoa (solicitarVista vem logo após).
+    clog("error", "automapa crash: "+(err && err.message), {stack: err && err.stack});
+  }
+}
+function _desenharMapaInner(e){
   const cv = $("#mapa"), ctx = cv.getContext("2d");
-  const rooms = e.mapa.rooms, fr = e.mapa.fronteira;
+  if(!e || !e.mapa || !e.pos) return;
+  const rooms = e.mapa.rooms || [], fr = e.mapa.fronteira || [];
   const todos = rooms.concat(fr);
   if(!todos.length) return;
   const xs = todos.map(r=>r.x), ys = todos.map(r=>r.y);
@@ -2309,12 +2318,21 @@ const VILA_LOCAIS = {
   ruas:               {nome:"Ruas de Pedralume",      desc:"Casas fechadas. O vento arrasta folhas secas."},
 };
 
+// Nomes de exibição (espelha rpg_loop.NPCS_VILA; só o que a cena 2D precisa)
+const NPCS_VILA = {
+  mira:       {nome: "Mira, a Mercadora"},
+  anciao:     {nome: "Ancião Brum"},
+  ferreiro:   {nome: "Kael, o Forjador"},
+  curandeiro: {nome: "Irmão Silas"},
+  bruxa:      {nome: "Morrigan, a Ocultista"},
+};
+
 const VILA_CENAS = {
   praca: {
     titulo: "Praça da Fonte",
     fundo: "#0f1626",
     props: ["fonte", "barris", "tocha", "tocha"],
-    npc: null,               
+    npc: null,
     setas: [
       { dir: "norte", label: "Entrada das Catacumbas", x: 0.5, y: 0.18 },
       { dir: "leste", label: "Loja da Mira", x: 0.82, y: 0.55 },
@@ -2364,7 +2382,7 @@ const VILA_CENAS = {
     titulo: "Tenda do Sábio",
     fundo: "#11151a",
     props: ["velas"],
-    npc: "sabio",
+    npc: "anciao",   // id da engine + sprite anciao.png
     setas: [{ dir: "norte", label: "↑ Praça", x: 0.5, y: 0.15 }]
   },
   ruas: {
@@ -2489,6 +2507,73 @@ function drawTorch(ctx, x, y) {
 }
 
 const VILA_ORDEM = ["norte", "leste", "sul", "oeste"];
+
+function tileSala(ctx, x, y, T, r, ehJogador, prof = 1){
+  const h=T/2, X=x-h, Y=y-h;
+  // piso de pedra com leve relevo
+  ctx.save();
+  ctx.shadowColor="#0009"; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
+  let bgTop = "#4a5169", bgBot = "#353a4c";
+  // Piscar se resolvido recentemente
+  if(r.puzzle_resolvido || r.estatua_ok || r.botao_ativo || (r.alavancas_ativas && r.alavancas_ativas >= 3)) {
+      if(Math.sin(performance.now() / 150) > 0) {
+          bgTop = "#5a8c6a"; bgBot = "#3d6049";
+      }
+  }
+  const g=ctx.createLinearGradient(0,Y,0,Y+T);
+  g.addColorStop(0,bgTop); g.addColorStop(1,bgBot);
+  ctx.fillStyle=g; roundRect(ctx,X,Y,T,T,9); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle="#ffffff18"; ctx.lineWidth=1; roundRect(ctx,X+1,Y+1,T-2,T-2,8); ctx.stroke();
+  // ícones ASCII no automapa (POIs: altar, alavanca, botão, estátua, escada, cofre)
+  ctx.font = `${Math.max(10, T*0.42)}px "Cascadia Mono",Consolas,monospace`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if(r.boss || r.inimigo){
+    const g = entityMeta(r.inimigo_id, r.boss, prof);
+    ctx.fillStyle = g.col; ctx.fillText(g.ch, x, y+1);
+  } else if(r.alavanca){
+    ctx.fillStyle = r.alavanca_ativa ? "#6d8" : "#c8a050";
+    ctx.fillText(r.alavanca_ativa ? "⚙" : "⌥", x, y+1);
+  } else if(r.estatua){
+    ctx.fillStyle = r.estatua_ok ? "#8d8" : "#a090c0";
+    ctx.fillText("🗿", x, y+1);
+    if(r.estatua_ok) {
+        ctx.fillStyle = "#4BFF4B";
+        ctx.font = `${Math.max(8, T*0.3)}px sans-serif`;
+        ctx.fillText("\u2714", x + T*0.25, y - T*0.25 + 1);
+    }
+  } else if(r.botao){
+    ctx.fillStyle = r.botao_ativo ? "#6a8" : "#888";
+    ctx.fillText(r.botao_ativo ? "▪" : "▫", x, y+1);
+  } else if(r.altar){ ctx.fillStyle="#e8c95a"; ctx.fillText("†", x, y+1); }
+  else if(r.cofre){ ctx.fillStyle="#c0a060"; ctx.fillText(r.cofre_trancado?"□":"■", x, y+1); }
+  else if(r.loot){ ctx.fillStyle="#e8c95a"; ctx.fillText("$", x, y+1); }
+  else if(r.escada){ ctx.fillStyle="#8ab0c8"; ctx.fillText("▼", x, y+1); }
+  else if(r.escada_sobe){ ctx.fillStyle="#90c0a0"; ctx.fillText("▲", x, y+1); }
+  // anel colorido por tipo (prioridade: chefe > inimigo > tesouro > entrada)
+  let anel=null, lw=2;
+  if(r.entrada) anel="#4bbf73";
+  if(r.loot)    anel="#e8c95a";
+  if(r.inimigo) anel="#e0913a";
+  if(r.boss){   anel="#d94b41"; lw=3; }
+  if(anel){ ctx.strokeStyle=anel; ctx.lineWidth=lw;
+            ctx.shadowColor=anel; ctx.shadowBlur=r.boss?12:6;
+            roundRect(ctx,X,Y,T,T,9); ctx.stroke(); ctx.shadowBlur=0; }
+  // entrada sem monstro/loot: porta
+  if(!ehJogador && r.entrada && !r.inimigo && !r.boss && !r.loot){
+    ctx.font=`${Math.max(10, T*0.4)}px system-ui`;
+    ctx.fillStyle="#4bbf73"; ctx.fillText("🚪", x, y+1);
+  }
+}
+
+function tileFronteira(ctx, x, y, T){
+  const h=T/2, X=x-h, Y=y-h;
+  ctx.fillStyle="#1b1e28"; roundRect(ctx,X,Y,T,T,9); ctx.fill();
+  ctx.setLineDash([4,5]); ctx.strokeStyle="#454b61"; ctx.lineWidth=1.5;
+  roundRect(ctx,X,Y,T,T,9); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle="#616785"; ctx.font="17px system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText("?", x, y+1);
+}
 
 function tokenJogador(ctx, x, y, facing){
   const ang = {norte:0, leste:Math.PI/2, sul:Math.PI, oeste:-Math.PI/2}[facing] || 0;

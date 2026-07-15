@@ -209,7 +209,8 @@ Changelog in-game: modal **✨ Novidades** no login (`NOVIDADES` em `index.html`
 
 | Versão | O que mudou |
 |---|---|
-| **v3.9** | **Vila 2D multi-camadas** (céu, casario, NPC, props, saídas nomeadas) · billboards com partículas/HP · **fix JS** da vista 1ª pessoa (`const` duplicado que quebrava o script) · save legado single-player **não contamina** contas novas · métricas LLM persistidas em `$SAVE_ROOT/llm_metrics.json` |
+| **v3.9.1** | **Hotfix:** restaura `tileSala` / `tileFronteira` (removidas por engano na Vila 2D) — sem elas o automapa quebrava e a vista 1ª pessoa não atualizava · `NPCS_VILA` no cliente · try/catch no automapa |
+| **v3.9** | **Vila 2D multi-camadas** · billboards com partículas/HP · fix `const` duplicado · save legado não contamina contas novas · métricas LLM em disco |
 | **v3.8** | Conquistas Ladrão / Ferro Velho / Coração de Pedra · volume SFX/Amb · atalhos 1–9 de magia · toast de conquista · `GET /api/llm/status` · SFX de puzzle |
 | **v3.6–v3.7** | LLM robusto (timeout/retry/métricas) · automapa com POIs · botões de pressão e estátuas · QoL extra |
 | **v3.4–v3.5** | Fama legível · NPCs reativos · ambientação por andar · conquistas com tracker (Sangue de Ferro, Chamas, Veneno) |
@@ -223,4 +224,4 @@ Cliente Godot opcional · mais puzzles · missões de entrega na vila.
 
 ---
 
-*Protótipo v3.9 — Vila 2D multi-camadas, billboards polidos, correções de saves multi-user e da vista 1ª pessoa. Antes (v3.8): QoL, conquistas novas, /api/llm/status.*
+*Protótipo v3.9.1 — hotfix automapa/vista; Vila 2D multi-camadas, billboards, saves multi-user. Antes (v3.8): QoL, conquistas, /api/llm/status.*
