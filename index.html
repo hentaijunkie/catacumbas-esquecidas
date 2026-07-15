@@ -1635,9 +1635,131 @@ function solicitarVista(e, combate){
     _lerp.y = e.pos.y + 0.5;
     _lerp.ang = FACE_ANG[e.facing] || 0;
   }
-  if(!_lerp.raf) _lerp.raf = requestAnimationFrame(tickVista);
+  if(!_lerp.raf) _lerp.raf = requestAnimationFrame((ts)=>tickVista(ts));
 }
-function tickVista(){
+let _bobTime = 0;
+const BOB_SPEED = 0.0045;
+const BOB_AMP = 4.5;
+function updateBob(dt = 16) {
+  _bobTime += dt;
+}
+
+function spawnBloodParticles(x, y) {
+  const container = document.body;
+  for(let i=0; i<15; i++) {
+    let p = document.createElement("div");
+    p.style.position = "absolute";
+    p.style.width = (Math.random()*5+3) + "px";
+    p.style.height = p.style.width;
+    p.style.background = "#b30000";
+    p.style.left = x + "px";
+    p.style.top = y + "px";
+    p.style.borderRadius = "50%";
+    p.style.pointerEvents = "none";
+    p.style.zIndex = "1000";
+    p.style.boxShadow = "0 0 4px #8B0000";
+    p.style.transition = "transform 0.6s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.6s ease-in";
+    container.appendChild(p);
+    let angle = Math.random() * Math.PI * 2;
+    let dist = Math.random() * 90 + 40;
+    setTimeout(() => {
+      p.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist + 80}px) scale(${Math.random()+0.3})`;
+      p.style.opacity = "0";
+    }, 10);
+    setTimeout(() => p.remove(), 650);
+  }
+}
+
+function drawEnemyBillboard(ctx, screenX, screenY, size, img, distance, opts = {}) {
+  if (!img || !img.complete) return;
+  const { nome="Inimigo", hp=1, hpMax=1, isCombat=false, isBoss=false } = opts;
+
+  let finalSize = size;
+  if (isCombat) {
+    finalSize = Math.min(ctx.canvas.height * 0.52, size * 1.35);
+  } else {
+    const scale = Math.max(0.35, Math.min(1.4, 6.5 / Math.max(distance, 1.2)));
+    finalSize = size * scale;
+  }
+
+  let bobY = 0;
+  if (isCombat || distance < 4.5) {
+    bobY = Math.sin(_bobTime * BOB_SPEED) * BOB_AMP;
+  }
+
+  const alpha = isCombat ? 1 : Math.max(0.35, 1 - (distance / 18));
+  ctx.globalAlpha = alpha;
+
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath();
+  ctx.ellipse(screenX, screenY + 6, finalSize * 0.38, finalSize * 0.09, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const drawX = screenX - finalSize / 2;
+  const drawY = screenY - finalSize + bobY;
+  
+  const now = performance.now();
+  const isHit = window._enemyHit && (now - window._enemyHit < 180);
+
+  if (isBoss) {
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.shadowColor = "#e8c95a";
+      ctx.shadowBlur = 12;
+      ctx.drawImage(img, drawX - 3, drawY - 3, finalSize + 6, finalSize + 6);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = alpha;
+  }
+
+  ctx.drawImage(img, drawX, drawY, finalSize, finalSize);
+
+  if (isHit) {
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.fillRect(drawX, drawY, finalSize, finalSize);
+      ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.globalAlpha = 1;
+
+  if (isCombat || distance < 5.5) {
+    ctx.font = isBoss ? "bold 15px system-ui" : "bold 13px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillStyle = isBoss ? "#e8c95a" : "#e7e9ef";
+    ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
+    ctx.fillText(nome, screenX, drawY - 18);
+    ctx.shadowBlur = 0;
+  }
+
+  if ((isCombat || distance < 4.8) && hpMax > 0) {
+    const barW = Math.max(48, finalSize * 0.72);
+    const barH = 7;
+    const barX = screenX - barW / 2;
+    const barY = drawY - 10;
+    
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX - 1, barY - 1, barW + 2, barH + 2);
+    
+    const pct = Math.max(0, Math.min(1, hp / hpMax));
+    let cor = pct > 0.55 ? "#4bbf73" : (pct > 0.28 ? "#e0913a" : "#d9524a");
+    ctx.fillStyle = cor;
+    ctx.fillRect(barX, barY, barW * pct, barH);
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(barX, barY, barW * pct, 2);
+    
+    if (isCombat) {
+      ctx.font = "11px system-ui"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
+      ctx.fillText(`${Math.ceil(hp)}/${hpMax}`, screenX, barY - 4);
+    }
+  }
+  ctx.textAlign = "left";
+}
+
+function tickVista(ts){
+  const dt = ts - (window._lastTs || ts);
+  window._lastTs = ts;
+  updateBob(dt);
   _lerp.raf = 0;
   const e = _lerp.target;
   if(!e) return;
@@ -1654,7 +1776,7 @@ function tickVista(){
   const done = Math.abs(tx-_lerp.x)<0.01 && Math.abs(ty-_lerp.y)<0.01 && Math.abs(da)<0.02;
   if(done){ _lerp.x=tx; _lerp.y=ty; _lerp.ang=ta; }
   desenharVista(e, _lerp.combate, _lerp.x, _lerp.y, _lerp.ang);
-  if(!done) _lerp.raf = requestAnimationFrame(tickVista);
+  if(!done) _lerp.raf = requestAnimationFrame((ts)=>tickVista(ts));
 }
 
 function desenharVista(e, combate, camX, camY, camAng){
@@ -1692,7 +1814,10 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
   // Muro de catacumba não é praça: o NPC fica grande e legível exatamente no tile
   // onde os botões Falar/Comprar/Consertar do painel funcionam.
   if(e.na_superficie){
-    desenharVilaLocal(ctx, W, H, dpr, e);
+    const cenario = (e.sala && e.sala.tipo) || "praca";
+    const local = VILA_CENAS[cenario] || VILA_CENAS.praca;
+    const npcImg = (local.npc && spriteImages[local.npc]) ? spriteImages[local.npc] : null;
+    drawVillageScene(ctx, cv, cenario, npcImg);
     return;
   }
   window._npcHotspot = null;   // masmorra: sem NPC tocável na vista
@@ -1946,8 +2071,7 @@ function _desenharVistaInner(e, combate, cv, camX, camY, camAng){
     if(!s.combat && trY >= zbuf[mid] - 0.08) return;
     const fog = Math.max(0, Math.min(1, Math.sqrt(s.dist||trY*trY)/FOG));
     const alpha = s.combat ? 1 : ((escuro?0.7:1) * (1-fog*0.75));
-    drawBillboard(ctx, scrX, drawStartY, sprW, sprH, s.kind, alpha,
-      !!s.pulse, s.hp, s.maxHp, s.pulse, s.glyph, s.label);
+    drawBillboard(ctx, scrX, drawStartY, sprW, sprH, s.kind, alpha, !!s.pulse, s.hp, s.maxHp, s.pulse, s.glyph, s.label, s.dist || (trY||1));
   });
 
   if(escuro){
@@ -2045,9 +2169,26 @@ function entityMeta(id, isBoss, prof = 1){
   return Object.assign({spriteId: "enemy"}, ENTITY_GLYPH.enemy);
 }
 
-function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pulseAtk, glyph, label){
+function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pulseAtk, glyph, label, distance = 1){
   if(w < 4 || h < 4) return;
   ctx.save();
+  const g = glyph || ENTITY_GLYPH[kind] || ENTITY_GLYPH.enemy;
+  const isEnemy = kind === "enemy" || kind === "boss";
+  const spriteKey = (g.spriteId) ? g.spriteId : kind;
+  const img = spriteImages[spriteKey];
+  
+  if (isEnemy && img && img.complete) {
+      drawEnemyBillboard(ctx, x, y + h, w, img, distance, {
+          nome: label || g.name || "Inimigo",
+          hp: hp,
+          hpMax: maxHp,
+          isCombat: !!combatPulse,
+          isBoss: kind === "boss"
+      });
+      ctx.restore();
+      return;
+  }
+
   ctx.globalAlpha = Math.max(0.15, Math.min(1, alpha));
   const cx = x, cy = y + h*0.5;
   const g = glyph || ENTITY_GLYPH[kind] || ENTITY_GLYPH.enemy;
@@ -2171,249 +2312,187 @@ const VILA_LOCAIS = {
   cabana_bruxa:       {nome:"Cabana de Morrigan",     desc:"Runas tremeluzem na penumbra da ocultista."},
   ruas:               {nome:"Ruas de Pedralume",      desc:"Casas fechadas. O vento arrasta folhas secas."},
 };
-const VILA_ORDEM = ["norte", "leste", "sul", "oeste"];
 
-function desenharVilaLocal(ctx, W, H, dpr, e){
-  const hor = H * 0.60;                       // linha do horizonte (receita v2.6.3)
-  const sala = e.sala || {};
-  const tipo = sala.tipo;
-  const loc = VILA_LOCAIS[tipo] || {nome:"Pedralume", desc:""};
-  const img = k => (spriteImages[k] && spriteImages[k].complete) ? spriteImages[k] : null;
+const VILA_CENAS = {
+  praca: {
+    titulo: "Praça da Fonte",
+    fundo: "#0f1626",
+    props: ["fonte", "barris", "tocha", "tocha"],
+    npc: null,               
+    setas: [
+      { dir: "norte", label: "Entrada das Catacumbas", x: 0.5, y: 0.18 },
+      { dir: "leste", label: "Loja da Mira", x: 0.82, y: 0.55 },
+      { dir: "oeste", label: "Forja do Kael", x: 0.18, y: 0.55 },
+      { dir: "sul",  label: "Tenda do Silas", x: 0.5, y: 0.88 }
+    ]
+  },
+  loja_alquimia: {
+    titulo: "Loja da Mira",
+    fundo: "#1a1420",
+    props: ["balcao", "prateleiras", "tocha"],
+    npc: "mira",
+    setas: [{ dir: "oeste", label: "← Praça", x: 0.12, y: 0.5 }]
+  },
+  forja: {
+    titulo: "Forja do Kael",
+    fundo: "#1c120e",
+    props: ["fornalha", "bigorna", "ferramentas", "tocha"],
+    npc: "ferreiro",
+    setas: [{ dir: "leste", label: "Praça →", x: 0.88, y: 0.5 }]
+  },
+  tenda_cura: {
+    titulo: "Tenda do Irmão Silas",
+    fundo: "#12181f",
+    props: ["mesa", "bandagens", "tocha"],
+    npc: "curandeiro",
+    setas: [{ dir: "norte", label: "↑ Praça", x: 0.5, y: 0.15 }]
+  },
+  cabana_bruxa: {
+    titulo: "Cabana de Morrigan",
+    fundo: "#140f1c",
+    props: ["mesa_oculta", "velas", "grimorios"],
+    npc: "bruxa",
+    setas: [{ dir: "leste", label: "Praça →", x: 0.88, y: 0.5 }]
+  },
+  entrada_catacumbas: {
+    titulo: "Entrada das Catacumbas",
+    fundo: "#0c1018",
+    props: ["arco", "tocha", "tocha"],
+    npc: null,
+    setas: [
+      { dir: "sul", label: "↓ Praça", x: 0.5, y: 0.88 },
+      { dir: "norte", label: "Descer às Catacumbas", x: 0.5, y: 0.18, especial: true }
+    ]
+  },
+  tenda_sabio: {
+    titulo: "Tenda do Sábio",
+    fundo: "#11151a",
+    props: ["velas"],
+    npc: "sabio",
+    setas: [{ dir: "norte", label: "↑ Praça", x: 0.5, y: 0.15 }]
+  },
+  ruas: {
+    titulo: "Ruas Vazias",
+    fundo: "#0a0c10",
+    props: [],
+    npc: null,
+    setas: [{ dir: "norte", label: "Praça", x: 0.5, y: 0.15 }]
+  }
+};
 
-  // 1. Céu noturno
-  const ceu = img("vila_ceu");
-  if(ceu) ctx.drawImage(ceu, 0, 0, W, hor);
-  else { ctx.fillStyle = "#0f1626"; ctx.fillRect(0, 0, W, hor); }
+function drawVillageScene(ctx, canvas, cenarioId, npcSprite = null) {
+  const c = VILA_CENAS[cenarioId] || VILA_CENAS.praca;
+  const W = canvas.width;
+  const H = canvas.height;
 
-  // 2. Casario ao fundo (ancorado no horizonte)
-  const casas = img("vila_casas");
-  if(casas){
-    const sc = W / casas.width, ph = casas.height * sc;
-    ctx.drawImage(casas, 0, hor - ph + H*0.05, W, ph);
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, c.fundo);
+  grad.addColorStop(0.55, "#1a2030");
+  grad.addColorStop(1, "#2a2218");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "#ffcc66";
+  ctx.beginPath();
+  ctx.arc(W * 0.82, H * 0.16, 28, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,200,100,0.15)";
+  ctx.beginPath();
+  ctx.arc(W * 0.82, H * 0.16, 55, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#1e1a18";
+  ctx.fillRect(W*0.05, H*0.28, W*0.22, H*0.35);
+  ctx.fillRect(W*0.72, H*0.25, W*0.23, H*0.38);
+  ctx.fillRect(W*0.38, H*0.22, W*0.24, H*0.28);
+
+  ctx.fillStyle = "#2a2218";
+  ctx.beginPath();
+  ctx.moveTo(W*0.03, H*0.28); ctx.lineTo(W*0.16, H*0.18); ctx.lineTo(W*0.29, H*0.28); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(W*0.70, H*0.25); ctx.lineTo(W*0.835, H*0.14); ctx.lineTo(W*0.97, H*0.25); ctx.fill();
+
+  ctx.fillStyle = "#ffaa44";
+  ctx.globalAlpha = 0.7;
+  ctx.fillRect(W*0.10, H*0.38, 12, 14);
+  ctx.fillRect(W*0.18, H*0.42, 10, 12);
+  ctx.fillRect(W*0.78, H*0.36, 12, 14);
+  ctx.fillRect(W*0.86, H*0.40, 10, 12);
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = "#3a2a1c";
+  ctx.fillRect(0, H*0.62, W, H*0.38);
+
+  if (c.props.includes("fonte")) {
+    ctx.fillStyle = "#3a4a5a";
+    ctx.beginPath(); ctx.arc(W*0.5, H*0.72, 38, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#1a2a35";
+    ctx.beginPath(); ctx.arc(W*0.5, H*0.72, 22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#2a4a6a";
+    ctx.beginPath(); ctx.arc(W*0.5, H*0.72, 14, 0, Math.PI*2); ctx.fill();
   }
 
-  // 3. Chão sólido cor de terra (perspectiva estável, sem padrão de tijolo)
-  ctx.fillStyle = "#120c08";
-  ctx.fillRect(0, hor, W, H - hor);
-  ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.fillRect(0, hor, W, 2*dpr);
-
-  // 4. Props por local
-  if(tipo === "praca"){
-    const fonte = img("vila_fonte");
-    if(fonte){
-      const fw = W*0.45, fh = (fw / fonte.width) * fonte.height;
-      ctx.drawImage(fonte, W*0.5 - fw/2, hor - fh*0.35, fw, fh);
-    }
-    drawTorch(ctx, W*0.10, hor - H*0.1, H);
-    drawTorch(ctx, W*0.90, hor - H*0.1, H);
-  } else if(tipo === "entrada_catacumbas"){
-    // arco de pedra escuro + escada descendo
-    ctx.fillStyle = "#1a1512";
-    ctx.beginPath();
-    ctx.moveTo(W*0.36, hor);
-    ctx.quadraticCurveTo(W*0.5, hor - H*0.34, W*0.64, hor);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#060403";
-    ctx.beginPath();
-    ctx.moveTo(W*0.40, hor);
-    ctx.quadraticCurveTo(W*0.5, hor - H*0.26, W*0.60, hor);
-    ctx.closePath(); ctx.fill();
-    // degraus descendo dentro do arco (sem sprite — o PNG da escada fica ilegível pequeno)
-    ctx.fillStyle = "#0d0a08";
-    for(let i = 0; i < 4; i++){
-      const dw = W*(0.16 - i*0.03);
-      ctx.fillRect(W*0.5 - dw/2, hor - H*0.028*(i+1), dw, H*0.02);
-    }
-    drawTorch(ctx, W*0.33, hor - H*0.16, H);
-    drawTorch(ctx, W*0.67, hor - H*0.16, H);
-  } else if(tipo === "forja"){
-    // brilho quente de brasa
-    const gl = ctx.createRadialGradient(W*0.5, hor, H*0.02, W*0.5, hor, H*0.45);
-    gl.addColorStop(0, "rgba(255,140,40,0.30)");
-    gl.addColorStop(1, "rgba(255,140,40,0)");
-    ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
-    drawTorch(ctx, W*0.18, hor - H*0.14, H);
-    drawTorch(ctx, W*0.82, hor - H*0.14, H);
-  } else if(tipo === "cabana_bruxa"){
-    // penumbra arcana
-    const gl = ctx.createRadialGradient(W*0.5, hor - H*0.1, H*0.02, W*0.5, hor - H*0.1, H*0.5);
-    gl.addColorStop(0, "rgba(150,80,220,0.22)");
-    gl.addColorStop(1, "rgba(150,80,220,0)");
-    ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
-  } else if(tipo === "tenda_cura"){
-    const gl = ctx.createRadialGradient(W*0.5, hor - H*0.1, H*0.02, W*0.5, hor - H*0.1, H*0.45);
-    gl.addColorStop(0, "rgba(220,230,200,0.14)");
-    gl.addColorStop(1, "rgba(220,230,200,0)");
-    ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
-    drawTorch(ctx, W*0.20, hor - H*0.12, H);
-  } else if(tipo === "ruas"){
-    drawTorch(ctx, W*0.25, hor - H*0.12, H);
-    drawTorch(ctx, W*0.75, hor - H*0.12, H);
-  } else if(tipo === "tenda_sabio"){
-    drawTorch(ctx, W*0.80, hor - H*0.12, H);
+  if (c.props.includes("tocha")) {
+    drawTorch(ctx, W*0.18, H*0.58);
+    drawTorch(ctx, W*0.82, H*0.58);
   }
 
-  // 5. NPC do local — grande, ancorado no chão, com nome (nunca "Inimigo")
-  window._npcHotspot = null;   // recalculado por frame; limpo se o tile não tem NPC
-  const npc = sala.npc;
-  if(npc && npc.id){
-    const spr = img(npc.id);
-    if(spr){
-      const nh = H*0.46, nw = (nh / spr.height) * spr.width;
-      const nx = W*0.5 - nw/2, ny = hor - nh*0.82;
-      // Hotspot de toque/clique (normalizado 0-1): tocar no NPC = falar, não mover
-      window._npcHotspot = {id: npc.id, x0: nx/W, y0: ny/H, x1: (nx+nw)/W, y1: (ny+nh)/H};
-      // sombra no chão
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.beginPath();
-      ctx.ellipse(W*0.5, ny + nh*0.97, nw*0.32, H*0.018, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.drawImage(spr, nx, ny, nw, nh);
-      // placa da loja acima da Mira
-      if(tipo === "loja_alquimia"){
-        const placa = img("vila_placa");
-        if(placa){
-          const pw = W*0.14, ph2 = (pw / placa.width) * placa.height;
-          ctx.drawImage(placa, W*0.5 - pw/2, ny - ph2 - H*0.02, pw, ph2);
-        }
-      }
-      // nome do NPC
-      ctx.font = `bold ${Math.max(12, 13*dpr)}px system-ui`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      const nomeNpc = npc.nome || npc.id;
-      const tw = ctx.measureText(nomeNpc).width + 16*dpr;
-      ctx.fillRect(W*0.5 - tw/2, ny + nh + H*0.015, tw, 20*dpr);
-      ctx.fillStyle = "#e8c95a";
-      ctx.fillText(nomeNpc, W*0.5, ny + nh + H*0.015 + 10*dpr);
-    }
+  if (npcSprite && c.npc) {
+    const size = Math.min(W, H) * 0.38;
+    const x = W * 0.5 - size/2;
+    const y = H * 0.42;
+    ctx.drawImage(npcSprite, x, y, size, size);
+
+    ctx.fillStyle = "#e8c95a";
+    ctx.font = "bold 16px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(NPCS_VILA[c.npc]?.nome || c.npc, W*0.5, y - 12);
+    ctx.textAlign = "left";
   }
 
-  // 6. Vinheta (mescla as bordas, como na v2.6.3)
-  const grad = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, W*0.6);
-  grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, "rgba(0,0,0,0.85)");
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-
-  // 7. Setas de saída RELATIVAS ao facing (frente=topo, esq/dir=bordas, trás=base)
-  const facing = e.facing || "norte";
-  const roomsIdx = {};
-  ((e.mapa && e.mapa.rooms) || []).forEach(r => { roomsIdx[r.x+","+r.y] = r; });
-  const fIdx = VILA_ORDEM.indexOf(facing);
-  let nomeFrente = null;
-  (sala.exits || []).forEach(d => {
-    const rel = (VILA_ORDEM.indexOf(d) - fIdx + 4) % 4;   // 0 frente 1 dir 2 trás 3 esq
-    const dd = FACE_DIR[d] || {dx:0, dy:0};
-    const viz = roomsIdx[(e.pos.x+dd.dx)+","+(e.pos.y+dd.dy)];
-    const nomeViz = viz ? (VILA_LOCAIS[viz.tipo] ? VILA_LOCAIS[viz.tipo].nome : viz.tipo) : "";
-    if(rel === 0) nomeFrente = nomeViz;
-    ctx.save();
-    ctx.font = `bold ${Math.max(16, 18*dpr)}px system-ui`;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillStyle = "rgba(231,233,239,0.85)";
-    ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 6;
-    const lblFont = `${Math.max(10, 11*dpr)}px system-ui`;
-    if(rel === 0){        // frente
-      ctx.fillText("▲", W/2, H*0.09);
-      ctx.font = lblFont; ctx.fillText(nomeViz, W/2, H*0.09 + 16*dpr);
-    } else if(rel === 1){ // direita
-      ctx.fillText("▶", W - 18*dpr, H*0.52);
-      ctx.font = lblFont; ctx.fillText(nomeViz, W - 18*dpr, H*0.52 + 16*dpr);
-    } else if(rel === 3){ // esquerda
-      ctx.fillText("◀", 18*dpr, H*0.52);
-      ctx.font = lblFont; ctx.fillText(nomeViz, 18*dpr, H*0.52 + 16*dpr);
-    } else {              // trás
-      ctx.fillText("▼", W/2, H*0.93);
-    }
-    ctx.restore();
+  c.setas.forEach(s => {
+    const px = W * s.x;
+    const py = H * s.y;
+    ctx.fillStyle = s.especial ? "#c9433a" : "#5fd0e0";
+    ctx.font = "bold 14px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(s.label, px, py);
+    ctx.fillText(s.dir === "norte" ? "▲" : s.dir === "sul" ? "▼" : s.dir === "leste" ? "▶" : "◀", px, py + 18);
   });
+  ctx.textAlign = "left";
 
-  // 8. Título do local + descrição
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(0, 0, W, 36);
   ctx.fillStyle = "#e7e9ef";
-  ctx.font = `bold ${Math.max(14, 15*dpr)}px system-ui`;
-  ctx.fillText(loc.nome, 16*dpr, 26*dpr);
-  ctx.fillStyle = "#9aa0b4";
-  ctx.font = `italic ${Math.max(11, 12*dpr)}px system-ui`;
-  const desc = (tipo === "praca" && e.missao_cumprida)
-    ? "A água cristalina volta a jorrar na fonte restaurada. A Vila respira de novo."
-    : loc.desc;
-  ctx.fillText(desc, 16*dpr, 46*dpr);
-
-  // HUD coerente com a cena
-  $("#hudFacing").textContent = facing;
-  $("#hudFrente").textContent = "à frente: " + (nomeFrente || "muros e casas");
-  $("#hudLuz").textContent = "noite estrelada";
-  $("#hudLuz").style.color = "var(--gold)";
+  ctx.font = "bold 15px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("Pedralume — " + c.titulo, 14, 24);
 }
 
-function tileSala(ctx, x, y, T, r, ehJogador, prof = 1){
-  const h=T/2, X=x-h, Y=y-h;
-  // piso de pedra com leve relevo
-  ctx.save();
-  ctx.shadowColor="#0009"; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
-  let bgTop = "#4a5169", bgBot = "#353a4c";
-  // Piscar se resolvido recentemente
-  if(r.puzzle_resolvido || r.estatua_ok || r.botao_ativo || (r.alavancas_ativas && r.alavancas_ativas >= 3)) {
-      if(Math.sin(performance.now() / 150) > 0) {
-          bgTop = "#5a8c6a"; bgBot = "#3d6049";
-      }
-  }
-  const g=ctx.createLinearGradient(0,Y,0,Y+T);
-  g.addColorStop(0,bgTop); g.addColorStop(1,bgBot);
-  ctx.fillStyle=g; roundRect(ctx,X,Y,T,T,9); ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle="#ffffff18"; ctx.lineWidth=1; roundRect(ctx,X+1,Y+1,T-2,T-2,8); ctx.stroke();
-  // ícones ASCII no automapa (POIs: altar, alavanca, botão, estátua, escada, cofre)
-  ctx.font = `${Math.max(10, T*0.42)}px "Cascadia Mono",Consolas,monospace`;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  if(r.boss || r.inimigo){
-    const g = entityMeta(r.inimigo_id, r.boss, prof);
-    ctx.fillStyle = g.col; ctx.fillText(g.ch, x, y+1);
-  } else if(r.alavanca){
-    ctx.fillStyle = r.alavanca_ativa ? "#6d8" : "#c8a050";
-    ctx.fillText(r.alavanca_ativa ? "⚙" : "⌥", x, y+1);
-  } else if(r.estatua){
-    ctx.fillStyle = r.estatua_ok ? "#8d8" : "#a090c0";
-    ctx.fillText("🗿", x, y+1);
-    if(r.estatua_ok) {
-        ctx.fillStyle = "#4BFF4B";
-        ctx.font = `${Math.max(8, T*0.3)}px sans-serif`;
-        ctx.fillText("\u2714", x + T*0.25, y - T*0.25 + 1);
-    }
-  } else if(r.botao){
-    ctx.fillStyle = r.botao_ativo ? "#6a8" : "#888";
-    ctx.fillText(r.botao_ativo ? "▪" : "▫", x, y+1);
-  } else if(r.altar){ ctx.fillStyle="#e8c95a"; ctx.fillText("†", x, y+1); }
-  else if(r.cofre){ ctx.fillStyle="#c0a060"; ctx.fillText(r.cofre_trancado?"□":"■", x, y+1); }
-  else if(r.loot){ ctx.fillStyle="#e8c95a"; ctx.fillText("$", x, y+1); }
-  else if(r.escada){ ctx.fillStyle="#8ab0c8"; ctx.fillText("▼", x, y+1); }
-  else if(r.escada_sobe){ ctx.fillStyle="#90c0a0"; ctx.fillText("▲", x, y+1); }
-  // anel colorido por tipo (prioridade: chefe > inimigo > tesouro > entrada)
-  let anel=null, lw=2;
-  if(r.entrada) anel="#4bbf73";
-  if(r.loot)    anel="#e8c95a";
-  if(r.inimigo) anel="#e0913a";
-  if(r.boss){   anel="#d94b41"; lw=3; }
-  if(anel){ ctx.strokeStyle=anel; ctx.lineWidth=lw;
-            ctx.shadowColor=anel; ctx.shadowBlur=r.boss?12:6;
-            roundRect(ctx,X,Y,T,T,9); ctx.stroke(); ctx.shadowBlur=0; }
-  // entrada sem monstro/loot: porta
-  if(!ehJogador && r.entrada && !r.inimigo && !r.boss && !r.loot){
-    ctx.font=`${Math.max(10, T*0.4)}px system-ui`;
-    ctx.fillStyle="#4bbf73"; ctx.fillText("🚪", x, y+1);
-  }
+function drawTorch(ctx, x, y) {
+  const g = ctx.createRadialGradient(x, y-18, 2, x, y-18, 38);
+  g.addColorStop(0, "rgba(255,180,60,0.55)");
+  g.addColorStop(1, "rgba(255,120,20,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y-18, 38, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = "#3a2a1a";
+  ctx.fillRect(x-3, y-8, 6, 28);
+  ctx.fillStyle = "#ffaa33";
+  ctx.beginPath();
+  ctx.moveTo(x-7, y-12);
+  ctx.quadraticCurveTo(x, y-32, x+7, y-12);
+  ctx.fill();
+  ctx.fillStyle = "#ffdd66";
+  ctx.beginPath();
+  ctx.moveTo(x-3, y-14);
+  ctx.quadraticCurveTo(x, y-26, x+3, y-14);
+  ctx.fill();
 }
 
-function tileFronteira(ctx, x, y, T){
-  const h=T/2, X=x-h, Y=y-h;
-  ctx.fillStyle="#1b1e28"; roundRect(ctx,X,Y,T,T,9); ctx.fill();
-  ctx.setLineDash([4,5]); ctx.strokeStyle="#454b61"; ctx.lineWidth=1.5;
-  roundRect(ctx,X,Y,T,T,9); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle="#616785"; ctx.font="17px system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText("?", x, y+1);
-}
+const VILA_ORDEM = ["norte", "leste", "sul", "oeste"];
 
 function tokenJogador(ctx, x, y, facing){
   const ang = {norte:0, leste:Math.PI/2, sul:Math.PI, oeste:-Math.PI/2}[facing] || 0;
