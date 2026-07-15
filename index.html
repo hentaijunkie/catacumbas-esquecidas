@@ -557,7 +557,12 @@ const SPRITE_MAP = {
   vila_chao: 'assets/sprites/vila_chao.png',
   vila_casas: 'assets/sprites/vila_casas.png',
   vila_fonte: 'assets/sprites/vila_fonte.png',
-  vila_placa: 'assets/sprites/vila_placa.png'
+  vila_placa: 'assets/sprites/vila_placa.png',
+  vila_forja: 'assets/sprites/vila_forja.png',
+  vila_loja: 'assets/sprites/vila_loja.png',
+  vila_silas: 'assets/sprites/vila_silas.png',
+  vila_anciao: 'assets/sprites/vila_anciao.png',
+  vila_morrigan: 'assets/sprites/vila_morrigan.png'
 };
 
 const spriteImages = {};
@@ -2343,30 +2348,34 @@ const VILA_CENAS = {
   loja_alquimia: {
     titulo: "Loja da Mira",
     fundo: "#1a1420",
+    fundo_img: "vila_loja",
     props: ["balcao", "prateleiras", "tocha"],
     npc: "mira",
-    setas: [{ dir: "oeste", label: "← Praça", x: 0.12, y: 0.5 }]
+    setas: [{ dir: "oeste", label: "Praça", x: 0.12, y: 0.5 }]
   },
   forja: {
     titulo: "Forja do Kael",
     fundo: "#1c120e",
+    fundo_img: "vila_forja",
     props: ["fornalha", "bigorna", "ferramentas", "tocha"],
     npc: "ferreiro",
-    setas: [{ dir: "leste", label: "Praça →", x: 0.88, y: 0.5 }]
+    setas: [{ dir: "leste", label: "Praça", x: 0.88, y: 0.5 }]
   },
   tenda_cura: {
     titulo: "Tenda do Irmão Silas",
     fundo: "#12181f",
+    fundo_img: "vila_silas",
     props: ["mesa", "bandagens", "tocha"],
     npc: "curandeiro",
-    setas: [{ dir: "norte", label: "↑ Praça", x: 0.5, y: 0.15 }]
+    setas: [{ dir: "norte", label: "Praça", x: 0.5, y: 0.15 }]
   },
   cabana_bruxa: {
     titulo: "Cabana de Morrigan",
     fundo: "#140f1c",
+    fundo_img: "vila_morrigan",
     props: ["mesa_oculta", "velas", "grimorios"],
     npc: "bruxa",
-    setas: [{ dir: "leste", label: "Praça →", x: 0.88, y: 0.5 }]
+    setas: [{ dir: "leste", label: "Praça", x: 0.88, y: 0.5 }]
   },
   entrada_catacumbas: {
     titulo: "Entrada das Catacumbas",
@@ -2374,16 +2383,17 @@ const VILA_CENAS = {
     props: ["arco", "tocha", "tocha"],
     npc: null,
     setas: [
-      { dir: "sul", label: "↓ Praça", x: 0.5, y: 0.88 },
+      { dir: "sul", label: "Praça", x: 0.5, y: 0.88 },
       { dir: "norte", label: "Descer às Catacumbas", x: 0.5, y: 0.18, especial: true }
     ]
   },
   tenda_sabio: {
     titulo: "Tenda do Sábio",
     fundo: "#11151a",
+    fundo_img: "vila_anciao",
     props: ["velas"],
     npc: "anciao",   // id da engine + sprite anciao.png
-    setas: [{ dir: "norte", label: "↑ Praça", x: 0.5, y: 0.15 }]
+    setas: [{ dir: "norte", label: "Praça", x: 0.5, y: 0.15 }]
   },
   ruas: {
     titulo: "Ruas Vazias",
@@ -2425,16 +2435,20 @@ function drawVillageScene(ctx, canvas, cenarioId, npcSprite = null) {
     }
   } else {
     // Fundo interno (Loja, Forja, Tenda)
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#0c0a08");
-    grad.addColorStop(0.6, "#221812");
-    grad.addColorStop(1, "#36261c");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-    
-    // Linha do chao
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.fillRect(0, H*0.65, W, H*0.35);
+    if (c.fundo_img && spriteImages[c.fundo_img] && spriteImages[c.fundo_img].complete) {
+      ctx.drawImage(spriteImages[c.fundo_img], 0, 0, W, H);
+    } else {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, "#0c0a08");
+      grad.addColorStop(0.6, "#221812");
+      grad.addColorStop(1, "#36261c");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      
+      // Linha do chao
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(0, H*0.65, W, H*0.35);
+    }
   }
 
   if (c.props.includes("fonte")) {
