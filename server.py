@@ -422,6 +422,28 @@ def _carregar_slot_locked(slot):
     return True, None
 
 
+def _tentar_retomar_jogo(sess):
+    """Depois de um restart (todo deploy do Railway), a sessão persiste mas o jogo em
+    memória morre. Se o usuário tem um slot ativo salvo (auto-save), retoma dali em
+    silêncio — perde no máximo o que aconteceu desde o último auto-save (combate,
+    troca de andar, poção, descanso ou 12 passos). Retorna True se retomou."""
+    if not sess or sess.get("state") is not None or not sess.pop("retomar_pendente", False):
+        return False
+    try:
+        meta = _ler_meta()
+        slot = int(meta.get("active") or 0)
+        if not slot or not os.path.isfile(_slot_path(slot)):
+            return False
+        ok, _err = _carregar_slot_locked(slot)
+        if ok:
+            log.info("run retomada do auto-save (slot %s) p/ %s após restart",
+                     slot, sess.get("user"))
+        return bool(ok)
+    except Exception as e:                      # nunca derruba o request por causa disto
+        log.warning("retomada pós-restart falhou p/ %s: %s", sess.get("user"), e)
+        return False
+
+
 def autosave_periodico():
     """Auto-save a cada PASSOS_POR_AUTOSAVE passos (por sessão)."""
     n = int(GAME.get("passos_desde_save") or 0) + 1
@@ -1350,7 +1372,7 @@ class Handler(BaseHTTPRequestHandler):
             with sess["lock"]:
                 if path == "/api/saves":
                     body = json.dumps(listar_saves(), ensure_ascii=False)
-                elif GAME["state"] is None:
+                elif GAME["state"] is None and not _tentar_retomar_jogo(sess):
                     body = json.dumps({"erro": "sem jogo", "precisa_novo": True,
                                        "user": sess.get("user")})
                 elif (GAME["state"].get("game_over") or GAME["state"].get("ganhou")
@@ -1426,14 +1448,16 @@ class Handler(BaseHTTPRequestHandler):
         # (O stdout roteado por thread torna executar_capturando seguro em paralelo.)
         lock = sess["lock"] if sess else threading.RLock()
         with lock:
-            # rotas de jogo exigem state (exceto lista abaixo)
+            # rotas de jogo exigem state (exceto lista abaixo); após restart, tenta
+            # retomar a run do auto-save antes de mandar o jogador criar jogo novo
             if (path not in PUBLIC_POST and path not in AUTH_OK_SEM_JOGO
                     and sess and sess.get("state") is None):
-                self._send(200, json.dumps({
-                    "erro": "sem jogo", "precisa_novo": True,
-                    "user": sess.get("user"),
-                }))
-                return
+                if not _tentar_retomar_jogo(sess):
+                    self._send(200, json.dumps({
+                        "erro": "sem jogo", "precisa_novo": True,
+                        "user": sess.get("user"),
+                    }))
+                    return
             try:
                 resultado = fn(dados)
             except Exception as e:
@@ -1463,6 +1487,10 @@ def main():
         os.makedirs(SAVE_ROOT, exist_ok=True)
     except OSError as e:
         log.warning("não foi possível criar data/saves: %s", e)
+    # Sessões sobrevivem a restart/deploy: cookie continua válido e a run é
+    # retomada do auto-save no primeiro request (_tentar_retomar_jogo).
+    auth.load_sessions()
+    log.info("sessões restauradas do disco: %d", len(auth._sessions))
     load_llm_metrics()
     modo = f"ONLINE ({eng.MODELO} @ {eng.BASE_URL})" if ONLINE else "OFFLINE (narração por template)"
     convite = "configurada" if auth.invite_key() else "AUSENTE (cadastro desativado)"

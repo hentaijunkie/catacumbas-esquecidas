@@ -417,7 +417,34 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Auditoria completa — conquistas inatingíveis (v3.9.5) - **atual**
+### Sessões e runs sobrevivem a deploy + logs no volume (v3.9.6) - **atual**
+- **Contexto:** as duas primeiras "Limitações conhecidas" do roadmap. Todo push no GitHub
+  redeploya o Railway → o processo morre → TODOS os cookies invalidavam (sessões só em
+  memória) e as runs ativas sumiam (estado de jogo por sessão, também em memória). Com
+  jogadores reais na produção, cada release derrubava todo mundo.
+- **Sessões persistentes (`auth.py`):** o essencial de cada sessão (token→user/created/last/
+  active_slot — NUNCA o estado de jogo nem o lock) vai para `DATA_DIR/sessions.json`
+  (atômico, tmp+replace), gravado no login/logout e com refresh do `last` no máximo 1×/hora.
+  `load_sessions()` no boot restaura com `state=None` + lock novo e marca `retomar_pendente`.
+  Cookie inválido continua rejeitado; TTL de 14 dias respeitado; arquivo no mesmo perímetro
+  privado de `users.json` (volume).
+- **Retomada da run (`server.py`):** no primeiro request de uma sessão restaurada
+  (`_tentar_retomar_jogo`, chamado no gate do do_POST e no GET `/api/estado`), o servidor
+  carrega o slot ativo do auto-save em silêncio — o jogador perde no máximo o que aconteceu
+  desde o último auto-save (combate, andar, poção, descanso ou 12 passos). LOGIN FRESCO
+  não auto-retoma (mantém a tela de seleção/Carregar — senão não haveria caminho p/ jogo
+  novo no meio de uma run).
+- **Logs no volume (`game_log.py`):** `LOG_DIR` = env `LOG_DIR` > `DATA_DIR/logs` (Railway:
+  `/data/logs`, PERSISTE entre deploys) > `logs/` local. A rotação já existente (1MB×5 por
+  logger) protege o volume de 500MB. Antes, `/app/logs` era efêmero e todo histórico de
+  debug morria a cada deploy.
+- Verificado com RESTART REAL local: login via curl (cookie salvo) → novo jogo → save →
+  kill do servidor → boot novo ("sessões restauradas do disco: 1") → MESMO cookie em
+  `/api/estado` devolve a run retomada ("run retomada do auto-save"); POST pós-restart OK;
+  cookie forjado continua rejeitado; `LOG_DIR` resolve certo com/sem `DATA_DIR`;
+  `--demo` verde; `data/sessions.json` coberto pelo `.gitignore` (`data/`).
+
+### Auditoria completa — conquistas inatingíveis (v3.9.5)
 - **Auditoria sistemática** de itens/magias/loot/altares/lore (nada referenciado sem existir),
   ações×executores, rotas×handlers, chamadas do cliente×rotas, funções órfãs, campos que o
   cliente lê × serialização, e sprites em disco. Resultado: engine e wiring limpos; os puzzles
@@ -731,7 +758,8 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ## Limitacoes conhecidas
 
-- Sessões de jogo em memória: reiniciar o servidor derruba runs ativas (saves em disco persistem).
+- ~~Sessões de jogo em memória: reiniciar o servidor derruba runs ativas~~ — ✅ v3.9.6:
+  sessões persistem em `DATA_DIR/sessions.json` e a run é retomada do auto-save.
 - Narracao offline = template; online depende de DeepSeek e latencia.
 - Guerreiro endgame continua forte vs Golem.
 - Audio procedural (beeps + ambientação por andar; sem arquivos de som externos).
@@ -755,4 +783,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.9.5 — Auditoria completa do código: corrigidas 2 conquistas inatingíveis (Matador/Alquimista — trackers nunca incrementavam) + benefícios inertes (Alquimista/Explorador). Antes (v3.9.4): correção da movimentação 360º da Vila.*
+*Última atualização: v3.9.6 — Sessões e runs sobrevivem a restart/deploy (sessions.json no volume + retomada do auto-save) e logs persistentes em DATA_DIR/logs. Antes (v3.9.5): auditoria completa com correção de conquistas inatingíveis.*

@@ -24,18 +24,81 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 # Em produção (Railway): monte um volume e defina DATA_DIR=/data (users em /data/users.json)
 DATA_DIR = os.environ.get("DATA_DIR") or os.path.join(AQUI, "data")
 USERS_PATH = os.path.join(DATA_DIR, "users.json")
+SESSIONS_PATH = os.path.join(DATA_DIR, "sessions.json")
 
 _USER_RE = re.compile(r"^[a-zA-Z0-9_]{3,24}$")
 _PBKDF2_ITERS = 120_000
 SESSION_TTL_S = 60 * 60 * 24 * 14  # mesmo prazo do Max-Age do cookie
+_PERSIST_LAST_A_CADA_S = 3600      # refresca o 'last' persistido no máx. 1x/hora
 
 _lock = threading.RLock()
 _users: dict = {}
 _sessions: dict[str, dict] = {}  # token -> {user, created, last, state, combate, ...}
+_sessions_last_persist = 0.0
 
 
 def _ensure_data_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Persistência de sessões (v3.9.6): antes, um restart do servidor (todo deploy
+# do Railway!) invalidava todos os cookies — cada jogador tinha de logar de novo
+# e caía em "precisa_novo". Agora o essencial da sessão (token→user/created/last/
+# active_slot) sobrevive em DATA_DIR/sessions.json; o ESTADO DE JOGO continua em
+# memória e é retomado do auto-save pelo server (_tentar_retomar_jogo).
+# Segurança: o arquivo fica no volume privado junto de users.json (mesmo perímetro).
+# ---------------------------------------------------------------------------
+_SESSION_PERSIST_KEYS = ("user", "created", "last", "active_slot")
+
+
+def save_sessions() -> None:
+    """Grava as sessões vivas (campos persistíveis; NUNCA o estado de jogo/lock)."""
+    global _sessions_last_persist
+    with _lock:
+        now = time.time()
+        vivos = {t: {k: s.get(k) for k in _SESSION_PERSIST_KEYS}
+                 for t, s in _sessions.items()
+                 if now - s.get("last", 0) <= SESSION_TTL_S}
+        _ensure_data_dir()
+        tmp = SESSIONS_PATH + ".tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(vivos, f, ensure_ascii=False)
+            os.replace(tmp, SESSIONS_PATH)
+            _sessions_last_persist = now
+        except OSError:
+            pass  # best-effort: sem disco, as sessões seguem em memória
+
+
+def load_sessions() -> None:
+    """Boot: restaura sessões persistidas (jogo=None; o server retoma do auto-save)."""
+    global _sessions
+    try:
+        with open(SESSIONS_PATH, encoding="utf-8-sig") as f:
+            dados = json.load(f)
+    except (OSError, ValueError):
+        return
+    if not isinstance(dados, dict):
+        return
+    now = time.time()
+    with _lock:
+        for token, s in dados.items():
+            if not isinstance(s, dict) or not s.get("user"):
+                continue
+            if now - float(s.get("last") or 0) > SESSION_TTL_S:
+                continue
+            _sessions[token] = {
+                "user": s["user"],
+                "created": float(s.get("created") or now),
+                "last": float(s.get("last") or now),
+                "state": None,             # jogo em memória morreu com o processo
+                "combate": None,
+                "active_slot": int(s.get("active_slot") or 1),
+                "passos_desde_save": 0,
+                "retomar_pendente": True,  # server tenta reidratar do auto-save
+                "lock": threading.RLock(),
+            }
 
 
 def invite_key() -> Optional[str]:
@@ -153,9 +216,12 @@ def login(username: str, password: str) -> tuple[bool, str, Optional[str]]:
             "combate": None,
             "active_slot": 1,
             "passos_desde_save": 0,
+            # SEM retomar_pendente: login fresco mantém o fluxo de seleção/Carregar.
+            # A retomada automática é só p/ sessões restauradas de restart (load_sessions).
             "lock": threading.RLock(),  # serializa requests DESTA sessão (não o servidor todo)
         }
-        return True, "Login OK.", token
+    save_sessions()                     # cookie sobrevive a restart/deploy
+    return True, "Login OK.", token
 
 
 def logout(token: Optional[str]) -> None:
@@ -163,6 +229,7 @@ def logout(token: Optional[str]) -> None:
         return
     with _lock:
         _sessions.pop(token, None)
+    save_sessions()
 
 
 def get_session(token: Optional[str]) -> Optional[dict]:
@@ -177,7 +244,10 @@ def get_session(token: Optional[str]) -> Optional[dict]:
             _sessions.pop(token, None)
             return None
         s["last"] = now
-        return s
+        precisa_persistir = now - _sessions_last_persist > _PERSIST_LAST_A_CADA_S
+    if precisa_persistir:
+        save_sessions()                 # mantém o 'last' persistido fresco (máx. 1x/hora)
+    return s
 
 
 def parse_cookie(header: str) -> dict[str, str]:

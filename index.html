@@ -634,12 +634,11 @@ function setUserUI(user){
 // Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
 // (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
-  versao: "v3.9.1",
+  versao: "v3.9.6",
   itens: [
-    "<b>Correção urgente:</b> vista em 1ª pessoa e <em>automapa</em> voltaram a desenhar — faltavam as funções de tile do mapa após o polish da Vila 2D.",
-    "<b>Vila em cenas 2D:</b> Pedralume com camadas (céu, casario, NPC grande, props e setas de saída nomeadas).",
-    "<b>Billboards polidos:</b> inimigos com partículas e barra de HP; sprites estáveis na vista.",
-    "<b>Saves multi-jogador:</b> o save legado single-player não contamina contas novas.",
+    "<b>Seu progresso sobrevive a atualizações:</b> quando o servidor reinicia (deploy de versão nova), você continua logado e a sua run volta do último auto-save — nada de refazer login ou perder a masmorra.",
+    "<b>Vila 360º:</b> a praça de Pedralume agora é um panorama giratório (A/D giram, W entra no local encarado, S sai de volta à praça) — e a movimentação foi consertada.",
+    "<b>Conquistas consertadas:</b> <b>Matador</b> (50 abates, +2 dano) e <b>Alquimista</b> (20 poções, +5 HP por poção) agora são conquistáveis de verdade; o <b>Explorador</b> passou a reduzir dano de armadilhas.",
   ],
 };
 function mostrarNovidades(){

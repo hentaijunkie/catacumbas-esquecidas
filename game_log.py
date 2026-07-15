@@ -20,7 +20,12 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR = os.path.join(AQUI, "logs")
+# Onde gravar: LOG_DIR explícito > DATA_DIR/logs (Railway: /data/logs — PERSISTE entre
+# deploys, junto de contas/saves) > logs/ ao lado do código (dev local; zera a cada deploy
+# em produção porque /app é efêmero). A rotação (1MB×5 por logger) protege o volume de 500MB.
+LOG_DIR = (os.environ.get("LOG_DIR")
+           or (os.path.join(os.environ["DATA_DIR"], "logs") if os.environ.get("DATA_DIR") else None)
+           or os.path.join(AQUI, "logs"))
 
 _loggers = {}
 
