@@ -417,7 +417,25 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### UI de combate, changelog, sprites do Abismo + caça a bugs (v3.2) - **atual**
+### Templo Esquecido LIGADO (v3.3) - **atual**
+- **Contexto:** a sidequest "O Templo Esquecido" (v2.9) estava morta — a ação `puxar_alavanca`,
+  a porta selada, o botão e o render da alavanca no raycaster existiam, mas **nenhuma sala era
+  gerada** com alavanca/porta e a serialização não enviava os campos. Wire-up completo:
+- **Geração (andar 3):** 3 alavancas espalhadas em salas livres + uma câmara "Templo Esquecido"
+  SELADA (`trancada_por_alavancas: 3`) com guardião (Espectro + 2 Cultistas) e loot premium
+  (Lâmina Rúnica, Poção de Cura Maior, Pergaminho). A câmara é sempre uma **folha (dead-end)** —
+  selar a porta nunca bloqueia o caminho da escada/boss. Geração all-or-nothing (só monta se
+  couberem as 3 alavancas): presente em ~93% das seeds; quando não cabe, nada de alavancas órfãs.
+- **Serialização:** `alavanca`/`alavanca_ativa` agora vão no objeto `sala` (botão "Puxar Alavanca")
+  e em cada `room` (render da alavanca no raycaster). O `_sala()` template ganhou os 3 campos.
+- **Porta selada:** `acao_mover` passou a surfaçar a mensagem `bloqueio` ("faltam N mecanismos")
+  em vez do genérico "há uma parede". Puxar a 3ª alavanca abre a porta e **rende +15 Fama**
+  (já integrado ao sistema de Fama da v3.1.1).
+- Verificado: `--demo` dedicado (gera 3 alavancas + Templo folha selado; a porta bloqueia com 0
+  e abre com 3; Fama concedida; serialização expõe os campos); 56/60 seeds geram o Templo;
+  browser (botão "Puxar Alavanca" aparece/some conforme alavanca_ativa; zero erros).
+
+### UI de combate, changelog, sprites do Abismo + caça a bugs (v3.2)
 - **Sprites do Abismo corrigidos:** Larva/Cavaleiro/Bruxo/Guardião apareciam com o sprite
   genérico (`inimigo.png`) e o Guardião como Sacerdote. Causa: `ENTITY_GLYPH` (que o
   `entityMeta` consulta ANTES do `SPRITE_MAP`) não tinha entrada para os inimigos do andar 4
@@ -440,10 +458,9 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
     cru — os itens exclusivos da Fama **não apareciam** e o preço mostrado ignorava o desconto
     do Famoso (a compra cobrava com desconto → inconsistência). Agora usa `loja_do_tile` +
     `preco_compra(..., state)`, igual ao caminho de compra.
-  - **Sidequest "Templo Esquecido" (v2.9) está MORTA** _(reportado, não corrigido nesta
-    leva)_: a ação `puxar_alavanca`, a porta selada e o botão existem, mas **nenhuma sala é
-    gerada com alavanca/porta** e a serialização não envia `alavanca`/`alavanca_ativa` ao
-    cliente. Precisa de wire-up (geração no andar 3 + serialização) como foi feito com a Fama.
+  - **Sidequest "Templo Esquecido" (v2.9) estava MORTA** — a ação `puxar_alavanca`, a porta
+    selada e o botão existiam, mas nenhuma sala era gerada com alavanca/porta e a serialização
+    não enviava os campos. **→ LIGADA na v3.3 (ver acima).**
 - Verificado: `--demo` (inclui teste de que a loja da UI mostra os itens da Fama com desconto);
   browser (entityMeta resolve os 5 sprites do Abismo; changelog aparece 1×/versão e some ao
   dispensar; overlay de combate + submenu de magias abrem/fecham; D-pad some em combate; zero
@@ -624,4 +641,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.2 - UI de combate no campo de visão (magias em submenu), changelog no login, sprites do Abismo corrigidos, e correção de bugs (500 por itens de Fama indefinidos; loja da UI agora respeita Fama/desconto). Pendente: sidequest Templo Esquecido nunca é gerada.*
+*Última atualização: v3.3 - Sidequest "Templo Esquecido" ligada de verdade (3 alavancas geram no andar 3 + câmara selada com loot premium + Fama). Antes: UI de combate na visão, changelog no login, sprites do Abismo e correção do 500 dos itens de Fama (v3.2).*

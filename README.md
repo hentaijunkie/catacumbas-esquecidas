@@ -194,4 +194,4 @@ Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 �
 
 ---
 
-*Protótipo v3.2 - Combate mais limpo (ações sobre a visão, magias num submenu 🔮), aviso de "Novidades" no login, sprites próprios para os inimigos do Abismo, e correções: itens de loja por Fama que causavam erro 500 agora existem, e a loja da interface passou a mostrar os itens e descontos desbloqueados pela Fama.*
+*Protótipo v3.3 - Sidequest "O Templo Esquecido" ligada: no Andar 3, puxe 3 alavancas para abrir a câmara selada (loot premium + Fama). Antes (v3.2): combate mais limpo (ações sobre a visão, magias em submenu 🔮), "Novidades" no login, sprites do Abismo e correção do erro 500 dos itens de Fama.*

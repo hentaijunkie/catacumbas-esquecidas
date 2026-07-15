@@ -637,6 +637,9 @@ def acao_mover(dados):
         if r.get("motivo") == "superficie":
             log.info("mover bloqueado: na superfície pos=%s", state["pos"])
             return resposta(mensagens=["Você está em Pedralume. Use Descer para voltar às catacumbas."])
+        if r.get("bloqueio"):            # porta selada do Templo Esquecido (alavancas)
+            log.info("mover bloqueado por porta selada dir=%s pos=%s", direcao, state["pos"])
+            return resposta(mensagens=[r["bloqueio"]])
         log.info("mover bloqueado dir=%s face=%s pos=%s exits=%s",
                  direcao, state["facing"], state["pos"], r.get("exits"))
         return resposta(mensagens=[f"Há uma parede a {r['direcao']} — sem passagem."])

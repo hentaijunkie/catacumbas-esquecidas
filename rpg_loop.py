@@ -694,6 +694,9 @@ def _sala(tipo):
         "escada":    False,       # escada p/ o próximo andar (descer)
         "escada_sobe": False,     # escada p/ o andar acima (subir)
         "usada_altar": False,     # altar já resolvido nesta sala
+        "alavanca":  False,       # sidequest Templo Esquecido: alavanca de parede (puxar)
+        "alavanca_ativa": False,  # alavanca já puxada
+        "trancada_por_alavancas": 0,  # porta selada: nº de alavancas exigido p/ entrar
     }
 
 
@@ -961,6 +964,31 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
         c_alt = candidatas[0] if candidatas else None
         if c_alt and not salas[c_alt].get("boss"):
             salas[c_alt]["altar"] = "altar_lodo"
+
+        # Sidequest "O Templo Esquecido" (v2.9, ligada na v3.3): 3 alavancas espalhadas
+        # abrem a câmara selada. A câmara é uma FOLHA (dead-end) — selar a porta nunca
+        # bloqueia o caminho da escada/boss. Só monta se couberem as 3 alavancas.
+        folhas = [c for c in candidatas
+                  if len(salas[c]["exits"]) == 1
+                  and not salas[c]["boss"] and not salas[c]["escada"] and not salas[c]["cofre"]]
+        livres_alav = [c for c in candidatas
+                       if not salas[c]["boss"] and not salas[c]["escada"] and not salas[c]["cofre"]]
+        if folhas:
+            templo = min(folhas, key=lambda c: (dist[c], c))     # determinístico
+            candidatas_alav = [c for c in livres_alav if c != templo]
+            rng.shuffle(candidatas_alav)
+            if len(candidatas_alav) >= 3:
+                salas[templo].update({
+                    "tipo": "camara", "nome": "Templo Esquecido",
+                    "trancada_por_alavancas": 3,
+                    "altar": None, "armadilha": None, "armadilha_ativa": False,
+                    "tablet": "tablet_ritual",
+                    "inimigo": "espectro_gelido",           # guardião (não-único)
+                    "grupo": ["cultista", "cultista"],
+                    "loot": ["lamina_runica", "pocao_cura_maior", "pergaminho_identificacao"],
+                })
+                for c in candidatas_alav[:3]:
+                    salas[c]["alavanca"] = True
     else:
         # Andar 4 (o Abismo, fundo de verdade): só sobe; a lore da Lança na entrada
         salas[(0, 0)]["tablet"] = "tablet_lanca"
@@ -1442,6 +1470,8 @@ def serializar_estado(state):
             "escada_sobe": bool(s.get("escada_sobe")),
             "npc": s.get("npc"),
             "ceu_aberto": bool(s.get("ceu_aberto")),
+            "alavanca": bool(s.get("alavanca")),
+            "alavanca_ativa": bool(s.get("alavanca_ativa")),
             "exits": sorted(s["exits"]),
         })
 
@@ -1536,6 +1566,8 @@ def serializar_estado(state):
                  "cofre_trancado": bool(sala.get("cofre") and sala.get("trancado")),
                  "armadilha_ativa": bool(sala.get("armadilha") and sala.get("armadilha_ativa")
                                          and p.get("disarma")),
+                 "alavanca": bool(sala.get("alavanca")),           # botão "Puxar Alavanca"
+                 "alavanca_ativa": bool(sala.get("alavanca_ativa")),
                  },
         "mapa": {
             "rooms": rooms,
@@ -4975,6 +5007,50 @@ def rodar_demo():
     st3 = stats_inimigo("capitao_osso", 3)
     assert st3["hp"] > BESTIARIO["capitao_osso"]["hp"], "escala por profundidade"
     print("  minichefes + escala + escada p/ o 4. OK")
+
+    # --- Sidequest "Templo Esquecido" (v3.3: geração + porta selada + Fama) ---
+    print("\nTemplo Esquecido (alavancas + porta selada):")
+    tp = gerar_masmorra(seed=42, profundidade=3)
+    alav_cells = [c for c, s in tp.items() if s.get("alavanca")]
+    templo_cell = next((c for c, s in tp.items() if s.get("nome") == "Templo Esquecido"), None)
+    assert len(alav_cells) == 3, f"andar 3 gera exatamente 3 alavancas (achou {len(alav_cells)})"
+    assert templo_cell, "andar 3 gera a câmara selada do Templo Esquecido"
+    templo = tp[templo_cell]
+    assert templo["trancada_por_alavancas"] == 3, "porta exige as 3 alavancas"
+    assert len(templo["exits"]) == 1, "o Templo é uma FOLHA (selar não bloqueia o caminho)"
+    assert "pocao_cura_maior" in templo["loot"], "loot premium no Templo"
+    assert templo_cell not in alav_cells, "a alavanca não fica dentro do próprio Templo"
+    # A porta bloqueia o movimento até puxar as 3; puxar de dentro de uma sala de alavanca
+    tstate = novo_jogo("Guerreiro", seed=42)
+    tstate["profundidade"] = 3
+    tstate["masmorra"] = tp
+    # mover para o Templo a partir do vizinho deve ser BLOQUEADO com 0 alavancas
+    (tx, ty) = templo_cell
+    porta_dir = next(d for d, (dx, dy) in DIRECOES_ABS.items() if (tx - dx, ty - dy) in tp
+                     and d in tp[(tx - dx, ty - dy)]["exits"] and (tx, ty) == (tx - dx + dx, ty - dy + dy))
+    viz = (tx - DIRECOES_ABS[porta_dir][0], ty - DIRECOES_ABS[porta_dir][1])
+    tstate["pos"] = {"x": viz[0], "y": viz[1]}
+    tp[viz]["visitada"] = True
+    r_blk = aplicar_movimento(tstate, porta_dir)
+    assert not r_blk["moveu"] and r_blk.get("bloqueio"), "porta selada bloqueia com 0 alavancas"
+    # puxar as 3 alavancas (via executor) libera + dá Fama
+    fama0 = tstate["player"]["fama"]
+    for c in alav_cells:
+        tstate["pos"] = {"x": c[0], "y": c[1]}
+        executar_acao(tstate, {"tipo": "puxar_alavanca"})
+    assert tstate["alavancas_puxadas"] == 3, "3 alavancas puxadas"
+    assert tstate["player"]["fama"] > fama0, "abrir o Templo rende Fama"
+    tstate["pos"] = {"x": viz[0], "y": viz[1]}
+    r_ok = aplicar_movimento(tstate, porta_dir)
+    assert r_ok["moveu"], "com as 3 alavancas, a porta abre"
+    # serialização expõe alavanca p/ o botão e o raycaster (rooms só traz salas visitadas)
+    tstate["pos"] = {"x": alav_cells[0][0], "y": alav_cells[0][1]}
+    tp[alav_cells[0]]["alavanca_ativa"] = False
+    tp[alav_cells[0]]["visitada"] = True
+    ser = serializar_estado(tstate)
+    assert ser["sala"]["alavanca"] is True, "sala serializa a alavanca (botão)"
+    assert any(rm.get("alavanca") for rm in ser["mapa"]["rooms"]), "rooms serializam alavanca (raycaster)"
+    print("  3 alavancas + Templo folha selado, porta abre com Fama, serialização OK")
 
     # --- Andar 4: o Abismo + sidequest "A Lança Perdida" ---
     print("\nAndar 4 (Abismo / A Lança Perdida):")
