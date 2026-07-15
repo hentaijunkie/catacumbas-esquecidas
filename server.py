@@ -13,9 +13,11 @@ Multi-jogador:
 
 Uso:
     set REGISTER_KEY=sua-chave-secreta
-    set DEEPSEEK_API_KEY=...   # opcional
+    set LLM_API_KEY=...        # opcional (genérico; ou DEEPSEEK_API_KEY)
+    set DEEPSEEK_API_KEY=...   # opcional (legado)
     set LLM_BASE_URL=...       # opcional: LLM local OpenAI-compatível (Ollama /v1)
     set LLM_MODEL=...          # opcional: modelo do endpoint acima
+    set LLM_TIMEOUT=45         # opcional: timeout de rede (s)
     python server.py           # http://0.0.0.0:8000
 """
 
@@ -35,9 +37,10 @@ import auth
 
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8000"))
-# Online = há um LLM para narrar: chave da DeepSeek OU endpoint local/custom
+# Online = há um LLM para narrar: chave genérica/DeepSeek OU endpoint local/custom
 # (LLM_BASE_URL, ex.: Ollama em http://localhost:11434/v1 — ver rpg_loop.py).
-ONLINE = bool(os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("LLM_BASE_URL"))
+ONLINE = bool(os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+              or os.environ.get("LLM_BASE_URL"))
 AQUI = os.path.dirname(os.path.abspath(__file__))
 log = game_log.get_logger("game")
 llm_log = game_log.get_logger("llm")   # turnos do LLM (debug de jogadas online)
@@ -59,7 +62,7 @@ def _log_llm_turno(evento, **campos):
         if len(s) > 300:
             s = s[:300] + "…"
         partes.append(f"{k}={s}")
-    nivel = "warning" if evento in ("turno_invalido", "turno_fallback") else "info"
+    nivel = "warning" if evento in ("turno_invalido", "turno_fallback", "api_erro", "api_vazio") else "info"
     getattr(llm_log, nivel)(" | ".join(partes))
 
 
@@ -458,6 +461,11 @@ def classificar_offline(texto, state):
         return {"tipo": "descer_escada"}
     if any(k in t for k in ("escond", "sumir", "embosc", "me escondo")):
         return {"tipo": "esconder"}
+    if any(k in t for k in ("estatua", "estátua", "girar a estatua", "girar a estátua",
+                            "virar a estatua", "virar a estátua", "rodar a estatua")):
+        return {"tipo": "girar_estatua"}
+    if any(k in t for k in ("alavanca", "puxar alavanca", "puxar a alavanca", "alavanca de")):
+        return {"tipo": "puxar_alavanca"}
     if any(k in t for k in ("gazua", "arromb", "desarm")):
         sala = eng.sala_atual(state)
         if sala.get("cofre") and sala.get("trancado"):
@@ -668,6 +676,8 @@ def acao_mover(dados):
         msgs.append(fm)
     for vm in (r.get("veneno") or []):
         msgs.append(vm)
+    for pm in (r.get("puzzle") or []):
+        msgs.append(pm)
     if r.get("armadilha"):
         msgs.append(r["armadilha"])
     if not state["player"]["hp"] > 0:      # a armadilha (ou o veneno) matou
@@ -869,6 +879,13 @@ def acao_puxar_alavanca(_dados=None):
         return resposta(mensagens=["Termine o combate primeiro."])
     _, linhas = executar_capturando(GAME["state"], {"tipo": "puxar_alavanca"})
     return resposta(narrativa=linhas[0] if linhas else "Você puxa a alavanca.", mensagens=linhas)
+
+
+def acao_girar_estatua(_dados=None):
+    if GAME["combate"]:
+        return resposta(mensagens=["Termine o combate primeiro."])
+    _, linhas = executar_capturando(GAME["state"], {"tipo": "girar_estatua"})
+    return resposta(narrativa=linhas[0] if linhas else "Você gira a estátua.", mensagens=linhas)
 
 
 def acao_subir(_dados=None):
@@ -1130,6 +1147,7 @@ ROTAS = {
     "/api/saves": acao_saves,
     "/api/comprar": acao_comprar,
     "/api/puxar_alavanca": acao_puxar_alavanca,
+    "/api/girar_estatua": acao_girar_estatua,
     "/api/vender": acao_vender,
     "/api/consertar": acao_consertar,
     "/api/falar": acao_falar,

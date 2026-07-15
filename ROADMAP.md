@@ -417,7 +417,20 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Conquistas com tracker (v3.5) - **atual**
+### LLM robusto + Automapa POIs + Puzzles (v3.6) - **atual**
+- **LLM:** `LLM_API_KEY` (genérico) + fallback `DEEPSEEK_API_KEY`; `LLM_TIMEOUT` (default 45s);
+  `LLM_HTTP_RETRIES` (default 2) com backoff; métricas em `logs/llm.log`
+  (`api_ok` / `api_erro` / `api_vazio` com `latencia_ms`, modelo, endpoint).
+- **Automapa:** ícones de alavanca (⚙/⌥), botão (▫/▪), estátua (🗿), altar (†), escada, cofre;
+  HUD `#hudPuzzle` com `puzzles` serializado (alavancas/botões/estátuas N/M).
+- **Botões de pressão (andar 1):** 2 placas + câmara "Cofre dos Antigos" (`trancada_por_botoes: 2`);
+  ativam ao pisar; Fama +5 ao completar.
+- **Estátuas giratórias (andar 2):** 2 estátuas (`facing`/`alvo`) + "Santuário das Estátuas"
+  (`trancada_por_estatuas: 2`); ação `girar_estatua` + `/api/girar_estatua` + botão UI;
+  Fama +8 ao alinhar todas. Classificador offline entende "girar estátua".
+- **`NOVIDADES` v3.6.** Verificado: `--demo` (botões, estátuas, config LLM, serialização).
+
+### Conquistas com tracker (v3.5)
 - **Sangue de Ferro:** vencer um combate em que o HP chegou a 1 (`cb["quase_morto"]`) → +2 HP máx.
 - **Mestre das Chamas:** tracker `kills_fogo` (meta 10) — kills com Bola de Fogo ou arma `efeito: fogo` (`cb["fonte_fogo"]`); DoT do inimigo não conta. Benefício: +2 em Bola de Fogo, +1 dano de fogo por golpe de arma.
 - **Sobrevivente Envenenado:** tracker `venenos_curados` (meta 5) — poção (`curar_veneno(state)`) ou Silas. Benefício: veneno −1 dano (mín. 1) em `tick_veneno`.
@@ -622,14 +635,14 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 ## Proximos passos (curto prazo)
 
 ### Expansão da Gameplay
-- [x] ~~Ampliação do sistema de Conquistas (trackers)~~ — ✅ v3.5 (Sangue de Ferro, Mestre das Chamas, Sobrevivente Envenenado).
-- [ ] Novas interações procedurais: estátuas que giram e botões de pressão nas masmorras.
-- [x] ~~Áudio ambiental por andar~~ — ✅ v3.4 (Web Audio procedural).
+- [x] ~~Ampliação do sistema de Conquistas (trackers)~~ — ✅ v3.5.
+- [x] ~~Estátuas giratórias + botões de pressão~~ — ✅ v3.6.
+- [x] ~~Áudio ambiental por andar~~ — ✅ v3.4.
 - [x] ~~Fama legível + Nascente + NPCs reativos~~ — ✅ v3.4.
 
 ### Robustez / QoL
-- [ ] LLM: `LLM_API_KEY` genérico, timeout + retry, métricas no `llm.log`.
-- [ ] Automapa: ícones de altar/alavanca/escada/cofre + HUD alavancas N/3.
+- [x] ~~LLM: `LLM_API_KEY` + timeout/retry + métricas~~ — ✅ v3.6.
+- [x] ~~Automapa POIs + HUD puzzles~~ — ✅ v3.6.
 
 ---
 
@@ -668,4 +681,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.5 — Conquistas com tracker (Sangue de Ferro, Mestre das Chamas, Sobrevivente Envenenado). Antes (v3.4): Fama legível, Nascente, NPCs reativos, ambientação.*
+*Última atualização: v3.6 — LLM robusto, automapa com POIs, botões de pressão e estátuas. Antes (v3.5): conquistas com tracker.*

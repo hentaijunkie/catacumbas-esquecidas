@@ -57,7 +57,7 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 
 - **Vista 1ª pessoa** — raycaster com texturas de parede, billboards com **sprites PNG** em pixel art (inimigos, NPCs, altares, baús, loot, escadas). Combate com clamp de distância (alvo sempre legível e à frente dos props). Flash, vinhetas de status e fadiga.
 - **Vila navegável em cenas 2D:** Pedralume é um mapa andável (praça, entrada das catacumbas, forja do Kael, loja da Mira, tenda do Ancião, curandeiro e cabana da bruxa), mas cada local renderiza uma **cena 2D composta** — céu noturno + casario ao fundo, NPC grande e nomeado no centro, props do local (fonte, brasas da forja, arco das catacumbas) e **setas de saída** com o nome do destino. O NPC da sala atual vira botão "Falar" no painel; comprar/vender só na loja da Mira e consertar só na forja.
-- **Automapa** com névoa de guerra e indicadores de **status** (☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento). O boss revela a identidade correta à distância.
+- **Automapa** com névoa de guerra, **POIs** (altar †, alavanca ⚙, botão ▫, estátua 🗿, escada, cofre) e HUD de progresso dos puzzles do andar. Status do aventureiro: ☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento.
 - Badge: `online · DeepSeek` ou `offline · template`.
 - **Áudio** via Web Audio API: batimento cardíaco com HP crítico, shake prolongado nas magias, impacto grave (hit), áudio de fadiga (pitch e LFO dinâmicos) e **ambientação por local** (vento no andar 1, gotas no 2, cripta no 3, fogo no Abismo; brisa na vila).
 
@@ -65,22 +65,23 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 
 Sem chave: modo offline (template). Com chave:
 
-- env `DEEPSEEK_API_KEY`, ou
+- env `LLM_API_KEY` (genérico) ou `DEEPSEEK_API_KEY` (legado), ou
 - `key.txt` na raiz (**não commitar** — ver `.gitignore`).
 
-**LLM local ou endpoint custom** (Ollama, llama.cpp, vLLM — qualquer API OpenAI-compatível):
+**LLM local ou endpoint custom** (Ollama, llama.cpp, vLLM, Groq, OpenRouter — API OpenAI-compatível):
 
 ```bash
 # PowerShell:
 $env:LLM_BASE_URL = "http://localhost:11434/v1"   # Ollama
 $env:LLM_MODEL    = "llama3.1"
+$env:LLM_TIMEOUT  = "45"        # opcional (segundos)
+# $env:LLM_API_KEY = "..."      # se o endpoint exigir
 python server.py
 ```
 
-Com `LLM_BASE_URL` setado a chave da DeepSeek é dispensável (endpoints locais aceitam
-qualquer string) e o servidor entra em modo online — o banner de startup mostra o
-modelo/endpoint ativos. Modelos pequenos erram mais o contrato JSON do narrador;
-o loop de reparo (3 tentativas) e o fallback offline seguram o jogo mesmo assim.
+Com `LLM_BASE_URL` a chave é dispensável em endpoints locais. Timeout + **retry de rede**
+(`LLM_HTTP_RETRIES`, default 2) e o loop de reparo JSON (3 tentativas) + fallback offline
+seguram o jogo. Métricas (`api_ok` / `api_erro` / latência) em `logs/llm.log`.
 
 ### Contas e multi-jogador
 
@@ -129,7 +130,7 @@ Não publique a chave no repositório.
 - 6 atributos (FOR/DES/CON/INT/SAB/CAR) · progressão até **nível 12** (soft-cap de XP estilo Diablo: monstro muito abaixo do seu nível rende menos/zero XP)
 
 ### Exploração
-- Masmorra procedural + **andares 1-4**: sidequests (Nascente Envenenada, Câmara do Carrasco), minichefes e o **Abismo** (andar 4, mlvl 8-10) com a sidequest **"A Lança Perdida"** — o Guardião da Lança guarda a melhor arma do jogo
+- Masmorra procedural + **andares 1-4**: sidequests (Nascente Envenenada, Câmara do Carrasco), **puzzles** (botões de pressão → Cofre dos Antigos no 1; estátuas giratórias → Santuário no 2; alavancas → Templo no 3), minichefes e o **Abismo** (andar 4) com **"A Lança Perdida"**
 - **Ouro** e **NPCs com serviços** na Vila (ver abaixo); **3 slots de save** por conta (`saves/<usuario>/slot_N.json`)
 - Luz/tocha, Pedra de Luz Eterna, fadiga, encumbrance, descanso + wandering
 - Lore tablets, altares (rezar/oferecer/saquear), armadilhas, cofres, gazua, **Loot Procedural (Afixos)** + **Identificação** (pergaminho)
@@ -199,9 +200,9 @@ python server.py          # logs em logs/
 
 ## Visão de longo prazo
 
-Robustez do LLM (timeout/retry) → automapa com POIs → puzzles (estátuas/botões) → cliente Godot opcional.  
-~~LLM local~~ ✅ · ~~Fama legível~~ ✅ v3.4 · ~~Conquistas com tracker~~ ✅ v3.5 · ~~ambientação sonora~~ ✅ v3.4.
+Cliente Godot opcional · mais puzzles · missões de entrega na vila.  
+~~LLM robusto~~ ✅ v3.6 · ~~automapa POIs~~ ✅ · ~~estátuas/botões~~ ✅ · ~~conquistas tracker~~ ✅ v3.5.
 
 ---
 
-*Protótipo v3.5 — Conquistas com tracker (Sangue de Ferro, Mestre das Chamas, Sobrevivente Envenenado). Antes (v3.4): Fama legível, Nascente, NPCs reativos, ambientação sonora.*
+*Protótipo v3.6 — LLM (chave genérica, timeout/retry, métricas), automapa com POIs + HUD de puzzles, botões de pressão e estátuas giratórias. Antes (v3.5): conquistas com tracker.*

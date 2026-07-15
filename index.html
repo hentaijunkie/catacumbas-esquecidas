@@ -258,10 +258,12 @@
     <div class="card">
       <h2>Automapa</h2>
       <div id="miniWrap"><canvas id="mapa" width="200" height="200"></canvas></div>
+      <div id="hudPuzzle" style="display:none;margin:6px 0 2px;font-size:12px;color:var(--gold);text-align:center;letter-spacing:0.02em"></div>
       <div class="legenda">
         <span>🚪 entrada</span><span style="color:var(--accent)">◆ você</span>
-        <span>💀 inimigo</span><span>💰 tesouro</span><span>🗿 chefe</span>
-        <span>? inexplorado</span>
+        <span>! inimigo</span><span>$ loot</span><span>† altar</span>
+        <span>⚙ alavanca</span><span>■ botão</span><span>🗿 estátua</span>
+        <span>▼/▲ escada</span><span>? névoa</span>
       </div>
       <div class="hint">
         <kbd>↑</kbd>/<kbd>W</kbd> frente · <kbd>↓</kbd>/<kbd>S</kbd> trás ·
@@ -305,6 +307,7 @@
         <button id="btnEsconder" type="button" style="display:none">Esconder</button>
         <button id="btnGazua" type="button" style="display:none">Gazua</button>
         <button id="btnAlavanca" type="button" style="display:none;border-color:var(--accent)">Puxar Alavanca</button>
+        <button id="btnEstatua" type="button" style="display:none;border-color:var(--accent)">Girar Estátua</button>
         <button id="btnDescer" type="button" style="display:none">Descer</button>
         <button id="btnSubir" type="button" style="display:none">Subir / Vila</button>
         <button id="btnPurificar" type="button" style="display:none;border-color:var(--accent)">Purificar Golem</button>
@@ -596,12 +599,12 @@ function setUserUI(user){
 // Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
 // (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
-  versao: "v3.5",
+  versao: "v3.6",
   itens: [
-    "<b>Novas conquistas:</b> <b>Sangue de Ferro</b> (vencer um combate após chegar a 1 HP), <b>Mestre das Chamas</b> (10 kills com fogo) e <b>Sobrevivente Envenenado</b> (curar veneno 5×) — com benefícios reais e progresso na ficha.",
-    "<b>Fama na ficha:</b> contador + próximo marco (Mira ≥30 / Famoso+Morrigan ≥50).",
-    "<b>Nascente & NPCs:</b> limpar a Nascente rende Fama; habitantes de Pedralume reagem à sua reputação.",
-    "<b>Ambientação sonora:</b> loops por andar (vento, gotas, cripta, fogo no Abismo).",
+    "<b>Puzzles nas catacumbas:</b> no andar 1, <b>botões de pressão</b> abrem o Cofre dos Antigos; no andar 2, <b>gire estátuas</b> até o Santuário se abrir (Fama ao resolver).",
+    "<b>Automapa com POIs:</b> alavancas, botões, estátuas, altares e escadas no mapa — e contador de progresso acima do automapa.",
+    "<b>LLM mais robusto:</b> suporte a <code>LLM_API_KEY</code>, timeout e retry de rede, métricas em <code>logs/llm.log</code>.",
+    "<b>Conquistas com tracker</b> (Sangue de Ferro, Mestre das Chamas, Sobrevivente) e Fama legível na ficha.",
   ],
 };
 function mostrarNovidades(){
@@ -781,6 +784,7 @@ function aplicar(resp){
     $("#btnPurificar").style.display = p.pode_purificar ? "inline-block" : "none";
     $("#btnEsconder").style.display = p.pode_esconder ? "inline-block" : "none";
     $("#btnAlavanca").style.display = (e.sala && e.sala.alavanca && !e.sala.alavanca_ativa) ? "inline-block" : "none";
+    $("#btnEstatua").style.display = (e.sala && e.sala.estatua) ? "inline-block" : "none";
     $("#btnDescer").style.display = p.pode_descer ? "inline-block" : "none";
     $("#btnSubir").style.display = p.pode_subir ? "inline-block" : "none";
     if(e.na_superficie){
@@ -789,6 +793,20 @@ function aplicar(resp){
     } else {
       $("#hudLocal").textContent = e.profundidade > 1 ? `Andar ${e.profundidade}` : "";
       $("#btnDescer").textContent = "Descer";
+    }
+    // HUD de puzzles do andar (alavancas / botões / estátuas)
+    const pz = e.puzzles;
+    const hpz = $("#hudPuzzle");
+    if(pz && !e.na_superficie){
+      const parts = [];
+      if(pz.alavancas_total) parts.push(`⚙ Alavancas ${pz.alavancas||0}/${pz.alavancas_total}`);
+      if(pz.botoes_total) parts.push(`■ Botões ${pz.botoes||0}/${pz.botoes_total}`);
+      if(pz.estatuas_total) parts.push(`🗿 Estátuas ${pz.estatuas||0}/${pz.estatuas_total}`);
+      hpz.textContent = parts.join(" · ");
+      hpz.style.display = parts.length ? "" : "none";
+    } else {
+      hpz.style.display = "none";
+      hpz.textContent = "";
     }
     const sala = e.sala || {};
     const podeGazua = sala.cofre_trancado || sala.armadilha_ativa;
@@ -2166,12 +2184,21 @@ function tileSala(ctx, x, y, T, r, ehJogador, prof = 1){
   ctx.fillStyle=g; roundRect(ctx,X,Y,T,T,9); ctx.fill();
   ctx.restore();
   ctx.strokeStyle="#ffffff18"; ctx.lineWidth=1; roundRect(ctx,X+1,Y+1,T-2,T-2,8); ctx.stroke();
-  // ícones ASCII no automapa
+  // ícones ASCII no automapa (POIs: altar, alavanca, botão, estátua, escada, cofre)
   ctx.font = `${Math.max(10, T*0.42)}px "Cascadia Mono",Consolas,monospace`;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   if(r.boss || r.inimigo){
     const g = entityMeta(r.inimigo_id, r.boss, prof);
     ctx.fillStyle = g.col; ctx.fillText(g.ch, x, y+1);
+  } else if(r.alavanca){
+    ctx.fillStyle = r.alavanca_ativa ? "#6d8" : "#c8a050";
+    ctx.fillText(r.alavanca_ativa ? "⚙" : "⌥", x, y+1);
+  } else if(r.estatua){
+    ctx.fillStyle = r.estatua_ok ? "#8d8" : "#a090c0";
+    ctx.fillText("🗿", x, y+1);
+  } else if(r.botao){
+    ctx.fillStyle = r.botao_ativo ? "#6a8" : "#888";
+    ctx.fillText(r.botao_ativo ? "▪" : "▫", x, y+1);
   } else if(r.altar){ ctx.fillStyle="#e8c95a"; ctx.fillText("†", x, y+1); }
   else if(r.cofre){ ctx.fillStyle="#c0a060"; ctx.fillText(r.cofre_trancado?"□":"■", x, y+1); }
   else if(r.loot){ ctx.fillStyle="#e8c95a"; ctx.fillText("$", x, y+1); }
@@ -2508,6 +2535,7 @@ $("#btnTablet").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/le
 $("#btnPurificar").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/purificar",{})); };
 $("#btnEsconder").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/esconder",{})); };
 $("#btnAlavanca").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/puxar_alavanca",{})); };
+$("#btnEstatua").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/girar_estatua",{})); };
 $("#btnDescer").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/descer",{})); }};
 $("#btnSubir").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/subir",{})); }};
 $("#btnGazua").onclick = async ()=>{

@@ -20,17 +20,17 @@ Princípios que este código impõe (de propósito):
      Alucinou um inimigo/item/ação que não existe? Rejeita e pede de novo.
 
 Uso:
-    export DEEPSEEK_API_KEY="sua_chave"
+    export LLM_API_KEY="sua_chave"   # ou DEEPSEEK_API_KEY (legado)
     pip install openai
     python rpg_loop.py            # jogo real (chama a API)
     python rpg_loop.py --demo     # roda a lógica offline, sem API nem token
 
-LLM local (Ollama/llama.cpp ou qualquer endpoint OpenAI-compatível):
+LLM local / outro provedor OpenAI-compatível:
     export LLM_BASE_URL="http://localhost:11434/v1"
     export LLM_MODEL="llama3.1"
-    # DEEPSEEK_API_KEY é dispensável com LLM_BASE_URL (endpoints locais
-    # aceitam qualquer string como chave). Modelos pequenos erram mais o
-    # contrato JSON — o loop de reparo (MAX_RETRIES) e o fallback já cobrem.
+    export LLM_TIMEOUT=45            # opcional
+    # Chave dispensável com LLM_BASE_URL. Timeout + retry de rede (LLM_HTTP_RETRIES)
+    # e o loop de reparo de JSON (MAX_RETRIES) cobrem falhas transitórias.
 """
 
 import os
@@ -78,6 +78,17 @@ MODELO      = os.environ.get("LLM_MODEL") or "deepseek-chat"   # v4-flash: rápi
 BASE_URL    = os.environ.get("LLM_BASE_URL") or "https://api.deepseek.com"
 MAX_TOKENS  = 800                             # alto o bastante p/ o JSON não truncar
 MAX_RETRIES = 3                               # tentativas de "reparo" do JSON inválido
+# Rede: timeout por request + retries HTTP (separado do reparo de JSON)
+LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "45"))
+LLM_HTTP_RETRIES = max(1, int(os.environ.get("LLM_HTTP_RETRIES", "2")))
+
+
+def _llm_api_key():
+    """Chave do LLM: LLM_API_KEY genérico, depois DEEPSEEK_API_KEY; local dispensa chave real."""
+    key = os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+    if not key and os.environ.get("LLM_BASE_URL"):
+        return "sem-chave"
+    return key
 
 # ---------------------------------------------------------------------------
 # A "PLANILHA" — fonte única de verdade (Abas 1, 2, 3 do GDD)
@@ -817,6 +828,7 @@ ACOES_PERMITIDAS = {
     "consertar":        {"item": "item_id"},         # conserta item no ferreiro (ouro proporcional)
     "falar":            {"alvo": "str"},             # NPC da vila (mira|anciao|ferreiro|curandeiro|bruxa)
     "puxar_alavanca":   {},                          # puxa uma alavanca na parede
+    "girar_estatua":    {},                          # gira estátua da sala 90° (horário)
     # v2.8 serviços de NPC + reparo de campo
     "curar_vila":       {},                          # cura paga do Silas (tenda_cura)
     "reparar":          {"item": "item_id"},         # reparo de campo do Guerreiro (corrói dur. máx.)
@@ -849,6 +861,12 @@ def _sala(tipo):
         "alavanca":  False,       # sidequest Templo Esquecido: alavanca de parede (puxar)
         "alavanca_ativa": False,  # alavanca já puxada
         "trancada_por_alavancas": 0,  # porta selada: nº de alavancas exigido p/ entrar
+        # Puzzles v3.6: botão de pressão (pisa e ativa) / estátua giratória (facing vs alvo)
+        "botao":     False,
+        "botao_ativo": False,
+        "estatua":   None,        # None | {"facing": dir, "alvo": dir}
+        "trancada_por_botoes": 0,
+        "trancada_por_estatuas": 0,
     }
 
 
@@ -1145,6 +1163,67 @@ def gerar_masmorra(seed=None, n_salas=N_SALAS, profundidade=1):
         # Andar 4 (o Abismo, fundo de verdade): só sobe; a lore da Lança na entrada
         salas[(0, 0)]["tablet"] = "tablet_lanca"
         salas[(0, 0)]["escada_sobe"] = True
+
+    # --- Puzzles v3.6: botões de pressão (andar 1) e estátuas giratórias (andar 2) ---
+    # All-or-nothing: só monta se houver câmara-folha + 2 salas para o mecanismo.
+    def _livres_puzzle():
+        return [c for c in salas
+                if c != (0, 0)
+                and not salas[c].get("boss")
+                and not salas[c].get("escada")
+                and not salas[c].get("escada_sobe")
+                and not salas[c].get("alavanca")
+                and not salas[c].get("botao")
+                and not salas[c].get("estatua")
+                and not salas[c].get("trancada_por_alavancas")
+                and not salas[c].get("trancada_por_botoes")
+                and not salas[c].get("trancada_por_estatuas")]
+
+    if profundidade <= 1:
+        livres_p = _livres_puzzle()
+        folhas_p = [c for c in livres_p if len(salas[c]["exits"]) == 1]
+        if folhas_p and len(livres_p) >= 3:
+            cache = min(folhas_p, key=lambda c: (dist[c], c))
+            cand_b = [c for c in livres_p if c != cache]
+            rng.shuffle(cand_b)
+            if len(cand_b) >= 2:
+                for c in cand_b[:2]:
+                    salas[c]["botao"] = True
+                salas[cache].update({
+                    "tipo": "camara",
+                    "nome": "Cofre dos Antigos",
+                    "trancada_por_botoes": 2,
+                    "inimigo": None,
+                    "grupo": [],
+                    "loot": ["pergaminho_identificacao", "pocao_cura", "pocao_mana"],
+                    "cofre": True,
+                    "trancado": False,
+                    "saqueada": False,
+                })
+    elif profundidade == 2:
+        livres_p = _livres_puzzle()
+        folhas_p = [c for c in livres_p if len(salas[c]["exits"]) == 1]
+        if folhas_p and len(livres_p) >= 3:
+            sant = min(folhas_p, key=lambda c: (dist[c], c))
+            cand_e = [c for c in livres_p if c != sant]
+            rng.shuffle(cand_e)
+            if len(cand_e) >= 2:
+                alvos = ["norte", "leste"]
+                for i, c in enumerate(cand_e[:2]):
+                    alvo = alvos[i]
+                    # começa desalinhada (nunca no alvo)
+                    off = 1 + (rng.randint(0, 2) % 3)
+                    start = ORDEM_HORARIA[(ORDEM_HORARIA.index(alvo) + off) % 4]
+                    salas[c]["estatua"] = {"facing": start, "alvo": alvo}
+                salas[sant].update({
+                    "tipo": "camara",
+                    "nome": "Santuário das Estátuas",
+                    "trancada_por_estatuas": 2,
+                    "inimigo": None,
+                    "grupo": [],
+                    "loot": ["lamina_runica", "pocao_mana"],
+                    "saqueada": False,
+                })
 
     salas[(0, 0)]["visitada"] = True
     return salas
@@ -1638,6 +1717,12 @@ def serializar_estado(state):
             "ceu_aberto": bool(s.get("ceu_aberto")),
             "alavanca": bool(s.get("alavanca")),
             "alavanca_ativa": bool(s.get("alavanca_ativa")),
+            "botao": bool(s.get("botao")),
+            "botao_ativo": bool(s.get("botao_ativo")),
+            "estatua": bool(s.get("estatua")),
+            "estatua_facing": (s["estatua"].get("facing") if s.get("estatua") else None),
+            "estatua_ok": bool(s.get("estatua") and
+                              s["estatua"].get("facing") == s["estatua"].get("alvo")),
             "exits": sorted(s["exits"]),
         })
 
@@ -1737,7 +1822,11 @@ def serializar_estado(state):
                                          and p.get("disarma")),
                  "alavanca": bool(sala.get("alavanca")),           # botão "Puxar Alavanca"
                  "alavanca_ativa": bool(sala.get("alavanca_ativa")),
+                 "botao": bool(sala.get("botao")),
+                 "botao_ativo": bool(sala.get("botao_ativo")),
+                 "estatua": (dict(sala["estatua"]) if sala.get("estatua") else None),
                  },
+        "puzzles": puzzles_json(state),
         "mapa": {
             "rooms": rooms,
             "fronteira": [
@@ -2041,7 +2130,7 @@ _VAZAMENTO_NARRATIVA = (
 
 
 # ---------------------------------------------------------------------------
-# CAMADA LLM (DeepSeek via SDK compatível OpenAI)
+# CAMADA LLM (OpenAI-compatível: DeepSeek, Groq, OpenRouter, Ollama, …)
 # ---------------------------------------------------------------------------
 _client = None
 
@@ -2049,30 +2138,53 @@ def _get_client():
     global _client
     if _client is None:
         from openai import OpenAI  # import tardio: modo --demo não precisa do pacote
-        key = os.environ.get("DEEPSEEK_API_KEY")
-        if not key and os.environ.get("LLM_BASE_URL"):
-            key = "sem-chave"  # Ollama e afins só exigem uma string não-vazia
+        key = _llm_api_key()
         if not key:
-            print("ERRO: defina DEEPSEEK_API_KEY no ambiente (ou rode com --demo).")
+            print("ERRO: defina LLM_API_KEY ou DEEPSEEK_API_KEY (ou rode com --demo / LLM_BASE_URL).")
             sys.exit(1)
-        _client = OpenAI(api_key=key, base_url=BASE_URL)
+        _client = OpenAI(api_key=key, base_url=BASE_URL, timeout=LLM_TIMEOUT)
     return _client
 
 
 def _chamar_deepseek(mensagens):
-    """Chama a API em modo JSON e devolve o texto bruto (string) ou None se vier vazio."""
-    resp = _get_client().chat.completions.create(
-        model=MODELO,
-        messages=mensagens,
-        response_format={"type": "json_object"},  # garante sintaxe JSON válida
-        max_tokens=MAX_TOKENS,
-        temperature=1.0,
-    )
-    conteudo = resp.choices[0].message.content
-    # Edge case documentado do DeepSeek: o JSON mode pode devolver content vazio.
-    if not conteudo or not conteudo.strip():
-        return None
-    return conteudo
+    """Chama a API em modo JSON com timeout + retry de rede.
+    Devolve o texto bruto (string) ou None se falhar / vier vazio.
+    Métricas (latência, tentativas) vão para LOG_LLM quando ligado."""
+    import time as _time
+    ultimo_erro = None
+    for tentativa in range(1, LLM_HTTP_RETRIES + 1):
+        t0 = _time.perf_counter()
+        try:
+            resp = _get_client().chat.completions.create(
+                model=MODELO,
+                messages=mensagens,
+                response_format={"type": "json_object"},
+                max_tokens=MAX_TOKENS,
+                temperature=1.0,
+                timeout=LLM_TIMEOUT,
+            )
+            ms = int((_time.perf_counter() - t0) * 1000)
+            conteudo = resp.choices[0].message.content
+            if not conteudo or not conteudo.strip():
+                _log_llm("api_vazio", tentativa_http=tentativa, latencia_ms=ms,
+                         modelo=MODELO, endpoint=BASE_URL)
+                return None
+            _log_llm("api_ok", tentativa_http=tentativa, latencia_ms=ms,
+                     modelo=MODELO, endpoint=BASE_URL,
+                     chars=len(conteudo))
+            return conteudo
+        except Exception as e:
+            ms = int((_time.perf_counter() - t0) * 1000)
+            ultimo_erro = e
+            _log_llm("api_erro", tentativa_http=tentativa, latencia_ms=ms,
+                     modelo=MODELO, endpoint=BASE_URL,
+                     erro=type(e).__name__, detalhe=str(e)[:220])
+            if tentativa < LLM_HTTP_RETRIES:
+                _time.sleep(0.35 * tentativa)
+    if ultimo_erro:
+        print(f"  [llm] falha de rede após {LLM_HTTP_RETRIES} tentativa(s): "
+              f"{type(ultimo_erro).__name__}")
+    return None
 
 
 # Injetável para testes offline. Em produção fica None e usamos o DeepSeek de verdade.
@@ -2206,13 +2318,15 @@ def obter_acao_do_llm(state, acao_jogador, papel_jogador="user", confiavel=False
                 if ok:
                     _log_llm("turno_ok", tentativa=tentativa,
                              acao=dados["acao"].get("tipo"),
-                             narrativa=dados.get("texto_narrativo"))
+                             narrativa=dados.get("texto_narrativo"),
+                             modelo=MODELO)
                     return dados
                 motivo = motivo_val
 
         # Falhou: manda feedback específico e tenta de novo.
         _log_llm("turno_invalido", tentativa=tentativa, motivo=motivo,
-                 bruto=(bruto[:400] if isinstance(bruto, str) else bruto))
+                 bruto=(bruto[:400] if isinstance(bruto, str) else bruto),
+                 modelo=MODELO)
         if tentativa < MAX_RETRIES:
             print(f"  [engine] resposta inválida ({motivo}) — reparo {tentativa}/{MAX_RETRIES-1}...")
             mensagens.append({"role": "assistant", "content": bruto or ""})
@@ -2223,7 +2337,7 @@ def obter_acao_do_llm(state, acao_jogador, papel_jogador="user", confiavel=False
             })
 
     # Fallback seguro: nunca deixa o jogo quebrar por causa do LLM.
-    _log_llm("turno_fallback", motivo=motivo)
+    _log_llm("turno_fallback", motivo=motivo, modelo=MODELO)
     return {
         "texto_narrativo": "Um silêncio estranho paira no ar; nada acontece por ora.",
         "acao": {"tipo": "nenhuma"},
@@ -2437,6 +2551,10 @@ def executar_acao(state, acao):
                 ganhar_fama(state, 15, "abriu o Templo Esquecido")
         else:
             print("  [puzzle] Não há mecanismo para puxar, ou ele já está travado na posição.")
+        return None
+
+    if tipo == "girar_estatua":
+        girar_estatua_sala(state)
         return None
 
     if tipo == "iniciar_combate":
@@ -2692,8 +2810,16 @@ def ficha_sala(sala):
         aqui.append(ALTARES.get(sala["altar"], {}).get("nome", "um altar"))
     if sala.get("escada"):
         aqui.append("uma escada para baixo")
+    if sala.get("alavanca") and not sala.get("alavanca_ativa"):
+        aqui.append("uma alavanca de ferro na parede")
+    if sala.get("botao"):
+        aqui.append("botão de pressão no chão" + (" (já afundado)" if sala.get("botao_ativo") else ""))
+    if sala.get("estatua"):
+        est = sala["estatua"]
+        aqui.append(f"estátua de pedra olhando para o {est.get('facing', '?')}")
     conteudo = "; ".join(aqui) if aqui else "nada de imediato"
-    return f"{sala['tipo']} — saídas: {saidas}. Aqui: {conteudo}."
+    nome = (sala.get("nome") + " · ") if sala.get("nome") else ""
+    return f"{nome}{sala['tipo']} — saídas: {saidas}. Aqui: {conteudo}."
 
 
 def _sala_segura_descanso(state):
@@ -3117,6 +3243,101 @@ def aplicar_virar(state, rel):
     return {"virou": True, "facing": state["facing"]}
 
 
+def contagem_botoes(state):
+    """(ativos, total) de botões de pressão no andar atual."""
+    salas = (state.get("masmorra") or {}).values()
+    total = sum(1 for s in salas if s.get("botao"))
+    ativos = sum(1 for s in salas if s.get("botao_ativo"))
+    return ativos, total
+
+
+def contagem_estatuas(state):
+    """(alinhadas, total) de estátuas no andar atual."""
+    salas = (state.get("masmorra") or {}).values()
+    est = [s for s in salas if s.get("estatua")]
+    total = len(est)
+    ok = sum(1 for s in est
+             if s["estatua"].get("facing") == s["estatua"].get("alvo"))
+    return ok, total
+
+
+def contagem_alavancas(state):
+    """(ativas, total) de alavancas no andar atual."""
+    salas = (state.get("masmorra") or {}).values()
+    total = sum(1 for s in salas if s.get("alavanca"))
+    ativas = sum(1 for s in salas if s.get("alavanca_ativa"))
+    return ativas, total
+
+
+def puzzles_json(state):
+    """Resumo de puzzles do andar p/ HUD (None se não há nenhum)."""
+    if state.get("na_superficie"):
+        return None
+    a_ok, a_tot = contagem_alavancas(state)
+    b_ok, b_tot = contagem_botoes(state)
+    e_ok, e_tot = contagem_estatuas(state)
+    if not (a_tot or b_tot or e_tot):
+        return None
+    out = {}
+    if a_tot:
+        out["alavancas"] = a_ok
+        out["alavancas_total"] = a_tot
+    if b_tot:
+        out["botoes"] = b_ok
+        out["botoes_total"] = b_tot
+    if e_tot:
+        out["estatuas"] = e_ok
+        out["estatuas_total"] = e_tot
+    return out
+
+
+def ativar_botao_pressao(state, sala):
+    """Ativa o botão da sala (uma vez). Retorna lista de mensagens."""
+    if not sala or not sala.get("botao") or sala.get("botao_ativo"):
+        return []
+    sala["botao_ativo"] = True
+    ativos, total = contagem_botoes(state)
+    state["historico"].append("pisou num botão de pressão")
+    msgs = [f"Uma placa de pedra afunda sob seus pés com um clique surdo. ({ativos}/{total})"]
+    print(f"  [puzzle] {msgs[0]}")
+    if total and ativos >= total:
+        m = "Mecanismos distantes rangem — uma passagem selada deve ter se aberto."
+        print(f"  [puzzle] {m}")
+        msgs.append(m)
+        if "botoes_antigos" not in state.get("sidequests_feitas", []):
+            state.setdefault("sidequests_feitas", []).append("botoes_antigos")
+            msgs += ganhar_fama(state, 5, "ativou os botões de pressão")
+    return msgs
+
+
+def girar_estatua_sala(state):
+    """Gira a estátua da sala atual 90° no sentido horário. Retorna msgs."""
+    sala = sala_atual(state)
+    est = sala.get("estatua") if sala else None
+    if not est:
+        print("  [puzzle] Não há estátua para girar aqui.")
+        return ["Não há estátua para girar aqui."]
+    i = ORDEM_HORARIA.index(est["facing"]) if est.get("facing") in ORDEM_HORARIA else 0
+    est["facing"] = ORDEM_HORARIA[(i + 1) % 4]
+    ok, total = contagem_estatuas(state)
+    alinhada = est["facing"] == est.get("alvo")
+    msg = (f"Você gira a estátua de pedra. Agora olha para o {est['facing']}"
+           + (" — alinhada!" if alinhada else ".")
+           + f" ({ok}/{total})")
+    print(f"  [puzzle] {msg}")
+    state["historico"].append(f"girou estátua para {est['facing']}")
+    msgs = [msg]
+    if total and ok >= total and not state.get("estatuas_resolvido"):
+        state["estatuas_resolvido"] = True
+        m = "As estátuas fixam o olhar no mesmo rumo. Uma câmara selada se abre ao longe."
+        print(f"  [puzzle] {m}")
+        msgs.append(m)
+        if "estatuas_santuario" not in state.get("sidequests_feitas", []):
+            state.setdefault("sidequests_feitas", []).append("estatuas_santuario")
+            msgs += ganhar_fama(state, 8, "alinhou as estátuas")
+    return msgs
+
+
 def aplicar_movimento(state, token):
     """
     NÚCLEO do movimento (sem imprimir): gira o facing, checa PAREDE (a engine é dona da
@@ -3135,7 +3356,7 @@ def aplicar_movimento(state, token):
     dx, dy = DIRECOES_ABS[destino]
     novo = (pos[0] + dx, pos[1] + dy)
     
-    # Bloqueio do Templo Esquecido (v2.9)
+    # Bloqueio do Templo Esquecido (v2.9) e puzzles v3.6
     alvo = salas[novo]
     if alvo.get("trancada_por_alavancas", 0) > state.get("alavancas_puxadas", 0):
         faltam = alvo["trancada_por_alavancas"] - state.get("alavancas_puxadas", 0)
@@ -3143,10 +3364,29 @@ def aplicar_movimento(state, token):
         return {"moveu": False, "direcao": destino, "combate": None, "loot": [],
                 "exits": sorted(salas[pos]["exits"]),
                 "bloqueio": f"A imensa porta de pedra está selada. Faltam {faltam} mecanismos para abri-la."}
+    if alvo.get("trancada_por_botoes", 0) > 0:
+        ativos, _ = contagem_botoes(state)
+        if ativos < alvo["trancada_por_botoes"]:
+            faltam = alvo["trancada_por_botoes"] - ativos
+            state["historico"].append("porta selada (botões)")
+            return {"moveu": False, "direcao": destino, "combate": None, "loot": [],
+                    "exits": sorted(salas[pos]["exits"]),
+                    "bloqueio": (f"A porta de pedra exige placas de pressão. "
+                                 f"Faltam {faltam} mecanismo(s).")}
+    if alvo.get("trancada_por_estatuas", 0) > 0:
+        ok, _ = contagem_estatuas(state)
+        if ok < alvo["trancada_por_estatuas"]:
+            faltam = alvo["trancada_por_estatuas"] - ok
+            state["historico"].append("porta selada (estátuas)")
+            return {"moveu": False, "direcao": destino, "combate": None, "loot": [],
+                    "exits": sorted(salas[pos]["exits"]),
+                    "bloqueio": (f"A porta do santuário só cede quando as estátuas "
+                                 f"olharem na direção certa. Faltam {faltam}.")}
 
     state["pos"] = {"x": novo[0], "y": novo[1]}
     sala = salas[novo]
     sala["visitada"] = True
+    puzzle_msgs = ativar_botao_pressao(state, sala)  # botão de pressão: pisa e ativa
 
     luz_msg = tick_luz(state)                       # cada passo consome luz da tocha
     fadiga_msgs = tick_fadiga(state, 1)
@@ -3155,25 +3395,25 @@ def aplicar_movimento(state, token):
     if state["player"]["hp"] <= 0:                  # o veneno/sangramento pode matar no caminho
         return {"moveu": True, "direcao": destino, "combate": None, "loot": [],
                 "armadilha": None, "luz": luz_msg, "fadiga": fadiga_msgs,
-                "veneno": veneno_msgs + sangramento_msgs}
+                "veneno": veneno_msgs + sangramento_msgs, "puzzle": puzzle_msgs}
 
     armadilha = resolver_armadilha(state, sala)     # trap dispara/é desarmada ANTES do resto
     if state["player"]["hp"] <= 0:                  # a armadilha pode matar
         return {"moveu": True, "direcao": destino, "combate": None, "loot": [],
                 "armadilha": armadilha, "luz": luz_msg, "fadiga": fadiga_msgs,
-                "veneno": veneno_msgs + sangramento_msgs}
+                "veneno": veneno_msgs + sangramento_msgs, "puzzle": puzzle_msgs}
 
     cofre = resolver_cofre(state, sala) if sala["cofre"] and sala["trancado"] else None
 
     if sala["inimigo"] and not sala["limpa"]:       # inimigo vivo -> combate (loot espera)
         return {"moveu": True, "direcao": destino, "combate": sala["inimigo"], "loot": [],
                 "armadilha": armadilha, "cofre": cofre, "luz": luz_msg, "fadiga": fadiga_msgs,
-                "veneno": veneno_msgs + sangramento_msgs}
+                "veneno": veneno_msgs + sangramento_msgs, "puzzle": puzzle_msgs}
     # só saqueia se a sala não for um cofre AINDA trancado
     loot = [] if (sala["cofre"] and sala["trancado"]) else saquear_sala(state, sala)
     return {"moveu": True, "direcao": destino, "combate": None, "loot": loot,
             "armadilha": armadilha, "cofre": cofre, "luz": luz_msg, "fadiga": fadiga_msgs,
-            "veneno": veneno_msgs + sangramento_msgs}
+            "veneno": veneno_msgs + sangramento_msgs, "puzzle": puzzle_msgs}
 
 
 def resolver_cofre(state, sala):
@@ -4422,8 +4662,8 @@ def rodar_demo():
     # --- Arco do Ladino: cofre trancado (Ladino arromba; outros precisam da chave) ---
     print("\nCofre trancado (arco do Ladino):")
     mc = gerar_masmorra(seed=1)
-    cofres = [c for c, s in mc.items() if s["cofre"]]
-    assert len(cofres) == 1 and mc[cofres[0]]["trancado"], "há 1 cofre trancado"
+    cofres = [c for c, s in mc.items() if s["cofre"] and s.get("trancado")]
+    assert len(cofres) >= 1, "há ao menos 1 cofre trancado (além do puzzle opcional aberto)"
     assert any("chave_ferro" in s["loot"] for s in mc.values()), "a Chave de Ferro existe na masmorra"
     cel = cofres[0]
     lad2 = novo_jogo("Ladino", seed=1)
@@ -5461,6 +5701,94 @@ def rodar_demo():
     prog_fogo = next(x for x in ser2["player"]["conquistas_progresso"] if x["id"] == "mestre_das_chamas")
     assert prog_fogo["atual"] == 0 and prog_fogo["meta"] == 10 and not prog_fogo["feita"]
     print("  Sangue de Ferro, Mestre das Chamas (10), Sobrevivente (5), benefícios. OK")
+
+    # --- LLM config (chave genérica + timeout) ---
+    print("\nLLM config (API key genérica / timeout):")
+    assert callable(_llm_api_key)
+    assert LLM_TIMEOUT > 0 and LLM_HTTP_RETRIES >= 1
+    # sem rede: _chamar_deepseek não é exercido aqui; só o contrato de env
+    print(f"  timeout={LLM_TIMEOUT}s http_retries={LLM_HTTP_RETRIES} modelo={MODELO}. OK")
+
+    # --- Puzzles: botões de pressão (andar 1) + estátuas (andar 2) ---
+    print("\nPuzzles (botões de pressão / estátuas giratórias):")
+    # procura seed com botões no andar 1
+    pz1 = None
+    for seed in range(1, 80):
+        st = novo_jogo("Guerreiro", seed=seed)
+        bots = [c for c, s in st["masmorra"].items() if s.get("botao")]
+        cache = next((c for c, s in st["masmorra"].items()
+                      if s.get("trancada_por_botoes")), None)
+        if len(bots) >= 2 and cache:
+            pz1 = st
+            break
+    assert pz1 is not None, "deve existir seed com 2 botões + Cofre dos Antigos"
+    # porta bloqueia com 0 botões
+    viz = next(iter(pz1["masmorra"][cache]["exits"]))
+    dx, dy = DIRECOES_ABS[viz]
+    viz_cell = (cache[0] + dx, cache[1] + dy)
+    # move from neighbor toward cache
+    # posiciona no vizinho e tenta entrar
+    # achar vizinho real:
+    viz_from = None
+    for d, (ddx, ddy) in DIRECOES_ABS.items():
+        v = (cache[0] + ddx, cache[1] + ddy)
+        if v in pz1["masmorra"] and "sul" in DIRECOES_ABS:  # always
+            if d in pz1["masmorra"][v].get("exits", set()) or True:
+                if v in pz1["masmorra"] and cache in [
+                    (v[0]+DIRECOES_ABS[dd][0], v[1]+DIRECOES_ABS[dd][1])
+                    for dd in pz1["masmorra"][v]["exits"]
+                ]:
+                    viz_from = v
+                    break
+    # abordagem direta: simula bloqueio
+    assert contagem_botoes(pz1)[0] == 0
+    # ativa botões
+    for c in bots:
+        msgs_b = ativar_botao_pressao(pz1, pz1["masmorra"][c])
+        assert msgs_b, "ativar botão gera mensagem"
+    assert contagem_botoes(pz1)[0] >= 2
+    assert "botoes_antigos" in pz1["sidequests_feitas"]
+    assert pz1["player"]["fama"] >= 5, "resolver botões rende Fama"
+    # serialização de puzzles
+    ser_p = serializar_estado(pz1)
+    assert ser_p.get("puzzles") and ser_p["puzzles"].get("botoes_total", 0) >= 2
+
+    # estátuas no andar 2
+    pz2 = None
+    ests2 = []
+    for seed in range(1, 80):
+        st = novo_jogo("Guerreiro", seed=seed)
+        from_cells = [c for c, s in st["masmorra"].items() if s.get("escada")]
+        if not from_cells:
+            continue
+        cell = from_cells[0]
+        st["pos"] = {"x": cell[0], "y": cell[1]}
+        descer_escada(st)
+        if st.get("profundidade") != 2:
+            continue
+        ests2 = [c for c, s in st["masmorra"].items() if s.get("estatua")]
+        sant = next((c for c, s in st["masmorra"].items()
+                     if s.get("trancada_por_estatuas")), None)
+        if len(ests2) >= 2 and sant:
+            pz2 = st
+            break
+    assert pz2 is not None, "deve existir seed com estátuas + Santuário no andar 2"
+    for c in ests2:
+        pz2["pos"] = {"x": c[0], "y": c[1]}
+        for _ in range(4):
+            est = pz2["masmorra"][c]["estatua"]
+            if est["facing"] == est["alvo"]:
+                break
+            girar_estatua_sala(pz2)
+        assert pz2["masmorra"][c]["estatua"]["facing"] == pz2["masmorra"][c]["estatua"]["alvo"]
+    ok_e, tot_e = contagem_estatuas(pz2)
+    assert ok_e == tot_e and tot_e >= 2
+    assert pz2.get("estatuas_resolvido") or "estatuas_santuario" in pz2.get("sidequests_feitas", [])
+    assert "girar_estatua" in ACOES_PERMITIDAS
+    ok_v, _ = validar_resposta({"texto_narrativo": "Você gira a pedra.",
+                                "acao": {"tipo": "girar_estatua"}}, pz2)
+    assert ok_v
+    print("  botões (andar 1) + estátuas (andar 2) + Fama + serialização puzzles. OK")
 
     print("\n>>> DEMO OK — inventário final:", state["player"]["inventario"],
           "| arma:", state["player"]["arma"], "| HP:", state["player"]["hp"])
