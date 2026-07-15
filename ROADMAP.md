@@ -417,7 +417,21 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### LLM robusto + Automapa POIs + Puzzles (v3.6) - **atual**
+### QoL + métricas admin + conquistas (v3.7) - **atual**
+- **`GET /api/llm/status`:** snapshot de modelo/endpoint/timeout + contadores e latência
+  (avg/p95). Login obrigatório; se `LLM_STATUS_KEY` (ou `ADMIN_KEY`) no env, exige a chave
+  (`?key=` ou `X-LLM-Status-Key`).
+- **Volume:** sliders SFX / Amb no header (localStorage).
+- **SFX `puzzle`:** mecanismo ao puxar alavanca / girar estátua / ativar botão.
+- **Abismo:** estalos/explosões randômicas no loop de ambientação do andar 4.
+- **Combate:** teclas 1–9 disparam magias; botão destacado (`mag-sel`) ao conjurar.
+- **Toast de conquista** + botão “Conte-nos o que achou” no modal de Novidades.
+- **Tutorial:** seção de automapa/puzzles + atalhos de magia + áudio.
+- **Conquistas:** Ladrão das Sombras (10 furtos), Ferro Velho (5 armas quebradas),
+  Coração de Pedra (20 descansos).
+- **`NOVIDADES` v3.7.** Verificado: `--demo`.
+
+### LLM robusto + Automapa POIs + Puzzles (v3.6)
 - **LLM:** `LLM_API_KEY` (genérico) + fallback `DEEPSEEK_API_KEY`; `LLM_TIMEOUT` (default 45s);
   `LLM_HTTP_RETRIES` (default 2) com backoff; métricas em `logs/llm.log`
   (`api_ok` / `api_erro` / `api_vazio` com `latencia_ms`, modelo, endpoint).
@@ -681,4 +695,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.6 — LLM robusto, automapa com POIs, botões de pressão e estátuas. Antes (v3.5): conquistas com tracker.*
+*Última atualização: v3.7 — QoL áudio/UI, /api/llm/status, conquistas Ladrão/Ferro/Coração. Antes (v3.6): LLM, automapa, puzzles.*

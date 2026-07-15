@@ -66,7 +66,21 @@
   #cbMagiasMenu.on{display:flex}
   #cbMagiasMenu button{width:100%;text-align:left;font-size:13px;padding:7px 10px;
                        background:var(--panel2)}
+  #cbMagiasMenu button.mag-sel{border-color:var(--mana);box-shadow:0 0 0 1px var(--mana),0 0 12px #5a6cf055;
+                               background:#1a2040}
   #cbMagiasMenu .cbmvazio{color:var(--dim);font-size:12px;text-align:center;padding:4px}
+  #volBox{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);
+          margin-left:8px;flex-wrap:wrap}
+  #volBox label{display:flex;align-items:center;gap:3px;white-space:nowrap}
+  #volBox input[type=range]{width:64px;accent-color:var(--accent);height:4px}
+  #toastConq{position:fixed;left:50%;top:18%;transform:translateX(-50%) translateY(-8px);
+             z-index:80;min-width:280px;max-width:min(440px,92vw);padding:14px 18px;
+             background:linear-gradient(145deg,#1a1628ee,#0e1018f2);border:1px solid var(--gold);
+             border-radius:12px;box-shadow:0 8px 32px #000c,0 0 24px #e8c95a33;
+             color:var(--gold);text-align:center;pointer-events:none;opacity:0;
+             transition:opacity .35s,transform .35s;font-size:14px}
+  #toastConq.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toastConq b{display:block;font-size:16px;margin-bottom:4px;color:#ffe9a0}
   /* centralização SEGURA: margin:auto no canvas (não justify/align center no flex) —
      senão o excedente acima/à esquerda fica fora do alcance da rolagem */
   #miniWrap{display:flex;margin-top:10px;padding:8px;
@@ -173,8 +187,13 @@
     <button id="btnAjuda" class="mini">? Ajuda</button>
     <button id="btnFeedback" class="mini" style="border-color:var(--gold); color:var(--gold);">💬 Feedback</button>
     <button id="btnLogout" class="mini" style="display:none;border-color:var(--dim);color:var(--dim)">Sair</button>
+    <div id="volBox" title="Volume (salvo neste browser)">
+      <label>SFX <input type="range" id="volSfx" min="0" max="100" value="80"></label>
+      <label>Amb <input type="range" id="volAmb" min="0" max="100" value="55"></label>
+    </div>
   </div>
 </header>
+<div id="toastConq" aria-live="polite"><b>🏆 Conquista</b><span id="toastConqTxt"></span></div>
 
 <!-- login / registro (obrigatório) -->
 <div class="overlay" id="ovAuth">
@@ -434,7 +453,14 @@
       <li><b>Armadilhas &amp; cofres:</b> o <b>Ladino</b> desarma armadilhas e arromba cofres; as outras classes
         levam o dano e precisam da <b>Chave de Ferro</b>.</li>
       <li><b>Classes:</b> 🛡️ Guerreiro (tanque) · 🔮 Mago (nuke frágil) · 🗡️ Ladino (ardiloso).</li>
-      <li><b>Mapa:</b> 🚪 entrada · 💀 inimigo · 💰 tesouro · 🗿 chefe · ? inexplorado.</li>
+      <li><b>Mapa / puzzles:</b> o automapa marca <b>altares †</b>, <b>alavancas ⚙</b>, <b>botões ▫</b>,
+        <b>estátuas 🗿</b>, escadas e cofres. Acima do mapa, o <b>HUD de puzzles</b> mostra o progresso
+        (ex.: <em>Alavancas 1/3 · Botões 0/2</em>). Andar 1: pise nos botões → Cofre dos Antigos;
+        andar 2: gire estátuas → Santuário; andar 3: alavancas → Templo Esquecido.</li>
+      <li><b>Combate (atalhos):</b> com o submenu 🔮 Magias aberto (ou em combate), as teclas
+        <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>… disparam a magia correspondente na lista.</li>
+      <li><b>Áudio:</b> sliders <em>SFX</em> e <em>Amb</em> no topo controlam efeitos e ambientação por andar
+        (vento, gotas, cripta, fogo no Abismo). Clique na página se o som estiver mudo.</li>
       <li><b>Luz:</b> a tocha tem duração (passos). Sem luz, o mapa fecha e o combate fica pior — <b>use tochas</b> do inventário.</li>
       <li><b>Descansar:</b> em sala segura recupera HP/mana; pode atrair monstro errante.</li>
       <li><b>Tablets:</b> leia inscrições antigas (lore canônico). O narrador só enfeita o que a engine revelou.</li>
@@ -451,7 +477,10 @@
     <h2 style="text-align:center">✨ Novidades</h2>
     <p id="novVersao" style="text-align:center;color:var(--gold);margin:-6px 0 14px"></p>
     <ul class="ajuda" id="novLista"></ul>
-    <div style="text-align:center;margin-top:16px"><button id="btnFecharNov">Entendi!</button></div>
+    <div style="text-align:center;margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button id="btnFecharNov">Entendi!</button>
+      <button type="button" class="mini" id="btnNovFeedback" style="border-color:var(--gold);color:var(--gold)">💬 Conte-nos o que achou</button>
+    </div>
   </div>
 </div>
 
@@ -599,12 +628,12 @@ function setUserUI(user){
 // Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
 // (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
-  versao: "v3.6",
+  versao: "v3.7",
   itens: [
-    "<b>Puzzles nas catacumbas:</b> no andar 1, <b>botões de pressão</b> abrem o Cofre dos Antigos; no andar 2, <b>gire estátuas</b> até o Santuário se abrir (Fama ao resolver).",
-    "<b>Automapa com POIs:</b> alavancas, botões, estátuas, altares e escadas no mapa — e contador de progresso acima do automapa.",
-    "<b>LLM mais robusto:</b> suporte a <code>LLM_API_KEY</code>, timeout e retry de rede, métricas em <code>logs/llm.log</code>.",
-    "<b>Conquistas com tracker</b> (Sangue de Ferro, Mestre das Chamas, Sobrevivente) e Fama legível na ficha.",
+    "<b>Mais conquistas:</b> Ladrão das Sombras (10 furtos), Ferro Velho (5 armas quebradas), Coração de Pedra (20 descansos) — com progresso na ficha e toast ao desbloquear.",
+    "<b>Áudio:</b> sliders SFX/Amb no topo; som de <em>mecanismo</em> nos puzzles; Abismo com crepitações extras.",
+    "<b>Combate:</b> teclas <b>1–9</b> escolhem magias no submenu; o botão fica destacado ao conjurar.",
+    "<b>Puzzles &amp; automapa:</b> HUD de progresso e ícones de alavanca/botão/estátua (veja também a Ajuda).",
   ],
 };
 function mostrarNovidades(){
@@ -751,6 +780,8 @@ function aplicar(resp){
       purificador:"Purificador 💧", famoso:"Famoso 👑", explorador:"Explorador 🗺️",
       sangue_de_ferro:"Sangue de Ferro 🩸", mestre_das_chamas:"Mestre das Chamas 🔥",
       sobrevivente_envenenado:"Sobrevivente Envenenado ☠️",
+      ladrao_sombras:"Ladrão das Sombras 🗡️", ferro_velho:"Ferro Velho ⚙️",
+      coracao_de_pedra:"Coração de Pedra 🪨",
     };
     const conq = p.conquistas || [];
     const prog = p.conquistas_progresso || [];
@@ -879,6 +910,13 @@ function aplicar(resp){
     }
     if((resp.mensagens||[]).some(m=>/parede/i.test(m))) sfx("parede");
     if(resp.combate && !(window._combateAntes)) sfx("combate");
+    // SFX de mecanismo (puzzles: botão, estátua, alavanca)
+    if((resp.mensagens||[]).some(m=>/placa de pedra|gira a estátua|puxa a alavanca|mecanismo|Santuário|passagem selada|porta de pedra do Templo/i.test(m)))
+      sfx("puzzle");
+    // Toast vistoso de conquista
+    (resp.mensagens||[]).forEach(m=>{
+      if(/CONQUISTA DESBLOQUEADA/i.test(m)) toastConquista(m);
+    });
     window._combateAntes = !!resp.combate;
     // flash colorido: magia conjurada (cor da escola) > dano sofrido > cura > mana
     const pvp = prev && prev.player;
@@ -1040,20 +1078,60 @@ window.addEventListener("unhandledrejection", ev=>{
   clog("error", "Promise: "+(ev.reason && (ev.reason.message||ev.reason)));
 });
 
+// Volumes (0–1), persistidos em localStorage
+let _volSfx = 0.80, _volAmb = 0.55;
+let _busSfx = null, _busAmb = null;
+try{
+  const vs = localStorage.getItem("vol_sfx"), va = localStorage.getItem("vol_amb");
+  if(vs!=null) _volSfx = Math.max(0, Math.min(1, (+vs)/100));
+  if(va!=null) _volAmb = Math.max(0, Math.min(1, (+va)/100));
+}catch(_){}
+
+function ensureAudioBuses(){
+  if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const ctx = _audioCtx;
+  if(ctx.state==="suspended") ctx.resume();
+  if(!_busSfx){
+    _busSfx = ctx.createGain();
+    _busAmb = ctx.createGain();
+    _busSfx.gain.value = _volSfx;
+    _busAmb.gain.value = _volAmb;
+    _busSfx.connect(ctx.destination);
+    _busAmb.connect(ctx.destination);
+  }
+  return ctx;
+}
+function setVolSfx(v01){
+  _volSfx = Math.max(0, Math.min(1, v01));
+  if(_busSfx) _busSfx.gain.value = _volSfx;
+  try{ localStorage.setItem("vol_sfx", String(Math.round(_volSfx*100))); }catch(_){}
+}
+function setVolAmb(v01){
+  _volAmb = Math.max(0, Math.min(1, v01));
+  if(_busAmb) _busAmb.gain.value = _volAmb;
+  // reajusta master do ambient ativo
+  if(_ambient && _ambient.master){
+    try{
+      const base = _ambient.targetVol || 0.05;
+      _ambient.master.gain.setTargetAtTime(base * _volAmb / 0.55, _audioCtx.currentTime, 0.05);
+    }catch(_){}
+  }
+  try{ localStorage.setItem("vol_amb", String(Math.round(_volAmb*100))); }catch(_){}
+}
+
 function sfx(tipo){
   try{
-    if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-    const ctx = _audioCtx;
-    if(ctx.state==="suspended") ctx.resume();
+    const ctx = ensureAudioBuses();
+    const out = _busSfx || ctx.destination;
     const table = {
       passo:   {f:120, t:0.05, type:"triangle", vol:0.04},
       virar:   {f:180, t:0.04, type:"sine", vol:0.03},
       parede:  {f:70,  t:0.08, type:"square", vol:0.05},
       combate: {f:90,  t:0.15, type:"sawtooth", vol:0.06},
       escada:  {f:220, t:0.12, type:"triangle", vol:0.05},
+      puzzle:  {f:310, t:0.22, type:"triangle", vol:0.07},
     };
     if(tipo === "hit") {
-      // Som de impacto mais pesado — camada grave + aguda
       const now2 = ctx.currentTime;
       const o2 = ctx.createOscillator();
       const g2 = ctx.createGain();
@@ -1064,16 +1142,33 @@ function sfx(tipo){
       o2.setPeriodicWave(wave);
       o2.frequency.setValueAtTime(110, now2);
       o2.frequency.exponentialRampToValueAtTime(35, now2 + 0.18);
-      g2.gain.setValueAtTime(0.15, now2);   // punch grave, mas na escala dos demais sfx (0.04-0.06)
+      g2.gain.setValueAtTime(0.15, now2);
       g2.gain.exponentialRampToValueAtTime(0.001, now2 + 0.18);
-      o2.connect(g2); g2.connect(ctx.destination);
+      o2.connect(g2); g2.connect(out);
       o2.start(now2); o2.stop(now2 + 0.18);
+      return;
+    }
+    if(tipo === "puzzle") {
+      // clique metálico de mecanismo (duas notas curtas)
+      const now = ctx.currentTime;
+      [[520,0],[380,0.07]].forEach(([f,d])=>{
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(f, now+d);
+        o.frequency.exponentialRampToValueAtTime(f*0.55, now+d+0.12);
+        g.gain.setValueAtTime(0.0001, now+d);
+        g.gain.exponentialRampToValueAtTime(0.09, now+d+0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now+d+0.14);
+        o.connect(g); g.connect(out);
+        o.start(now+d); o.stop(now+d+0.15);
+      });
       return;
     }
     const p2 = table[tipo] || table.passo;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
+    o.connect(g); g.connect(out);
     o.type = p2.type; o.frequency.value = p2.f;
     g.gain.setValueAtTime(p2.vol, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + p2.t);
@@ -1081,11 +1176,21 @@ function sfx(tipo){
   }catch(_){ /* audio opcional */ }
 }
 
+function toastConquista(texto){
+  const el = $("#toastConq"), t = $("#toastConqTxt");
+  if(!el || !t) return;
+  t.textContent = texto.replace(/^CONQUISTA DESBLOQUEADA:\s*/i, "");
+  el.classList.add("on");
+  clearTimeout(toastConquista._t);
+  toastConquista._t = setTimeout(()=> el.classList.remove("on"), 4200);
+  sfx("puzzle");
+}
+
 let _fatigueOsc = null;
 function playFatigueAudio() {
+  if(_fatigueOsc) return;
+  const ctx = ensureAudioBuses();
   if(!_audioCtx || _fatigueOsc) return;
-  const ctx = _audioCtx;
-  if(ctx.state==="suspended") ctx.resume();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = "sine";
@@ -1106,7 +1211,7 @@ function playFatigueAudio() {
   gain.gain.linearRampToValueAtTime(0.08, now + 1.0);  // presença sutil, na escala dos sfx
 
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(_busSfx || ctx.destination);
   osc.start(now);
 
   _fatigueOsc = { osc, gain, lfo };
@@ -1127,13 +1232,14 @@ function stopFatigueAudio() {
 
 let _heartbeatId = null;
 function playHeartbeat() {
+  if(_heartbeatId) return;
+  const ctx = ensureAudioBuses();
   if(!_audioCtx || _heartbeatId) return;
-  const ctx = _audioCtx;
-  if(ctx.state==="suspended") ctx.resume();
   const bpm = 1.2; // ~72bpm em pânico
 
   function beat() {
     const now = ctx.currentTime;
+    const out = _busSfx || ctx.destination;
     [0, 0.12].forEach(delay => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
@@ -1141,7 +1247,7 @@ function playHeartbeat() {
       o.frequency.value = 55;
       g.gain.setValueAtTime(0.5, now + delay);
       g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.1);
-      o.connect(g); g.connect(ctx.destination);
+      o.connect(g); g.connect(out);
       o.start(now + delay); o.stop(now + delay + 0.12);
     });
     _heartbeatId = setTimeout(beat, (1 / bpm) * 1000);
@@ -1162,11 +1268,7 @@ function stopHeartbeat() {
 let _ambient = null;          // { key, master, timers[], sources[] }
 let _noiseBuf = null;
 
-function ensureAudioCtx(){
-  if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-  if(_audioCtx.state === "suspended") _audioCtx.resume();
-  return _audioCtx;
-}
+function ensureAudioCtx(){ return ensureAudioBuses(); }
 
 function _noiseBuffer(ctx){
   if(_noiseBuf && _noiseBuf.sampleRate === ctx.sampleRate) return _noiseBuf;
@@ -1218,10 +1320,10 @@ function startAmbient(key){
   if(_ambient && _ambient.key === key) return;
   stopAmbient(0.7);
   let ctx;
-  try{ ctx = ensureAudioCtx(); }catch(_){ return; }
+  try{ ctx = ensureAudioBuses(); }catch(_){ return; }
   const master = ctx.createGain();
   master.gain.value = 0.0001;
-  master.connect(ctx.destination);
+  master.connect(_busAmb || ctx.destination);
   const sources = [];
   const timers = [];
   const now = ctx.currentTime;
@@ -1337,7 +1439,7 @@ function startAmbient(key){
     };
     timers.push(setTimeout(clang, 2500));
   } else if(key === "4"){
-    // Abismo: crepitação de fogo + drone ameaçador
+    // Abismo: crepitação de fogo + drone ameaçador + estalos/explosões randômicas
     targetVol = 0.055;
     const fire = _loopNoise(ctx, "bandpass", 900, 1.2, 0.45);
     track(fire.src);
@@ -1363,6 +1465,32 @@ function startAmbient(key){
     bassLp.frequency.value = 90;
     bass.connect(bassLp); bassLp.connect(bassG); bassG.connect(master);
     bass.start(); track(bass);
+    const burst = ()=>{
+      if(!_ambient || _ambient.key !== "4") return;
+      try{
+        const t = ctx.currentTime;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        const n = _loopNoise(ctx, "bandpass", 400 + Math.random()*800, 2, 1);
+        track(n.src);
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.0001, t);
+        ng.gain.exponentialRampToValueAtTime(0.28 + Math.random()*0.15, t + 0.02);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.35 + Math.random()*0.25);
+        n.out.connect(ng); ng.connect(master);
+        setTimeout(()=>{ try{ n.src.stop(); }catch(_){} }, 700);
+        o.type = "sawtooth";
+        o.frequency.setValueAtTime(80 + Math.random()*40, t);
+        o.frequency.exponentialRampToValueAtTime(28, t + 0.4);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.1, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+        o.connect(g); g.connect(master);
+        o.start(t); o.stop(t + 0.5);
+      }catch(_){}
+      timers.push(setTimeout(burst, 2800 + Math.random()*5500));
+    };
+    timers.push(setTimeout(burst, 1500 + Math.random()*2000));
   } else {
     // fallback = vento leve
     targetVol = 0.04;
@@ -1371,9 +1499,11 @@ function startAmbient(key){
     wind.out.connect(master);
   }
 
+  // escala pelo slider de ambientação (referência 0.55 ≈ 100% do desenho original)
+  const volScaled = targetVol * (_volAmb / 0.55);
   master.gain.setValueAtTime(0.0001, now);
-  master.gain.linearRampToValueAtTime(targetVol, now + 1.2);
-  _ambient = { key, master, sources, timers };
+  master.gain.linearRampToValueAtTime(volScaled, now + 1.2);
+  _ambient = { key, master, sources, timers, targetVol };
 }
 
 function ambientKeyFromState(e){
@@ -2251,6 +2381,16 @@ function toggleAjuda(v){ $("#ovAjuda").classList.toggle("hidden", !v); }
 $("#btnAjuda").onclick = ()=>toggleAjuda(true);
 $("#btnFecharAjuda").onclick = ()=>toggleAjuda(false);
 $("#btnFecharNov").onclick = fecharNovidades;
+$("#btnNovFeedback").onclick = ()=>{
+  fecharNovidades();
+  toggleFeedback(true);
+};
+// Sliders de volume
+(function initVol(){
+  const sfxEl = $("#volSfx"), ambEl = $("#volAmb");
+  if(sfxEl){ sfxEl.value = String(Math.round(_volSfx*100)); sfxEl.oninput = ()=> setVolSfx((+sfxEl.value)/100); }
+  if(ambEl){ ambEl.value = String(Math.round(_volAmb*100)); ambEl.oninput = ()=> setVolAmb((+ambEl.value)/100); }
+})();
 
 // ---- feedback (sugestões / bugs / reports) ----
 let _fbTipo = "sugestao";
@@ -2344,6 +2484,25 @@ document.addEventListener("keydown", async ev=>{
   const foco = document.activeElement;
   if(foco && (foco.tagName==="INPUT" || foco.tagName==="TEXTAREA" || foco.isContentEditable)) return;
   if(ev.key==="?" || ev.key==="h" || ev.key==="H"){ toggleAjuda(true); return; }
+  // Atalhos de magia 1–9 em combate (submenu 🔮)
+  if(combatendo && !/_inputBusy/.test("") && !_inputBusy){
+    const n = parseInt(ev.key, 10);
+    if(n >= 1 && n <= 9){
+      const ids = window._magiasCombate || [];
+      const mid = ids[n - 1];
+      if(mid){
+        ev.preventDefault();
+        $("#cbMagiasMenu").classList.add("on");
+        const btn = document.querySelector(`#cbMagiasMenu button[data-mag="${mid}"]`);
+        if(btn && !btn.disabled){
+          window._flashMagia = COR_MAGIA[mid] || "rgba(160,140,255,0.8)";
+          btn.classList.add("mag-sel");
+          await agirCombate("magia:"+mid);
+        }
+        return;
+      }
+    }
+  }
   if(combatendo || _inputBusy) return;
   const k = ev.key;
   let dir = null;
@@ -2480,9 +2639,16 @@ async function agirCombate(escolha){
   }
   if(escolha === "pocao") window._flashMagia = "rgba(75, 191, 115, 0.9)";
   if(escolha === "pocao_mana") window._flashMagia = "rgba(100, 150, 255, 0.9)";
-  fecharMenuMagias();                 // toda ação fecha o submenu de magias
+  // destaca o botão da magia escolhida até a resposta chegar
+  if(isMagia){
+    const mid = escolha.slice(6);
+    document.querySelectorAll("#cbMagiasMenu button[data-mag]").forEach(b=>{
+      b.classList.toggle("mag-sel", b.dataset.mag === mid);
+      b.disabled = true;
+    });
+  }
   const resp = await api("/api/combate",{escolha});
-  // Se o combate acabou, parar heartbeat
+  fecharMenuMagias();
   if(!resp.combate) stopHeartbeat();
   aplicar(resp);
 }
@@ -2513,12 +2679,15 @@ function montarBotoesMagia(p){
   const temPocaoMana=(p.inventario||[]).some(it=>it.id==="pocao_mana");
   // O botão de toggle só aparece se há algo para conjurar/beber
   $("#cbMagiasToggle").style.display = (magias.length || temPocaoMana) ? "" : "none";
-  magias.forEach(m=>{
+  magias.forEach((m, i)=>{
     const b=document.createElement("button");
+    const atalho = i < 9 ? `${i+1}. ` : "";
     const sufixo = m.efeito==="buff" ? `, ${m.duracao}t` : (m.efeito==="dano"||m.efeito==="dreno" ? `, ${m.valor}` : "");
-    b.textContent = `${m.nome} (${m.custo}m${sufixo})`;
+    b.textContent = `${atalho}${m.nome} (${m.custo}m${sufixo})`;
+    b.dataset.mag = m.id;
     b.disabled = p.mana < m.custo;
     b.onclick = ()=>{ window._flashMagia = COR_MAGIA[m.id] || "rgba(160,140,255,0.8)";
+                      b.classList.add("mag-sel");
                       agirCombate("magia:"+m.id); };   // contrato da engine: "magia:<id>"
     box.appendChild(b);
   });
@@ -2527,6 +2696,7 @@ function montarBotoesMagia(p){
     b.textContent = "🧪 Poção de Mana"; b.onclick = ()=>agirCombate("pocao_mana");
     box.appendChild(b);
   }
+  window._magiasCombate = magias.map(m=>m.id);
 }
 
 // ---- exploração (descansar / tablet / purificar) ----
@@ -2534,8 +2704,8 @@ $("#btnDescansar").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api
 $("#btnTablet").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/ler_tablet",{})); };
 $("#btnPurificar").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/purificar",{})); };
 $("#btnEsconder").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/esconder",{})); };
-$("#btnAlavanca").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/puxar_alavanca",{})); };
-$("#btnEstatua").onclick = async ()=>{ if(!combatendo) aplicar(await api("/api/girar_estatua",{})); };
+$("#btnAlavanca").onclick = async ()=>{ if(!combatendo){ sfx("puzzle"); aplicar(await api("/api/puxar_alavanca",{})); }};
+$("#btnEstatua").onclick = async ()=>{ if(!combatendo){ sfx("puzzle"); aplicar(await api("/api/girar_estatua",{})); }};
 $("#btnDescer").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/descer",{})); }};
 $("#btnSubir").onclick = async ()=>{ if(!combatendo){ sfx("escada"); aplicar(await api("/api/subir",{})); }};
 $("#btnGazua").onclick = async ()=>{

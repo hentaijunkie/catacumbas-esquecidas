@@ -433,12 +433,31 @@ CONQUISTAS = {
         "desc": "Curou-se de veneno 5 vezes (poção ou Silas).",
         "beneficio": "Veneno causa 1 a menos de dano (mínimo 1).",
     },
+    # v3.7 — mais trackers
+    "ladrao_sombras": {
+        "nome": "Ladrão das Sombras",
+        "desc": "Furtou com sucesso 10 vezes.",
+        "beneficio": "+10% de chance ao furtar.",
+    },
+    "ferro_velho": {
+        "nome": "Ferro Velho",
+        "desc": "Quebrou 5 armas em combate.",
+        "beneficio": "+5 ouro ao desbloquear (sucata vendida).",
+    },
+    "coracao_de_pedra": {
+        "nome": "Coração de Pedra",
+        "desc": "Descansou 20 vezes em salas seguras.",
+        "beneficio": "+2 HP máximo (repouso forjado em pedra).",
+    },
 }
 
 # Contadores → (id_conquista, meta). Incrementados por registrar_tracker.
 TRACKER_METAS = {
     "kills_fogo": ("mestre_das_chamas", 10),
     "venenos_curados": ("sobrevivente_envenenado", 5),
+    "furtos_ok": ("ladrao_sombras", 10),
+    "armas_quebradas": ("ferro_velho", 5),
+    "descansos": ("coracao_de_pedra", 20),
 }
 MAGIAS_FOGO = frozenset({"bola_fogo"})  # kills com estas magias contam p/ Mestre das Chamas
 
@@ -466,8 +485,14 @@ def conceder_conquista(state, cid):
     elif cid == "sangue_de_ferro":
         p["hp_max"] += 2
         p["hp"] += 2
-    elif cid in ("explorador", "famoso", "mestre_das_chamas", "sobrevivente_envenenado"):
-        pass  # passivos aplicados em combate/loja/tick_veneno/valor_magia
+    elif cid == "coracao_de_pedra":
+        p["hp_max"] += 2
+        p["hp"] += 2
+    elif cid == "ferro_velho":
+        p["ouro"] = p.get("ouro", 0) + 5
+    elif cid in ("explorador", "famoso", "mestre_das_chamas", "sobrevivente_envenenado",
+                 "ladrao_sombras"):
+        pass  # passivos em combate/loja/tick_veneno/valor_magia/furtar
     return [msg]
 
 
@@ -2146,10 +2171,77 @@ def _get_client():
     return _client
 
 
+# Métricas em memória (processo) — expostas em GET /api/llm/status (admin/login).
+LLM_METRICS = {
+    "calls_ok": 0,
+    "calls_err": 0,
+    "calls_empty": 0,
+    "last_latencia_ms": None,
+    "latencias_ms": [],       # últimas 40 latências ok
+    "last_erro": None,
+    "last_ok_ts": None,
+    "last_evento": None,
+}
+
+
+def _metricas_llm_evento(evento, latencia_ms=None, erro=None):
+    """Atualiza LLM_METRICS (best-effort, sem levantar)."""
+    import time as _time
+    try:
+        m = LLM_METRICS
+        m["last_evento"] = evento
+        if latencia_ms is not None:
+            m["last_latencia_ms"] = int(latencia_ms)
+        if evento == "api_ok":
+            m["calls_ok"] += 1
+            m["last_ok_ts"] = _time.strftime("%Y-%m-%d %H:%M:%S")
+            if latencia_ms is not None:
+                m["latencias_ms"] = (m["latencias_ms"] + [int(latencia_ms)])[-40:]
+        elif evento == "api_erro":
+            m["calls_err"] += 1
+            m["last_erro"] = (erro or "")[:200]
+        elif evento == "api_vazio":
+            m["calls_empty"] += 1
+    except Exception:
+        pass
+
+
+def llm_status_snapshot():
+    """Dict JSON-friendly com config + métricas agregadas do processo."""
+    lats = list(LLM_METRICS.get("latencias_ms") or [])
+    avg = int(sum(lats) / len(lats)) if lats else None
+    p95 = None
+    if lats:
+        s = sorted(lats)
+        p95 = s[min(len(s) - 1, int(len(s) * 0.95))]
+    tem_chave = bool(_llm_api_key())
+    return {
+        "online_config": bool(tem_chave or os.environ.get("LLM_BASE_URL")),
+        "modelo": MODELO,
+        "endpoint": BASE_URL,
+        "timeout_s": LLM_TIMEOUT,
+        "http_retries": LLM_HTTP_RETRIES,
+        "max_reparos_json": MAX_RETRIES,
+        "tem_chave": tem_chave,
+        "metrics": {
+            "calls_ok": LLM_METRICS["calls_ok"],
+            "calls_err": LLM_METRICS["calls_err"],
+            "calls_empty": LLM_METRICS["calls_empty"],
+            "last_latencia_ms": LLM_METRICS["last_latencia_ms"],
+            "avg_latencia_ms": avg,
+            "p95_latencia_ms": p95,
+            "amostras": len(lats),
+            "last_ok_ts": LLM_METRICS["last_ok_ts"],
+            "last_erro": LLM_METRICS["last_erro"],
+            "last_evento": LLM_METRICS["last_evento"],
+        },
+    }
+
+
 def _chamar_deepseek(mensagens):
     """Chama a API em modo JSON com timeout + retry de rede.
     Devolve o texto bruto (string) ou None se falhar / vier vazio.
-    Métricas (latência, tentativas) vão para LOG_LLM quando ligado."""
+    Métricas (latência, tentativas) vão para LOG_LLM e LLM_METRICS."""
     import time as _time
     ultimo_erro = None
     for tentativa in range(1, LLM_HTTP_RETRIES + 1):
@@ -2166,9 +2258,11 @@ def _chamar_deepseek(mensagens):
             ms = int((_time.perf_counter() - t0) * 1000)
             conteudo = resp.choices[0].message.content
             if not conteudo or not conteudo.strip():
+                _metricas_llm_evento("api_vazio", ms)
                 _log_llm("api_vazio", tentativa_http=tentativa, latencia_ms=ms,
                          modelo=MODELO, endpoint=BASE_URL)
                 return None
+            _metricas_llm_evento("api_ok", ms)
             _log_llm("api_ok", tentativa_http=tentativa, latencia_ms=ms,
                      modelo=MODELO, endpoint=BASE_URL,
                      chars=len(conteudo))
@@ -2176,6 +2270,7 @@ def _chamar_deepseek(mensagens):
         except Exception as e:
             ms = int((_time.perf_counter() - t0) * 1000)
             ultimo_erro = e
+            _metricas_llm_evento("api_erro", ms, erro=f"{type(e).__name__}: {e}")
             _log_llm("api_erro", tentativa_http=tentativa, latencia_ms=ms,
                      modelo=MODELO, endpoint=BASE_URL,
                      erro=type(e).__name__, detalhe=str(e)[:220])
@@ -2752,6 +2847,9 @@ def desgastar_item(state, item_id_ou_inst, slot):
             p["inventario"].remove(item_id_ou_inst)
         if p.get(slot) == item_id_ou_inst:
             p[slot] = None
+        # Ferro Velho: só armas contam (não armaduras); conquista imprime no stdout
+        if slot == "arma" or inst.get("tipo") == "arma":
+            registrar_tracker(state, "armas_quebradas")
         return f"Sua {inst['nome']} QUEBROU durante o combate!"
     if inst["durabilidade"] == 5:
         return f"AVISO: Sua {inst['nome']} está muito danificada e vai quebrar em breve!"
@@ -2900,6 +2998,7 @@ def descansar(state, rng=None):
     msg = f"Você descansa um momento ({', '.join(partes) or 'alívio'})."
     print(f"  [descanso] {msg}")
     msgs = [msg]
+    msgs += registrar_tracker(state, "descansos")  # Coração de Pedra
 
     if sala["tipo"] != "entrada" and rng.random() < WANDERING_CHANCE:
         errante = rng.choice(["rato_gigante", "morcego", "esqueleto_animado"])
@@ -2989,6 +3088,8 @@ def furtar(state, alvo, rng=None):
     chance = CHANCE_FURTO + 0.05 * mod_atributo(p.get("atributos", {}).get("des", 10))
     chance += 0.15 if p.get("furtivo") else 0
     chance += 0.05 * mods_combate(p, state)["check"]
+    if "ladrao_sombras" in (p.get("conquistas") or []):
+        chance += 0.10
     chance = max(0.1, min(0.9, chance))
     if rng.random() < chance:
         ganho = "pocao_cura" if "pocao_cura" not in p["inventario"] else "pocao_mana"
@@ -3000,7 +3101,9 @@ def furtar(state, alvo, rng=None):
         item_nome = get_item_data(ganho, state)["nome"]
         state["historico"].append(f"furtou {item_nome}")
         print(f"  [furtar] Você surrupia {item_nome} sem ser notado... por enquanto.")
-        return [f"Você surrupia {item_nome} dos pertences do inimigo."], None
+        msgs = [f"Você surrupia {item_nome} dos pertences do inimigo."]
+        msgs += registrar_tracker(state, "furtos_ok")
+        return msgs, None
     # falha: combate
     state["historico"].append("furto falhou")
     print("  [furtar] O inimigo te pega no ato!")
@@ -5702,12 +5805,36 @@ def rodar_demo():
     assert prog_fogo["atual"] == 0 and prog_fogo["meta"] == 10 and not prog_fogo["feita"]
     print("  Sangue de Ferro, Mestre das Chamas (10), Sobrevivente (5), benefícios. OK")
 
-    # --- LLM config (chave genérica + timeout) ---
+    # --- Conquistas v3.7 (furto / arma quebrada / descanso) ---
+    print("\nConquistas v3.7 (Ladrão / Ferro Velho / Coração de Pedra):")
+    assert TRACKER_METAS["furtos_ok"][1] == 10
+    assert TRACKER_METAS["armas_quebradas"][1] == 5
+    assert TRACKER_METAS["descansos"][1] == 20
+    ld = novo_jogo("Ladino", seed=1)
+    for _ in range(10):
+        registrar_tracker(ld, "furtos_ok")
+    assert "ladrao_sombras" in ld["player"]["conquistas"]
+    fv = novo_jogo("Guerreiro", seed=2)
+    for _ in range(5):
+        registrar_tracker(fv, "armas_quebradas")
+    assert "ferro_velho" in fv["player"]["conquistas"]
+    assert fv["player"]["ouro"] >= OURO_INICIAL + 5
+    cp = novo_jogo("Guerreiro", seed=3)
+    hp0 = cp["player"]["hp_max"]
+    for _ in range(20):
+        registrar_tracker(cp, "descansos")
+    assert "coracao_de_pedra" in cp["player"]["conquistas"]
+    assert cp["player"]["hp_max"] == hp0 + 2
+    print("  Ladrão das Sombras, Ferro Velho, Coração de Pedra. OK")
+
+    # --- LLM config (chave genérica + timeout + status) ---
     print("\nLLM config (API key genérica / timeout):")
     assert callable(_llm_api_key)
     assert LLM_TIMEOUT > 0 and LLM_HTTP_RETRIES >= 1
-    # sem rede: _chamar_deepseek não é exercido aqui; só o contrato de env
-    print(f"  timeout={LLM_TIMEOUT}s http_retries={LLM_HTTP_RETRIES} modelo={MODELO}. OK")
+    snap = llm_status_snapshot()
+    assert "metrics" in snap and "modelo" in snap and "endpoint" in snap
+    assert snap["timeout_s"] == LLM_TIMEOUT
+    print(f"  timeout={LLM_TIMEOUT}s http_retries={LLM_HTTP_RETRIES} modelo={MODELO}; status OK")
 
     # --- Puzzles: botões de pressão (andar 1) + estátuas (andar 2) ---
     print("\nPuzzles (botões de pressão / estátuas giratórias):")

@@ -961,6 +961,32 @@ def acao_me(_dados=None):
     return {"ok": True, "user": s.get("user"), "tem_jogo": s.get("state") is not None}
 
 
+def acao_llm_status(_dados=None):
+    """Métricas do LLM no processo (admin). Login obrigatório.
+    Se LLM_STATUS_KEY estiver no ambiente, exige o mesmo valor em
+    header X-LLM-Status-Key ou query ?key= (token de admin)."""
+    s = getattr(_ctx, "session", None)
+    if not s:
+        return {"ok": False, "precisa_login": True, "erro": "Login necessário."}
+    admin_key = os.environ.get("LLM_STATUS_KEY") or os.environ.get("ADMIN_KEY")
+    if admin_key:
+        # token vem no body (POST) ou é checado no handler via header — ver abaixo
+        provided = None
+        if isinstance(_dados, dict):
+            provided = _dados.get("key") or _dados.get("status_key")
+        # também aceita cookie de sessão se o admin for o mesmo user (opcional)
+        if provided != admin_key:
+            # GET: o handler pode ter colocado em _ctx.llm_status_key
+            provided = getattr(_ctx, "llm_status_key", None) or provided
+        if provided != admin_key:
+            return {"ok": False, "erro": "Chave de admin inválida (LLM_STATUS_KEY)."}
+    snap = eng.llm_status_snapshot()
+    snap["ok"] = True
+    snap["user"] = s.get("user")
+    snap["server_online"] = ONLINE
+    return snap
+
+
 def _limpar_feedback(texto):
     """Tira caracteres de controle (menos \\n\\t), colapsa espaços e limita o tamanho.
     Mantém quebras de linha — um relato de bug pode ser multilinha."""
@@ -1094,6 +1120,7 @@ def acao_combate(dados):
 AUTH_OK_SEM_JOGO = {
     "/api/novo", "/api/load", "/api/saves", "/api/log",
     "/api/logout", "/api/me", "/api/save", "/api/feedback",
+    "/api/llm/status",
 }
 # Rotas públicas (sem cookie)
 PUBLIC_POST = {"/api/register", "/api/login", "/api/log", "/api/auth/status"}
@@ -1124,6 +1151,7 @@ ROTAS = {
     "/api/login": acao_login,
     "/api/logout": acao_logout,
     "/api/me": acao_me,
+    "/api/llm/status": acao_llm_status,
     "/api/auth/status": lambda _=None: auth.auth_status(),
     "/api/novo": acao_novo,
     "/api/mover": acao_mover,
@@ -1235,6 +1263,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/me":
             self._bind_session()
             self._send(200, json.dumps(acao_me(), ensure_ascii=False))
+            return
+        if path == "/api/llm/status":
+            # Admin: métricas LLM. Query ?key= se LLM_STATUS_KEY estiver setado.
+            self._bind_session()
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            key = (qs.get("key") or [None])[0]
+            key = key or self.headers.get("X-LLM-Status-Key")
+            _ctx.llm_status_key = key
+            self._send(200, json.dumps(acao_llm_status({"key": key}), ensure_ascii=False))
             return
         if path in ("/api/estado", "/api/saves"):
             sess = self._bind_session()

@@ -91,6 +91,7 @@ seguram o jogo. Métricas (`api_ok` / `api_erro` / latência) em `logs/llm.log`.
 | Login | Cookie `session` HttpOnly (expira em 14 dias); cada jogador tem seu `GAME` |
 | Saves | `saves/<usuario>/slot_1..3.json` |
 | API auth | `POST /api/register`, `/api/login`, `/api/logout` · `GET /api/me`, `/api/auth/status` |
+| Métricas LLM | `GET /api/llm/status` (login). Se `LLM_STATUS_KEY` estiver setado, envie `?key=` ou header `X-LLM-Status-Key` |
 
 **Segurança embutida no servidor** (stdlib, sem dependências):
 - Senhas com **PBKDF2-HMAC-SHA256**; comparações com `compare_digest`.
@@ -154,7 +155,10 @@ Não publique a chave no repositório.
   - **Sangue de Ferro** — vencer um combate após ter chegado a 1 HP → +2 HP máx  
   - **Mestre das Chamas** — 10 kills com fogo (Bola de Fogo / arma flamejante) → +2 na Bola de Fogo, +1/golpe em armas de fogo  
   - **Sobrevivente Envenenado** — curar veneno 5× (poção ou Silas) → veneno causa −1 dano (mín. 1)  
-  Progresso dos trackers aparece na ficha (`3/10` etc.) enquanto a conquista não foi feita.
+  - **Ladrão das Sombras** — 10 furtos bem-sucedidos → +10% chance de furto  
+  - **Ferro Velho** — quebrar 5 armas → +5 ouro  
+  - **Coração de Pedra** — descansar 20 vezes → +2 HP máx  
+  Progresso dos trackers na ficha; toast ao desbloquear.
 
 ### Combate e magia
 - Turnos 100% engine, hordas, 10 magias (scaling, buffs, debuffs, AoE)
@@ -205,4 +209,4 @@ Cliente Godot opcional · mais puzzles · missões de entrega na vila.
 
 ---
 
-*Protótipo v3.6 — LLM (chave genérica, timeout/retry, métricas), automapa com POIs + HUD de puzzles, botões de pressão e estátuas giratórias. Antes (v3.5): conquistas com tracker.*
+*Protótipo v3.7 — QoL (volume, atalhos de magia, toast de conquista, SFX de puzzle), /api/llm/status, 3 conquistas novas. Antes (v3.6): LLM robusto, automapa, puzzles.*
