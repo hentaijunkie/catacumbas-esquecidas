@@ -418,6 +418,7 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   corrompido e o assert casava com a mensagem de erro).
 
 ### Fama legível + Nascente + NPCs reativos + ambientação (v3.4) - **atual**
+- **Changelog in-game (`NOVIDADES`):** versão `v3.4` com os 4 bullets acima — modal uma vez por versão no login (`localStorage['novidades_vista']`).
 - **HUD de Fama:** a ficha mostra o total e a **próxima meta** (`fama_dica`: ex. `18 p/ itens exclusivos na Mira`, depois `N p/ Famoso + grimório na Morrigan`, depois “topo da vila”). Serializado em `player.fama_dica`.
 - **Marcos no log:** ao cruzar 30 e 50 de Fama, mensagens explícitas (catálogo Mira / Morrigan).
 - **Nascente Envenenada rende Fama:** limpar a câmara (vitória em combate → `recompensar_sala_limpa`) concede `FAMA_NASCENTE` (8) **uma vez por run** (`sidequests_feitas`); terminal e web.
@@ -654,6 +655,8 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 5. Rulebook + system prompt  
 6. Web se precisar de UI  
 7. README + este roadmap  
+8. **`NOVIDADES` em `index.html`** — bump `versao` + lista de itens (modal no login)  
+
 
 ---
 

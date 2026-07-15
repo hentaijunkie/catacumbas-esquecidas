@@ -593,13 +593,15 @@ function setUserUI(user){
 // ---- Novidades / changelog: exibido uma vez por versão (localStorage) ----
 // Ao lançar novidades, bump NOVIDADES.versao e reescreva a lista — todos os
 // jogadores veem o aviso no próximo login e só uma vez.
+// Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
+// (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
   versao: "v3.4",
   itens: [
-    "<b>Fama legível:</b> a ficha mostra quantos pontos faltam para os <b>itens da Mira</b> (≥30) e para <b>Famoso / Morrigan</b> (≥50).",
-    "<b>Nascente Envenenada rende Fama:</b> limpar a sidequest do andar 1 agora eleva sua reputação em Pedralume.",
-    "<b>NPCs reagem à Fama:</b> Mira, Ancião, Morrigan e os outros mudam o diálogo quando você é conhecido (≥30) ou famoso (≥50).",
-    "<b>Ambientação sonora:</b> cada local tem um loop sutil (vento, gotas, cripta, fogo no Abismo).",
+    "<b>Fama na ficha:</b> além do total, a ficha mostra o <b>próximo marco</b> — quantos pontos faltam para os itens exclusivos da Mira (≥30) e para Famoso + grimório na Morrigan (≥50).",
+    "<b>Nascente Envenenada:</b> limpar a sidequest do andar 1 (duo de cultistas) agora <b>aumenta sua Fama</b> em Pedralume.",
+    "<b>NPCs reconhecem você:</b> Mira, Ancião Brum, Morrigan, Kael e Silas mudam o que dizem quando a vila te conhece (≥30) ou te considera herói (≥50).",
+    "<b>Ambientação sonora:</b> cada local tem um loop sutil — brisa na vila, vento no 1º, gotas no 2º, cripta no 3º, fogo no Abismo. (Clique uma vez na página se o áudio estiver mudo.)",
   ],
 };
 function mostrarNovidades(){
