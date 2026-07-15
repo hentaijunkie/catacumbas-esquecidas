@@ -1734,7 +1734,7 @@ function drawEnemyBillboard(ctx, screenX, screenY, size, img, distance, opts = {
     ctx.textAlign = "center";
     ctx.fillStyle = isBoss ? "#e8c95a" : "#e7e9ef";
     ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
-    ctx.fillText(nome, screenX, drawY - 18);
+    ctx.fillText(nome, screenX, drawY - 22);
     ctx.shadowBlur = 0;
   }
 
@@ -1759,7 +1759,7 @@ function drawEnemyBillboard(ctx, screenX, screenY, size, img, distance, opts = {
     
     if (isCombat) {
       ctx.font = "11px system-ui"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
-      ctx.fillText(`${Math.ceil(hp)}/${hpMax}`, screenX, barY - 4);
+      ctx.fillText(`${Math.ceil(hp)}/${hpMax}`, screenX, barY + barH + 11);
     }
   }
   ctx.textAlign = "left";
@@ -2398,52 +2398,55 @@ function drawVillageScene(ctx, canvas, cenarioId, npcSprite = null) {
   const c = VILA_CENAS[cenarioId] || VILA_CENAS.praca;
   const W = canvas.width;
   const H = canvas.height;
+  const isOutdoor = ["praca", "entrada_catacumbas"].includes(cenarioId);
 
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, c.fundo);
-  grad.addColorStop(0.55, "#1a2030");
-  grad.addColorStop(1, "#2a2218");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  if (isOutdoor) {
+    if (spriteImages.vila_ceu && spriteImages.vila_ceu.complete) {
+      ctx.drawImage(spriteImages.vila_ceu, 0, 0, W, H/2);
+    } else {
+      const grad = ctx.createLinearGradient(0, 0, 0, H/2);
+      grad.addColorStop(0, c.fundo);
+      grad.addColorStop(1, "#1a2030");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H/2);
+    }
+    
+    if (spriteImages.vila_casas && spriteImages.vila_casas.complete) {
+      const scale = W / spriteImages.vila_casas.width;
+      const ph = spriteImages.vila_casas.height * scale;
+      ctx.drawImage(spriteImages.vila_casas, 0, H/2 - ph + H*0.05, W, ph);
+    }
 
-  ctx.fillStyle = "#ffcc66";
-  ctx.beginPath();
-  ctx.arc(W * 0.82, H * 0.16, 28, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,200,100,0.15)";
-  ctx.beginPath();
-  ctx.arc(W * 0.82, H * 0.16, 55, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#1e1a18";
-  ctx.fillRect(W*0.05, H*0.28, W*0.22, H*0.35);
-  ctx.fillRect(W*0.72, H*0.25, W*0.23, H*0.38);
-  ctx.fillRect(W*0.38, H*0.22, W*0.24, H*0.28);
-
-  ctx.fillStyle = "#2a2218";
-  ctx.beginPath();
-  ctx.moveTo(W*0.03, H*0.28); ctx.lineTo(W*0.16, H*0.18); ctx.lineTo(W*0.29, H*0.28); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(W*0.70, H*0.25); ctx.lineTo(W*0.835, H*0.14); ctx.lineTo(W*0.97, H*0.25); ctx.fill();
-
-  ctx.fillStyle = "#ffaa44";
-  ctx.globalAlpha = 0.7;
-  ctx.fillRect(W*0.10, H*0.38, 12, 14);
-  ctx.fillRect(W*0.18, H*0.42, 10, 12);
-  ctx.fillRect(W*0.78, H*0.36, 12, 14);
-  ctx.fillRect(W*0.86, H*0.40, 10, 12);
-  ctx.globalAlpha = 1;
-
-  ctx.fillStyle = "#3a2a1c";
-  ctx.fillRect(0, H*0.62, W, H*0.38);
+    if (spriteImages.vila_chao && spriteImages.vila_chao.complete) {
+      ctx.drawImage(spriteImages.vila_chao, 0, H/2, W, H/2);
+    } else {
+      ctx.fillStyle = "#3a2a1c";
+      ctx.fillRect(0, H/2, W, H/2);
+    }
+  } else {
+    // Fundo interno (Loja, Forja, Tenda)
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#0c0a08");
+    grad.addColorStop(0.6, "#221812");
+    grad.addColorStop(1, "#36261c");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    
+    // Linha do chao
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillRect(0, H*0.65, W, H*0.35);
+  }
 
   if (c.props.includes("fonte")) {
-    ctx.fillStyle = "#3a4a5a";
-    ctx.beginPath(); ctx.arc(W*0.5, H*0.72, 38, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#1a2a35";
-    ctx.beginPath(); ctx.arc(W*0.5, H*0.72, 22, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#2a4a6a";
-    ctx.beginPath(); ctx.arc(W*0.5, H*0.72, 14, 0, Math.PI*2); ctx.fill();
+    if (spriteImages.vila_fonte && spriteImages.vila_fonte.complete) {
+      const scale = (W*0.25) / spriteImages.vila_fonte.width;
+      const fw = spriteImages.vila_fonte.width * scale;
+      const fh = spriteImages.vila_fonte.height * scale;
+      ctx.drawImage(spriteImages.vila_fonte, W*0.5 - fw/2, H*0.75 - fh/2, fw, fh);
+    } else {
+      ctx.fillStyle = "#3a4a5a";
+      ctx.beginPath(); ctx.arc(W*0.5, H*0.72, 38, 0, Math.PI*2); ctx.fill();
+    }
   }
 
   if (c.props.includes("tocha")) {
@@ -2452,26 +2455,44 @@ function drawVillageScene(ctx, canvas, cenarioId, npcSprite = null) {
   }
 
   if (npcSprite && c.npc) {
-    const size = Math.min(W, H) * 0.38;
+    const size = Math.min(W, H) * (isOutdoor ? 0.38 : 0.48);
     const x = W * 0.5 - size/2;
-    const y = H * 0.42;
+    const y = H * (isOutdoor ? 0.42 : 0.35);
     ctx.drawImage(npcSprite, x, y, size, size);
 
     ctx.fillStyle = "#e8c95a";
     ctx.font = "bold 16px system-ui";
     ctx.textAlign = "center";
+    ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
     ctx.fillText(NPCS_VILA[c.npc]?.nome || c.npc, W*0.5, y - 12);
+    ctx.shadowBlur = 0;
     ctx.textAlign = "left";
   }
 
+  // Setas em formato de botao/placa
   c.setas.forEach(s => {
     const px = W * s.x;
     const py = H * s.y;
-    ctx.fillStyle = s.especial ? "#c9433a" : "#5fd0e0";
-    ctx.font = "bold 14px system-ui";
+    
+    ctx.font = "bold 13px system-ui";
+    const tw = ctx.measureText(s.label).width + 24;
+    
+    ctx.fillStyle = s.especial ? "rgba(100,20,20,0.85)" : "rgba(20,30,40,0.85)";
+    ctx.strokeStyle = s.especial ? "#e05a5a" : "#5fd0e0";
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, px - tw/2, py - 20, tw, 28, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.fillText(s.label, px, py);
-    ctx.fillText(s.dir === "norte" ? "▲" : s.dir === "sul" ? "▼" : s.dir === "leste" ? "▶" : "◀", px, py + 18);
+    ctx.textBaseline = "middle";
+    ctx.fillText(s.label, px, py - 6);
+    
+    // Ícone da seta
+    ctx.fillStyle = s.especial ? "#e05a5a" : "#5fd0e0";
+    ctx.fillText(s.dir === "norte" ? "▲" : s.dir === "sul" ? "▼" : s.dir === "leste" ? "▶" : "◀", px, py + 22);
+    ctx.textBaseline = "alphabetic";
   });
   ctx.textAlign = "left";
 
