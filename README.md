@@ -182,6 +182,7 @@ Contrato LLM: [`LLM_RULEBOOK.md`](LLM_RULEBOOK.md) · Plano: [`ROADMAP.md`](ROAD
 | `game_log.py` | Logs em `logs/game.log`, `logs/client.log` e `logs/llm.log` |
 | `LLM_RULEBOOK.md` | Constituição do narrador |
 | `DEPLOY-RAILWAY.md` | Guia de deploy (Railway + volume) |
+| `GODOT.md` | Guia do futuro cliente Godot 4 (server.py continua sendo o jogo) |
 | `artifacts/` | Lore / design notes |
 | `data/` · `saves/` | Contas, feedback e saves por usuário (gitignored) |
 | `logs/` | Debug runtime (gitignored) |
