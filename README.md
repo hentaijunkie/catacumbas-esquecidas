@@ -209,4 +209,4 @@ Cliente Godot opcional · mais puzzles · missões de entrega na vila.
 
 ---
 
-*Protótipo v3.7 — QoL (volume, atalhos de magia, toast de conquista, SFX de puzzle), /api/llm/status, 3 conquistas novas. Antes (v3.6): LLM robusto, automapa, puzzles.*
+*Protótipo v3.8 — QoL (volume, atalhos de magia, toast de conquista, SFX de puzzle), /api/llm/status, 3 conquistas novas. Antes (v3.6): LLM robusto, automapa, puzzles.*

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>LLM Metrics Dashboard</title>
+  <style>
+    body { background: #111; color: #eee; font-family: sans-serif; padding: 20px; }
+    h1 { color: #a8e6cf; }
+    .card { background: #222; border: 1px solid #444; border-radius: 8px; padding: 15px; margin-bottom: 10px; width: 300px; display: inline-block; margin-right: 10px; vertical-align: top;}
+    .stat { font-size: 2em; margin-top: 10px; color: #ffcc00; }
+    #err { color: #ff5555; }
+    .err-text { color: #ff5555; font-size: 0.9em; margin-top:10px; }
+    input[type=password] { padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; }
+    button { padding: 8px 12px; background: #444; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    button:hover { background: #555; }
+  </style>
+</head>
+<body>
+  <h1>LLM Metrics</h1>
+  <div style="margin-bottom: 20px;">
+    <input type="password" id="txtKey" placeholder="LLM_STATUS_KEY">
+    <button onclick="start()">Conectar</button>
+  </div>
+  <div id="dashboard" style="display:none;">
+    <div class="card"><h3>Requisições (OK)</h3><div class="stat" id="c_ok">0</div></div>
+    <div class="card"><h3>Erros de API</h3><div class="stat" id="c_err">0</div></div>
+    <div class="card"><h3>Erros JSON (Empty)</h3><div class="stat" id="c_empty">0</div></div>
+    <br>
+    <div class="card"><h3>Latência Média</h3><div class="stat"><span id="l_avg">0</span> ms</div></div>
+    <div class="card"><h3>Latência P95</h3><div class="stat"><span id="l_p95">0</span> ms</div></div>
+    <div class="card"><h3>Última Requisição</h3><div class="stat" style="font-size: 1.2em;"><span id="l_last">N/A</span> ms</div><div class="err-text" id="l_err_text"></div></div>
+  </div>
+  <div id="err" style="margin-top:20px;"></div>
+
+  <script>
+    let timer = null;
+    async function fetchStatus() {
+        const key = document.getElementById("txtKey").value;
+        try {
+            const res = await fetch("/api/llm/status?key=" + encodeURIComponent(key));
+            const json = await res.json();
+            if(!json.ok) {
+                document.getElementById("err").textContent = json.erro || "Falha na autenticação.";
+                document.getElementById("dashboard").style.display = "none";
+            } else {
+                document.getElementById("err").textContent = "";
+                document.getElementById("dashboard").style.display = "block";
+                
+                const m = json.metrics;
+                document.getElementById("c_ok").textContent = m.calls_ok;
+                document.getElementById("c_err").textContent = m.calls_err;
+                document.getElementById("c_empty").textContent = m.calls_empty;
+                
+                document.getElementById("l_avg").textContent = m.avg_latencia_ms || "-";
+                document.getElementById("l_p95").textContent = m.p95_latencia_ms || "-";
+                document.getElementById("l_last").textContent = m.last_latencia_ms || "-";
+                
+                document.getElementById("l_err_text").textContent = m.last_erro ? "Último erro: " + m.last_erro : "";
+            }
+        } catch(e) {
+            document.getElementById("err").textContent = "Falha de rede.";
+        }
+    }
+    
+    function start() {
+        if(timer) clearInterval(timer);
+        fetchStatus();
+        timer = setInterval(fetchStatus, 3000);
+    }
+  </script>
+</body>
+</html>

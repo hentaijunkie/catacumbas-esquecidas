@@ -444,6 +444,16 @@ CONQUISTAS = {
         "desc": "Quebrou 5 armas em combate.",
         "beneficio": "+5 ouro ao desbloquear (sucata vendida).",
     },
+    "matador": {
+        "nome": "Matador",
+        "desc": "Abateu 50 inimigos.",
+        "beneficio": "+2 Dano Base.",
+    },
+    "alquimista": {
+        "nome": "Alquimista",
+        "desc": "Usou 20 poções de cura.",
+        "beneficio": "+5 HP curado em cada poção.",
+    },
     "coracao_de_pedra": {
         "nome": "Coração de Pedra",
         "desc": "Descansou 20 vezes em salas seguras.",
@@ -458,6 +468,8 @@ TRACKER_METAS = {
     "furtos_ok": ("ladrao_sombras", 10),
     "armas_quebradas": ("ferro_velho", 5),
     "descansos": ("coracao_de_pedra", 20),
+    "kills_totais": ("matador", 50),
+    "pocoes_cura": ("alquimista", 20),
 }
 MAGIAS_FOGO = frozenset({"bola_fogo"})  # kills com estas magias contam p/ Mestre das Chamas
 
@@ -488,6 +500,10 @@ def conceder_conquista(state, cid):
     elif cid == "coracao_de_pedra":
         p["hp_max"] += 2
         p["hp"] += 2
+    elif cid == "matador":
+        p["dano_base"] += 2
+    elif cid == "alquimista":
+        pass # Benefício passivo aplicado na poção
     elif cid == "ferro_velho":
         p["ouro"] = p.get("ouro", 0) + 5
     elif cid in ("explorador", "famoso", "mestre_das_chamas", "sobrevivente_envenenado",

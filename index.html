@@ -628,7 +628,7 @@ function setUserUI(user){
 // Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
 // (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
-  versao: "v3.7",
+  versao: "v3.8",
   itens: [
     "<b>Mais conquistas:</b> Ladrão das Sombras (10 furtos), Ferro Velho (5 armas quebradas), Coração de Pedra (20 descansos) — com progresso na ficha e toast ao desbloquear.",
     "<b>Áudio:</b> sliders SFX/Amb no topo; som de <em>mecanismo</em> nos puzzles; Abismo com crepitações extras.",
@@ -1176,6 +1176,27 @@ function sfx(tipo){
   }catch(_){ /* audio opcional */ }
 }
 
+function spawnConfetti(el) {
+  for(let i=0; i<30; i++) {
+    let p = document.createElement("div");
+    p.style.position = "absolute";
+    p.style.width = "4px"; p.style.height = "4px";
+    p.style.background = ["#ffcc00", "#a8e6cf", "#fff", "#ff8b94"][Math.floor(Math.random()*4)];
+    p.style.left = (50 + (Math.random()-0.5)*100) + "%";
+    p.style.top = "100%";
+    p.style.borderRadius = "50%";
+    p.style.pointerEvents = "none";
+    p.style.zIndex = "100";
+    p.style.transition = "transform 1s ease-out, opacity 1s ease-in";
+    el.appendChild(p);
+    setTimeout(() => {
+      p.style.transform = `translate(${(Math.random()-0.5)*150}px, ${Math.random()*50 + 20}px) scale(${Math.random()+0.5})`;
+      p.style.opacity = "0";
+    }, 10);
+    setTimeout(() => p.remove(), 1100);
+  }
+}
+
 function toastConquista(texto){
   const el = $("#toastConq"), t = $("#toastConqTxt");
   if(!el || !t) return;
@@ -1184,9 +1205,32 @@ function toastConquista(texto){
   clearTimeout(toastConquista._t);
   toastConquista._t = setTimeout(()=> el.classList.remove("on"), 4200);
   sfx("puzzle");
+  spawnConfetti(el);
 }
 
 let _fatigueOsc = null;
+function playAbismoRoar() {
+  const ctx = ensureAudioBuses();
+  if(!_audioCtx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  osc.type = "sawtooth";
+  osc.frequency.value = 40 + Math.random()*20; // Muito grave
+  filter.type = "lowpass";
+  filter.frequency.value = 150;
+  gain.gain.value = 0;
+  
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(_sfxBus);
+  
+  const now = ctx.currentTime;
+  osc.start(now);
+  gain.gain.linearRampToValueAtTime(0.4 * (_sfxBus.gain.value), now + 1.5);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 4);
+  osc.stop(now + 4.1);
+}
 function playFatigueAudio() {
   if(_fatigueOsc) return;
   const ctx = ensureAudioBuses();
@@ -2309,8 +2353,15 @@ function tileSala(ctx, x, y, T, r, ehJogador, prof = 1){
   // piso de pedra com leve relevo
   ctx.save();
   ctx.shadowColor="#0009"; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
+  let bgTop = "#4a5169", bgBot = "#353a4c";
+  // Piscar se resolvido recentemente
+  if(r.puzzle_resolvido || r.estatua_ok || r.botao_ativo || (r.alavancas_ativas && r.alavancas_ativas >= 3)) {
+      if(Math.sin(performance.now() / 150) > 0) {
+          bgTop = "#5a8c6a"; bgBot = "#3d6049";
+      }
+  }
   const g=ctx.createLinearGradient(0,Y,0,Y+T);
-  g.addColorStop(0,"#4a5169"); g.addColorStop(1,"#353a4c");
+  g.addColorStop(0,bgTop); g.addColorStop(1,bgBot);
   ctx.fillStyle=g; roundRect(ctx,X,Y,T,T,9); ctx.fill();
   ctx.restore();
   ctx.strokeStyle="#ffffff18"; ctx.lineWidth=1; roundRect(ctx,X+1,Y+1,T-2,T-2,8); ctx.stroke();
@@ -2326,6 +2377,11 @@ function tileSala(ctx, x, y, T, r, ehJogador, prof = 1){
   } else if(r.estatua){
     ctx.fillStyle = r.estatua_ok ? "#8d8" : "#a090c0";
     ctx.fillText("🗿", x, y+1);
+    if(r.estatua_ok) {
+        ctx.fillStyle = "#4BFF4B";
+        ctx.font = `${Math.max(8, T*0.3)}px sans-serif`;
+        ctx.fillText("\u2714", x + T*0.25, y - T*0.25 + 1);
+    }
   } else if(r.botao){
     ctx.fillStyle = r.botao_ativo ? "#6a8" : "#888";
     ctx.fillText(r.botao_ativo ? "▪" : "▫", x, y+1);
@@ -2473,7 +2529,12 @@ $("#ovAjuda").onclick = ev=>{ if(ev.target.id==="ovAjuda") toggleAjuda(false); }
 // Controles 1ª pessoa: frente/trás = relativo ao facing; laterais = virar no lugar.
 let _inputBusy = false;
 document.addEventListener("keydown", async ev=>{
-  if(ev.key==="Escape"){ toggleAjuda(false); toggleFeedback(false); fecharNovidades(); $("#cmd").blur(); return; }
+  if(ev.key==="Escape"){ toggleAjuda(false); toggleFeedback(false); fecharNovidades(); $("#cmd").blur(); fecharMenuMagias(); return; }
+  if((ev.key==="Tab" || ev.key==="Shift") && combatendo) {
+    ev.preventDefault();
+    $("#cbMagiasMenu").classList.toggle("on");
+    return;
+  }
   if(ev.key==="F3"){
     ev.preventDefault();
     DEBUG_VIEW = !DEBUG_VIEW;

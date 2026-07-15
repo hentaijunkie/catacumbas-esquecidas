@@ -68,6 +68,25 @@ def _log_llm_turno(evento, **campos):
 
 eng.LOG_LLM = _log_llm_turno
 
+def load_llm_metrics():
+    import os, json
+    p = os.path.join(os.environ.get("SAVE_ROOT", "data/saves"), "llm_metrics.json")
+    if os.path.exists(p):
+        try:
+            with open(p, "r", encoding="utf-8") as fl:
+                eng.LLM_METRICS.update(json.load(fl))
+        except: pass
+
+def save_llm_metrics():
+    import os, json
+    p = os.path.join(os.environ.get("SAVE_ROOT", "data/saves"), "llm_metrics.json")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    try:
+        with open(p, "w", encoding="utf-8") as fl:
+            json.dump(eng.LLM_METRICS, fl)
+    except: pass
+
+
 PASSOS_POR_AUTOSAVE = 12
 N_SLOTS = 3
 # Em produção (Railway): volume em /data e SAVE_ROOT=/data/saves (junto com DATA_DIR=/data)
@@ -1273,6 +1292,14 @@ class Handler(BaseHTTPRequestHandler):
             _ctx.llm_status_key = key
             self._send(200, json.dumps(acao_llm_status({"key": key}), ensure_ascii=False))
             return
+        if path == "/admin/llm":
+            if not os.path.exists("admin_llm.html"):
+                self._send(404, "Not found", "text/plain")
+            else:
+                with open("admin_llm.html", "rb") as fl:
+                    self._send(200, fl.read(), "text/html; charset=utf-8")
+            return
+            
         if path in ("/api/estado", "/api/saves"):
             sess = self._bind_session()
             if not sess:
