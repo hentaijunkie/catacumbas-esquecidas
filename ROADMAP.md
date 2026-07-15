@@ -417,8 +417,16 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Fama legível + Nascente + NPCs reativos + ambientação (v3.4) - **atual**
-- **Changelog in-game (`NOVIDADES`):** versão `v3.4` com os 4 bullets acima — modal uma vez por versão no login (`localStorage['novidades_vista']`).
+### Conquistas com tracker (v3.5) - **atual**
+- **Sangue de Ferro:** vencer um combate em que o HP chegou a 1 (`cb["quase_morto"]`) → +2 HP máx.
+- **Mestre das Chamas:** tracker `kills_fogo` (meta 10) — kills com Bola de Fogo ou arma `efeito: fogo` (`cb["fonte_fogo"]`); DoT do inimigo não conta. Benefício: +2 em Bola de Fogo, +1 dano de fogo por golpe de arma.
+- **Sobrevivente Envenenado:** tracker `venenos_curados` (meta 5) — poção (`curar_veneno(state)`) ou Silas. Benefício: veneno −1 dano (mín. 1) em `tick_veneno`.
+- **Trackers globais** no meta da conta (`index.json`): progresso e conquistas persistem entre runs; UI mostra `conquistas_progresso` (ex. `3/10`) na ficha.
+- Helpers: `registrar_tracker`, `progresso_conquistas`, `TRACKER_METAS`, `MAGIAS_FOGO`.
+- **`NOVIDADES` v3.5.** Verificado: `--demo` (3 conquistas + benefícios + serialização).
+
+### Fama legível + Nascente + NPCs reativos + ambientação (v3.4)
+- **Changelog in-game (`NOVIDADES`):** versão `v3.4` com os 4 bullets — modal uma vez por versão no login (`localStorage['novidades_vista']`).
 - **HUD de Fama:** a ficha mostra o total e a **próxima meta** (`fama_dica`: ex. `18 p/ itens exclusivos na Mira`, depois `N p/ Famoso + grimório na Morrigan`, depois “topo da vila”). Serializado em `player.fama_dica`.
 - **Marcos no log:** ao cruzar 30 e 50 de Fama, mensagens explícitas (catálogo Mira / Morrigan).
 - **Nascente Envenenada rende Fama:** limpar a câmara (vitória em combate → `recompensar_sala_limpa`) concede `FAMA_NASCENTE` (8) **uma vez por run** (`sidequests_feitas`); terminal e web.
@@ -614,7 +622,7 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 ## Proximos passos (curto prazo)
 
 ### Expansão da Gameplay
-- [ ] Ampliação do sistema de Conquistas: trackers novos (ex: Mestre das Chamas, Sangue de Ferro, Sobrevivente Envenenado).
+- [x] ~~Ampliação do sistema de Conquistas (trackers)~~ — ✅ v3.5 (Sangue de Ferro, Mestre das Chamas, Sobrevivente Envenenado).
 - [ ] Novas interações procedurais: estátuas que giram e botões de pressão nas masmorras.
 - [x] ~~Áudio ambiental por andar~~ — ✅ v3.4 (Web Audio procedural).
 - [x] ~~Fama legível + Nascente + NPCs reativos~~ — ✅ v3.4.
@@ -660,4 +668,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.4 — Fama legível (dica na ficha), Nascente Envenenada rende Fama, NPCs reagem à reputação, ambientação sonora por andar. Antes (v3.3): Templo Esquecido ligado de verdade.*
+*Última atualização: v3.5 — Conquistas com tracker (Sangue de Ferro, Mestre das Chamas, Sobrevivente Envenenado). Antes (v3.4): Fama legível, Nascente, NPCs reativos, ambientação.*

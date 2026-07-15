@@ -197,12 +197,21 @@ def _ler_meta():
 
 
 def _aplicar_conquistas_globais(state):
-    """Conquistas são GLOBAIS por conta (meta do save): ao criar/carregar um jogo,
-    reaplica as já desbloqueadas em qualquer slot — benefícios (ex.: +5 HP do Purificador,
-    desconto do Famoso) valem para o novo personagem. conceder_conquista é idempotente."""
+    """Conquistas e trackers são GLOBAIS por conta (meta do save): ao criar/carregar
+    um jogo, reaplica conquistas já desbloqueadas e o maior progresso de trackers —
+    benefícios (ex.: +5 HP do Purificador, desconto do Famoso) valem para o novo
+    personagem. conceder_conquista é idempotente."""
     if not state:
         return
-    for cid in _ler_meta().get("conquistas", []):
+    meta = _ler_meta()
+    p = state.get("player") or {}
+    tr = p.setdefault("trackers", {})
+    for k, v in (meta.get("trackers") or {}).items():
+        try:
+            tr[k] = max(int(tr.get(k, 0)), int(v))
+        except (TypeError, ValueError):
+            pass
+    for cid in meta.get("conquistas", []):
         eng.conceder_conquista(state, cid)
 
 
@@ -324,11 +333,16 @@ def _salvar_estado_locked(slot):
     meta = _ler_meta()
     meta.setdefault("slots", {})[str(slot)] = _resumo_slot(GAME["state"], GAME.get("combate"))
     meta["active"] = slot
-    # Salvar conquistas globais
+    # Salvar conquistas + trackers globais (meta-progressão da conta)
     globais = meta.setdefault("conquistas", [])
     atuais = GAME["state"]["player"].get("conquistas", [])
     meta["conquistas"] = list(set(globais + atuais))
-    
+    tr_meta = meta.setdefault("trackers", {})
+    for k, v in (GAME["state"]["player"].get("trackers") or {}).items():
+        try:
+            tr_meta[k] = max(int(tr_meta.get(k, 0)), int(v))
+        except (TypeError, ValueError):
+            pass
     _escrever_meta(meta)
     GAME["active_slot"] = slot
     return True

@@ -596,12 +596,12 @@ function setUserUI(user){
 // Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
 // (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
-  versao: "v3.4",
+  versao: "v3.5",
   itens: [
-    "<b>Fama na ficha:</b> além do total, a ficha mostra o <b>próximo marco</b> — quantos pontos faltam para os itens exclusivos da Mira (≥30) e para Famoso + grimório na Morrigan (≥50).",
-    "<b>Nascente Envenenada:</b> limpar a sidequest do andar 1 (duo de cultistas) agora <b>aumenta sua Fama</b> em Pedralume.",
-    "<b>NPCs reconhecem você:</b> Mira, Ancião Brum, Morrigan, Kael e Silas mudam o que dizem quando a vila te conhece (≥30) ou te considera herói (≥50).",
-    "<b>Ambientação sonora:</b> cada local tem um loop sutil — brisa na vila, vento no 1º, gotas no 2º, cripta no 3º, fogo no Abismo. (Clique uma vez na página se o áudio estiver mudo.)",
+    "<b>Novas conquistas:</b> <b>Sangue de Ferro</b> (vencer um combate após chegar a 1 HP), <b>Mestre das Chamas</b> (10 kills com fogo) e <b>Sobrevivente Envenenado</b> (curar veneno 5×) — com benefícios reais e progresso na ficha.",
+    "<b>Fama na ficha:</b> contador + próximo marco (Mira ≥30 / Famoso+Morrigan ≥50).",
+    "<b>Nascente & NPCs:</b> limpar a Nascente rende Fama; habitantes de Pedralume reagem à sua reputação.",
+    "<b>Ambientação sonora:</b> loops por andar (vento, gotas, cripta, fogo no Abismo).",
   ],
 };
 function mostrarNovidades(){
@@ -744,10 +744,22 @@ function aplicar(resp){
       : "reputação no topo da vila");
     $("#famahint").textContent = dica;
     $("#famahintrow").style.display = "";
-    const CONQ_NOMES = {purificador:"Purificador 💧", famoso:"Famoso 👑", explorador:"Explorador 🗺️"};
+    const CONQ_NOMES = {
+      purificador:"Purificador 💧", famoso:"Famoso 👑", explorador:"Explorador 🗺️",
+      sangue_de_ferro:"Sangue de Ferro 🩸", mestre_das_chamas:"Mestre das Chamas 🔥",
+      sobrevivente_envenenado:"Sobrevivente Envenenado ☠️",
+    };
     const conq = p.conquistas || [];
-    $("#conqrow").style.display = conq.length ? "" : "none";
-    $("#conquistas").textContent = conq.map(c=>CONQ_NOMES[c]||c).join(" · ");
+    const prog = p.conquistas_progresso || [];
+    const partesConq = conq.map(c=>CONQ_NOMES[c]||c);
+    // Progresso de trackers ainda em andamento (ex.: 3/10 kills de fogo)
+    prog.forEach(pr=>{
+      if(pr.feita) return;
+      const rotulo = CONQ_NOMES[pr.id] || pr.nome || pr.id;
+      partesConq.push(`${rotulo} ${pr.atual}/${pr.meta}`);
+    });
+    $("#conqrow").style.display = partesConq.length ? "" : "none";
+    $("#conquistas").textContent = partesConq.join(" · ") || "—";
     $("#arma").textContent = p.arma || "—";
     $("#armadura").textContent = p.armadura || "nenhuma";
     const bfor = p.bonus_for||0;

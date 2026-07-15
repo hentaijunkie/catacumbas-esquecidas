@@ -146,7 +146,14 @@ Não publique a chave no repositório.
 - **Fama** sobe ao derrotar chefes/minichefes e resolver sidequests (limpar a **Nascente Envenenada**, abrir o Templo Esquecido, purificar o Golem). Ela **desbloqueia catálogo exclusivo**: Mira a partir de 30 de Fama (poção maior, espada mágica), Morrigan a partir de 50 (grimório de tempestade).
 - **Ficha legível:** contador de Fama + dica do próximo marco (`N p/ itens da Mira` / `N p/ Famoso + grimório na Morrigan`).
 - **NPCs reagem à Fama:** Mira, Ancião Brum, Morrigan e os demais mudam o diálogo em ≥30 e ≥50 (texto canônico da engine).
-- **Conquistas** com benefício mecânico, **globais por conta** (persistem entre personagens): **Purificador** (purificar o Golem → +5 HP máx, +1 luz) · **Famoso** (Fama ≥50 → 10% de desconto nas lojas) · **Explorador** (vencer o Guardião da Lança no Abismo). Aparecem na ficha do aventureiro.
+- **Conquistas** com benefício mecânico, **globais por conta** (persistem entre personagens):
+  - **Purificador** — purificar o Golem → +5 HP máx, +1 luz  
+  - **Famoso** — Fama ≥50 → 10% de desconto nas lojas  
+  - **Explorador** — vencer o Guardião da Lança no Abismo  
+  - **Sangue de Ferro** — vencer um combate após ter chegado a 1 HP → +2 HP máx  
+  - **Mestre das Chamas** — 10 kills com fogo (Bola de Fogo / arma flamejante) → +2 na Bola de Fogo, +1/golpe em armas de fogo  
+  - **Sobrevivente Envenenado** — curar veneno 5× (poção ou Silas) → veneno causa −1 dano (mín. 1)  
+  Progresso dos trackers aparece na ficha (`3/10` etc.) enquanto a conquista não foi feita.
 
 ### Combate e magia
 - Turnos 100% engine, hordas, 10 magias (scaling, buffs, debuffs, AoE)
@@ -192,9 +199,9 @@ python server.py          # logs em logs/
 
 ## Visão de longo prazo
 
-Fama/conquistas legíveis → robustez do LLM (timeout/retry) → automapa com POIs → cliente Godot opcional.  
-~~LLM local (Ollama)~~ ✅ v2.7.4 · ~~Vila/persistência~~ ✅ · ~~ambientação sonora~~ ✅ v3.4.
+Robustez do LLM (timeout/retry) → automapa com POIs → puzzles (estátuas/botões) → cliente Godot opcional.  
+~~LLM local~~ ✅ · ~~Fama legível~~ ✅ v3.4 · ~~Conquistas com tracker~~ ✅ v3.5 · ~~ambientação sonora~~ ✅ v3.4.
 
 ---
 
-*Protótipo v3.4 — Fama legível (dica na ficha), Nascente Envenenada rende Fama, NPCs reagem à reputação, ambientação sonora por andar. Antes (v3.3): Templo Esquecido ligado de verdade.*
+*Protótipo v3.5 — Conquistas com tracker (Sangue de Ferro, Mestre das Chamas, Sobrevivente Envenenado). Antes (v3.4): Fama legível, Nascente, NPCs reativos, ambientação sonora.*

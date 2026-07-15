@@ -391,10 +391,46 @@ MAGIAS = {
 MAGIAS_EXPLORACAO = {"cura"}
 
 CONQUISTAS = {
-    "purificador": {"nome": "Purificador", "desc": "Purificou o Golem Guardião.", "beneficio": "Ganhou +5 HP Máximo e luz divina interna (+1 luz)."},
-    "famoso": {"nome": "Famoso", "desc": "Atingiu 50 de Fama na vila.", "beneficio": "10% de desconto adicional nas lojas."},
-    "explorador": {"nome": "Explorador", "desc": "Descobriu os segredos mais profundos.", "beneficio": "Resistência mental à escuridão e armadilhas."}
+    "purificador": {
+        "nome": "Purificador",
+        "desc": "Purificou o Golem Guardião.",
+        "beneficio": "Ganhou +5 HP Máximo e luz divina interna (+1 luz).",
+    },
+    "famoso": {
+        "nome": "Famoso",
+        "desc": "Atingiu 50 de Fama na vila.",
+        "beneficio": "10% de desconto adicional nas lojas.",
+    },
+    "explorador": {
+        "nome": "Explorador",
+        "desc": "Descobriu os segredos mais profundos.",
+        "beneficio": "Resistência mental à escuridão e armadilhas.",
+    },
+    # v3.5 — trackers (progresso em player.trackers; meta global no save da conta)
+    "sangue_de_ferro": {
+        "nome": "Sangue de Ferro",
+        "desc": "Sobreviveu a um combate inteiro tendo chegado a 1 HP.",
+        "beneficio": "+2 HP máximo (cicatrizes de aço).",
+    },
+    "mestre_das_chamas": {
+        "nome": "Mestre das Chamas",
+        "desc": "Abateu 10 inimigos com fogo (Bola de Fogo ou arma flamejante).",
+        "beneficio": "+2 dano em Bola de Fogo; +1 dano extra por golpe de armas de fogo.",
+    },
+    "sobrevivente_envenenado": {
+        "nome": "Sobrevivente Envenenado",
+        "desc": "Curou-se de veneno 5 vezes (poção ou Silas).",
+        "beneficio": "Veneno causa 1 a menos de dano (mínimo 1).",
+    },
 }
+
+# Contadores → (id_conquista, meta). Incrementados por registrar_tracker.
+TRACKER_METAS = {
+    "kills_fogo": ("mestre_das_chamas", 10),
+    "venenos_curados": ("sobrevivente_envenenado", 5),
+}
+MAGIAS_FOGO = frozenset({"bola_fogo"})  # kills com estas magias contam p/ Mestre das Chamas
+
 
 def conceder_conquista(state, cid):
     """Desbloqueia uma conquista (idempotente) e aplica o benefício mecânico UMA vez.
@@ -416,11 +452,43 @@ def conceder_conquista(state, cid):
         p["hp_max"] += 5
         p["hp"] += 5
         p["luz"] = max(p.get("luz", 0), 0) + 1
-    elif cid == "explorador":
-        pass # Benefício passivo
-    elif cid == "famoso":
-        pass # Benefício aplicado na loja
+    elif cid == "sangue_de_ferro":
+        p["hp_max"] += 2
+        p["hp"] += 2
+    elif cid in ("explorador", "famoso", "mestre_das_chamas", "sobrevivente_envenenado"):
+        pass  # passivos aplicados em combate/loja/tick_veneno/valor_magia
     return [msg]
+
+
+def registrar_tracker(state, key, n=1):
+    """Incrementa um contador de conquista e concede o prêmio ao atingir a meta."""
+    if n <= 0 or key not in TRACKER_METAS:
+        return []
+    p = state["player"]
+    tr = p.setdefault("trackers", {})
+    tr[key] = tr.get(key, 0) + n
+    cid, meta = TRACKER_METAS[key]
+    msgs = []
+    if tr[key] >= meta:
+        msgs += conceder_conquista(state, cid)
+    return msgs
+
+
+def progresso_conquistas(player):
+    """Lista de progresso de conquistas com tracker (p/ a UI)."""
+    out = []
+    for key, (cid, meta) in TRACKER_METAS.items():
+        if cid not in CONQUISTAS:
+            continue
+        atual = int((player.get("trackers") or {}).get(key, 0))
+        out.append({
+            "id": cid,
+            "nome": CONQUISTAS[cid]["nome"],
+            "atual": min(atual, meta),
+            "meta": meta,
+            "feita": cid in (player.get("conquistas") or []),
+        })
+    return out
 
 
 # Fama: reputação persistente ganha ao superar chefes e sidequests. Ela abre catálogos
@@ -1159,6 +1227,7 @@ def novo_jogo(classe, seed=None, raca="Humano"):
             "ouro":      OURO_INICIAL,      # moedas p/ loja da Vila
             "fama":      0,                 # reputação em Pedralume (chefes/sidequests) → catálogos + conquista
             "conquistas": [],              # ids de CONQUISTAS desbloqueadas (persistem globais no meta do save)
+            "trackers":  {},                # contadores de conquista (kills_fogo, venenos_curados, …)
         },
         "itens_gerados": {},                # cache de instâncias procedurais de itens mágicos (Loot)
         "local":     "Entrada das Catacumbas Esquecidas",
@@ -1288,9 +1357,13 @@ def tick_veneno(state):
     v = p.get("veneno")
     if not v:
         return []
-    p["hp"] = max(0, p["hp"] - v["dano"])
+    dano = int(v["dano"])
+    # Conquista Sobrevivente Envenenado: −1 dano de veneno (mín. 1)
+    if "sobrevivente_envenenado" in (p.get("conquistas") or []):
+        dano = max(1, dano - 1)
+    p["hp"] = max(0, p["hp"] - dano)
     v["passos"] -= 1
-    msgs = [f"O veneno corrói suas veias: -{v['dano']} HP"
+    msgs = [f"O veneno corrói suas veias: -{dano} HP"
             + (f" ({v['passos']} para passar)." if v["passos"] > 0 else ".")]
     if v["passos"] <= 0:
         p["veneno"] = None
@@ -1321,12 +1394,16 @@ def tick_sangramento(state):
     return msgs
 
 
-def curar_veneno(player):
-    """Poção de Cura também neutraliza o veneno E o sangramento. Retorna msgs ou None."""
+def curar_veneno(player, state=None):
+    """Poção de Cura também neutraliza o veneno E o sangramento. Retorna msgs ou None.
+    Se `state` for passado e o veneno for removido, incrementa o tracker Sobrevivente."""
     msgs = []
     if player.get("veneno"):
         player["veneno"] = None
         msgs.append("O antídoto na poção limpa o veneno do seu sangue.")
+        if state is not None:
+            for m in registrar_tracker(state, "venenos_curados"):
+                msgs.append(m)
     if player.get("sangramento"):
         player["sangramento"] = None
         msgs.append("A cura estanca o sangramento.")
@@ -1394,7 +1471,11 @@ def stats_inimigo(enemy_id, profundidade=1):
 def valor_magia(magia_id, player):
     """Valor efetivo de uma magia = base + escala*(nível-1). O feitiço cresce com o caster."""
     m = MAGIAS[magia_id]
-    return m.get("valor", 0) + m.get("escala", 0) * (player["nivel"] - 1)
+    val = m.get("valor", 0) + m.get("escala", 0) * (player["nivel"] - 1)
+    # Mestre das Chamas: Bola de Fogo mais forte
+    if magia_id in MAGIAS_FOGO and "mestre_das_chamas" in (player.get("conquistas") or []):
+        val += 2
+    return val
 
 
 def xp_para_proximo(player):
@@ -1588,6 +1669,8 @@ def serializar_estado(state):
             "fama_dica": dica_fama(p.get("fama", 0)),
             "dano_base": p["dano_base"], "dano_arma": dano_da_arma(p, state),
             "conquistas": p.get("conquistas", []),
+            "trackers": dict(p.get("trackers") or {}),
+            "conquistas_progresso": progresso_conquistas(p),
             "bonus_for": bonus_dano_fisico(p, state), "defesa": defesa_total(p, state),
             "arma": nome_item_display(p["arma"], state) if p.get("arma") else "desarmado",
             "armadura": nome_item_display(p["armadura"], state) if p.get("armadura") else None,
@@ -1695,6 +1778,7 @@ def reidratar_estado(state):
     # Saves anteriores à v3.x não têm Fama/Conquistas — garante os campos p/ a UI e a economia.
     p.setdefault("fama", 0)
     p.setdefault("conquistas", [])
+    p.setdefault("trackers", {})
     state.setdefault("sidequests_feitas", [])
 
     def _fix_masmorra(m):
@@ -2246,7 +2330,7 @@ def executar_acao(state, acao):
             antes = p["hp"]
             p["hp"] = min(p["hp_max"], p["hp"] + info["cura"])  # clamp: engine é dona da conta
             print(f"  [usar] {info['nome']}: +{p['hp'] - antes} HP.")
-            antidoto = curar_veneno(p)
+            antidoto = curar_veneno(p, state)
             if antidoto:
                 print(f"  [usar] {antidoto}")
         elif "mana" in info:
@@ -3497,9 +3581,11 @@ def curar_no_silas(state):
     if p["hp"] < p["hp_max"]:
         partes.append(f"+{p['hp_max'] - p['hp']} HP")
         p["hp"] = p["hp_max"]
+    conq_msgs = []
     if p.get("veneno"):
         p["veneno"] = None
         partes.append("veneno purgado")
+        conq_msgs += registrar_tracker(state, "venenos_curados")
     if p.get("sangramento"):
         p["sangramento"] = None
         partes.append("sangramento estancado")
@@ -3508,8 +3594,12 @@ def curar_no_silas(state):
         p["passos"] = 0
         partes.append("fadiga aliviada")
     state["historico"].append("foi curado por Silas")
-    return _resp(f"Silas impõe as mãos ({', '.join(partes)}) — {CUSTO_CURA_SILAS} ouro. "
-                 f"\"A luz ainda não nos abandonou.\"")
+    out = [f"Silas impõe as mãos ({', '.join(partes)}) — {CUSTO_CURA_SILAS} ouro. "
+           f"\"A luz ainda não nos abandonou.\""]
+    print(f"  [cura] {out[0]}")
+    for m in conq_msgs:
+        out.append(m)
+    return out
 
 
 def reparar_campo(state, item_id):
@@ -3609,17 +3699,23 @@ def falar_npc(state, alvo):
 
 def _resolver_mortes(state, cb):
     """Depois da ação do jogador: premia e remove os inimigos mortos (front + extras).
-    Se o front cai mas ainda há extras, promove um extra a alvo da frente. Retorna msgs."""
+    Se o front cai mas ainda há extras, promove um extra a alvo da frente. Retorna msgs.
+    Kills com fonte de fogo (arma/magia) incrementam o tracker Mestre das Chamas."""
     msgs = []
+    fonte_fogo = bool(cb.get("fonte_fogo"))
     sobreviventes = []
     for ex in cb["extras"]:                       # extras (podem morrer por AoE)
         if ex["hp"] <= 0:
             msgs += _vencer_combate(state, ex["id"])
+            if fonte_fogo:
+                msgs += registrar_tracker(state, "kills_fogo")
         else:
             sobreviventes.append(ex)
     cb["extras"] = sobreviventes
     if cb["hp"] <= 0:                              # o alvo da frente caiu
         msgs += _vencer_combate(state, cb["enemy_id"])
+        if fonte_fogo:
+            msgs += registrar_tracker(state, "kills_fogo")
         if cb["extras"]:                          # ainda há bando -> um extra assume a frente
             proximo = cb["extras"].pop(0)
             cb["enemy_id"] = proximo["id"]
@@ -3645,6 +3741,7 @@ def combate_passo(state, cb, escolha):
     prof = cb.get("profundidade", state.get("profundidade", 1))
     inimigo = stats_inimigo(enemy_id, prof)
     linhas = []
+    cb["fonte_fogo"] = False  # só o golpe deste turno conta p/ kills de fogo
 
     if escolha == "furtar":
         # Furto em combate: chance menor; sucesso dá poção e não gasta o "turno" de dano
@@ -3672,6 +3769,9 @@ def combate_passo(state, cb, escolha):
         # Afixos ofensivos: fogo soma dano elemental fixo por golpe
         if arma_info.get("efeito") == "fogo":
             total += golpes  # +1 por golpe
+            if "mestre_das_chamas" in (p.get("conquistas") or []):
+                total += golpes  # +1 extra por golpe
+            cb["fonte_fogo"] = True
         if cb.get("surpresa"):                                 # golpe furtivo do Ladino
             mult = EMBOSCADA_MULT if cb.get("emboscada") else BACKSTAB_MULT
             total *= mult
@@ -3708,6 +3808,8 @@ def combate_passo(state, cb, escolha):
             return "continua", [f"Mana insuficiente p/ {m['nome']} ({p['mana']}/{m['custo']})."]
         p["mana"] -= m["custo"]
         val = valor_magia(magia_id, p)            # valor efetivo (escala com o nível)
+        if magia_id in MAGIAS_FOGO:
+            cb["fonte_fogo"] = True
         if m["efeito"] == "dano":                 # magia IGNORA a defesa do alvo
             cb["hp"] -= val
             linhas.append(f"Você conjura {m['nome']}: {val} de dano mágico!")
@@ -3746,7 +3848,7 @@ def combate_passo(state, cb, escolha):
             antes = p["hp"]
             p["hp"] = min(p["hp_max"], p["hp"] + ITENS["pocao_cura"]["cura"])
             linhas.append(f"Você bebe a poção: +{p['hp'] - antes} HP.")
-            antidoto = curar_veneno(p)
+            antidoto = curar_veneno(p, state)
             if antidoto:
                 linhas.append(antidoto)
         else:
@@ -3772,10 +3874,23 @@ def combate_passo(state, cb, escolha):
             return "continua", [f"Prefixo de magia inválido ('{escolha}') — o contrato é 'magia:<id>'."]
         return "continua", ["Comando inválido."]
 
+    def _vitoria_combate(linhas_acc):
+        """Vitória da luta: Sangue de Ferro se o jogador chegou a 1 HP e sobreviveu."""
+        if cb.get("quase_morto"):
+            linhas_acc += conceder_conquista(state, "sangue_de_ferro")
+        return "vitoria", linhas_acc
+
+    def _marcar_quase_morto():
+        if 0 < p["hp"] <= 1:
+            cb["quase_morto"] = True
+
     # Premia/remove os inimigos mortos (front + extras). Promove um extra se o front cair.
     linhas += _resolver_mortes(state, cb)
     if cb["hp"] <= 0:                              # sem front vivo E sem extras -> tudo morto
-        return "vitoria", linhas
+        return _vitoria_combate(linhas)
+
+    # DoTs no inimigo não contam como kill de fogo do jogador
+    cb["fonte_fogo"] = False
 
     # Processa debuffs do inimigo antes do ataque
     pula_turno = False
@@ -3796,7 +3911,7 @@ def combate_passo(state, cb, escolha):
     if cb["hp"] <= 0:
         linhas += _resolver_mortes(state, cb)
         if cb["hp"] <= 0:
-            return "vitoria", linhas
+            return _vitoria_combate(linhas)
 
     # Turno dos inimigos: CADA um ainda vivo contra-ataca (Escudo já entra em defesa_total).
     if pula_turno:
@@ -3824,6 +3939,7 @@ def combate_passo(state, cb, escolha):
             if fraqueza_info and p.get("fraqueza_stacks", 0) < fraqueza_info.get("max_stacks", 3):
                 p["fraqueza_stacks"] = p.get("fraqueza_stacks", 0) + fraqueza_info.get("dano_red", 1)
                 linhas.append(f"A sombra drena sua força! Fraqueza ({p['fraqueza_stacks']}/3 stacks).")
+            _marcar_quase_morto()
             if p["hp"] <= 0:
                 state["historico"].append("foi derrotado")
                 return "derrota", linhas + ["Você tomba no chão frio das catacumbas. FIM."]
@@ -3831,6 +3947,7 @@ def combate_passo(state, cb, escolha):
     # Veneno + Sangramento no jogador ticam por round.
     linhas += tick_veneno(state)
     linhas += tick_sangramento(state)
+    _marcar_quase_morto()
     if p["hp"] <= 0:
         return "derrota", linhas + ["Você é consumido pelos efeitos. FIM."]
 
@@ -5277,6 +5394,73 @@ def rodar_demo():
     assert velho["player"]["fama"] == 0 and velho["player"]["conquistas"] == [], "save legado ganha os campos"
     assert velho.get("sidequests_feitas") == [], "save legado ganha sidequests_feitas"
     print("  Fama por chefe/sidequest/Nascente, dica HUD, NPCs por limiar, prompt. OK")
+
+    # --- Conquistas com tracker (v3.5) ---
+    print("\nConquistas com tracker (Sangue de Ferro / Chamas / Veneno):")
+    # Sangue de Ferro: chegar a 1 HP e vencer o combate
+    sf = novo_jogo("Guerreiro", seed=1)
+    hp_max0 = sf["player"]["hp_max"]
+    cb_sf = novo_combate(sf, "rato_gigante")
+    sf["player"]["hp"] = 1
+    cb_sf["quase_morto"] = True
+    cb_sf["hp"] = 1
+    st2, lin2 = combate_passo(sf, cb_sf, "atacar")
+    if st2 != "vitoria":
+        cb_sf["hp"] = 0
+        cb_sf["fonte_fogo"] = False
+        lin2 += _resolver_mortes(sf, cb_sf)
+        if cb_sf.get("quase_morto"):
+            lin2 += conceder_conquista(sf, "sangue_de_ferro")
+        st2 = "vitoria"
+    assert st2 == "vitoria" and "sangue_de_ferro" in sf["player"]["conquistas"], \
+        "vencer com 1 HP → Sangue de Ferro"
+    assert sf["player"]["hp_max"] == hp_max0 + 2, "Sangue de Ferro dá +2 HP máx"
+    assert conceder_conquista(sf, "sangue_de_ferro") == [], "Sangue de Ferro idempotente"
+
+    # Mestre das Chamas: 10 kills com fogo
+    mc = novo_jogo("Mago", seed=2)
+    assert mc["player"].get("trackers", {}).get("kills_fogo", 0) == 0
+    for i in range(9):
+        msgs_k = registrar_tracker(mc, "kills_fogo")
+        assert "mestre_das_chamas" not in mc["player"]["conquistas"], f"ainda não no kill {i+1}"
+        assert not any("MESTRE" in m.upper() for m in msgs_k)
+    msgs_10 = registrar_tracker(mc, "kills_fogo")
+    assert mc["player"]["trackers"]["kills_fogo"] == 10
+    assert "mestre_das_chamas" in mc["player"]["conquistas"], "10 kills de fogo → Mestre das Chamas"
+    assert any("MESTRE DAS CHAMAS" in m.upper() or "Chamas" in m for m in msgs_10)
+    # Bola de Fogo ganha +2; arma de fogo ganha +1/golpe
+    base_bf = 10 + MAGIAS["bola_fogo"]["escala"] * (mc["player"]["nivel"] - 1)
+    assert valor_magia("bola_fogo", mc["player"]) == base_bf + 2, "Mestre: +2 em Bola de Fogo"
+    # kill real via combate com fonte_fogo
+    mc2 = novo_jogo("Mago", seed=2)
+    cb_f = novo_combate(mc2, "rato_gigante")
+    cb_f["hp"] = 0
+    cb_f["fonte_fogo"] = True
+    _resolver_mortes(mc2, cb_f)
+    assert mc2["player"]["trackers"].get("kills_fogo", 0) == 1, "kill com fonte_fogo conta"
+
+    # Sobrevivente Envenenado: 5 curas de veneno
+    sv = novo_jogo("Guerreiro", seed=4)
+    for i in range(4):
+        sv["player"]["veneno"] = {"dano": 2, "passos": 3}
+        curar_veneno(sv["player"], sv)
+        assert "sobrevivente_envenenado" not in sv["player"]["conquistas"]
+    sv["player"]["veneno"] = {"dano": 2, "passos": 3}
+    curar_veneno(sv["player"], sv)
+    assert "sobrevivente_envenenado" in sv["player"]["conquistas"], "5 curas → Sobrevivente"
+    # benefício: veneno −1 dano (mín. 1)
+    sv["player"]["veneno"] = {"dano": 2, "passos": 2}
+    hp_antes = sv["player"]["hp"]
+    tick_veneno(sv)
+    assert sv["player"]["hp"] == hp_antes - 1, "Sobrevivente: veneno 2 vira 1 de dano"
+
+    # Serialização expõe progresso de trackers
+    ser = serializar_estado(mc)
+    assert any(x["id"] == "mestre_das_chamas" and x["feita"] for x in ser["player"]["conquistas_progresso"])
+    ser2 = serializar_estado(novo_jogo("Mago", seed=9))
+    prog_fogo = next(x for x in ser2["player"]["conquistas_progresso"] if x["id"] == "mestre_das_chamas")
+    assert prog_fogo["atual"] == 0 and prog_fogo["meta"] == 10 and not prog_fogo["feita"]
+    print("  Sangue de Ferro, Mestre das Chamas (10), Sobrevivente (5), benefícios. OK")
 
     print("\n>>> DEMO OK — inventário final:", state["player"]["inventario"],
           "| arma:", state["player"]["arma"], "| HP:", state["player"]["hp"])
