@@ -511,10 +511,14 @@ ITENS = {
     "espada_longa":       {"nome": "Espada Longa",       "tipo": "arma",       "dano": 4, "carga": 4, "durabilidade_max": 40},
     "lamina_runica":      {"nome": "Lâmina Rúnica",      "tipo": "arma",       "dano": 5, "carga": 3, "durabilidade_max": 50},
     "lanca_perdida":      {"nome": "A Lança Perdida",    "tipo": "arma",       "dano": 6, "carga": 4, "durabilidade_max": 60},
+    # Itens exclusivos da loja por Fama (Mira ≥30). ANTES: referenciados em catalogo_mira
+    # mas AUSENTES aqui → KeyError (500) ao abrir a loja com Fama alta / ao comprar.
+    "espada_magica":      {"nome": "Espada Mágica",      "tipo": "arma",       "dano": 5, "efeito": "fogo", "carga": 3, "durabilidade_max": 55},
     "roupas_pano":        {"nome": "Roupas de Pano",     "tipo": "armadura",   "defesa": 1, "peso": "leve", "carga": 2, "durabilidade_max": 20},
     "gibao_couro":        {"nome": "Gibão de Couro",     "tipo": "armadura",   "defesa": 3, "peso": "media", "carga": 5, "durabilidade_max": 35},
     "cota_malha":         {"nome": "Cota de Malha",      "tipo": "armadura",   "defesa": 5, "peso": "pesada", "carga": 10, "durabilidade_max": 50},
     "pocao_cura":         {"nome": "Poção de Cura",      "tipo": "consumivel", "cura": 15, "carga": 1},
+    "pocao_cura_maior":   {"nome": "Poção de Cura Maior","tipo": "consumivel", "cura": 40, "carga": 1},
     "pocao_mana":         {"nome": "Poção de Mana",      "tipo": "consumivel", "mana": 12, "carga": 1},
     "grimorio_fogo":      {"nome": "Grimório: Bola de Fogo",  "tipo": "grimorio", "magia": "bola_fogo", "carga": 2},
     "grimorio_raio":      {"nome": "Grimório: Relâmpago",     "tipo": "grimorio", "magia": "relampago", "carga": 2},
@@ -526,6 +530,7 @@ ITENS = {
     "grimorio_nova":      {"nome": "Grimório: Nova Gélida",   "tipo": "grimorio", "magia": "nova_gelida", "carga": 2},
     "grimorio_veneno":    {"nome": "Grimório: Nuvem de Veneno", "tipo": "grimorio", "magia": "nuvem_veneno", "carga": 2},
     "grimorio_atordoar":  {"nome": "Grimório: Atordoar",      "tipo": "grimorio", "magia": "atordoar", "carga": 2},
+    "grimorio_tempestade":{"nome": "Grimório: Tempestade Arcana", "tipo": "grimorio", "magia": "tempestade", "carga": 2},  # exclusivo Morrigan ≥50 Fama
     "chave_ferro":        {"nome": "Chave de Ferro",     "tipo": "chave", "carga": 0},
     "tocha":              {"nome": "Tocha",              "tipo": "consumivel", "luz": LUZ_TOCHA_TURNOS, "carga": 1},
     "pedra_luz_eterna":   {"nome": "Pedra de Luz Eterna", "tipo": "consumivel", "luz": 9999, "carga": 0, "lore": "Brilha eternamente."},
@@ -3245,12 +3250,15 @@ def loja_json(state):
     npc_id = sala.get("npc")
     
     itens = []
-    # Catálogo do tile: Mira (consumíveis) ou Morrigan (grimórios)
-    catalogo = LOJA_VILA if npc_id == "mira" else (LOJA_BRUXA if npc_id == "bruxa" else None)
+    # Catálogo do tile: usa o MESMO caminho da compra (loja_do_tile → catálogo dinâmico por
+    # Fama) e preço com o desconto do Famoso — senão a UI escondia os itens exclusivos da
+    # Fama e mostrava preço cheio enquanto comprar_item cobrava com desconto (inconsistência).
+    _npc_cat, catalogo = loja_do_tile(state)
     if catalogo:
         magias_sabidas = set(state["player"].get("magias", []))
-        for iid, preco in catalogo.items():
+        for iid in catalogo:
             info = ITENS[iid]
+            preco = preco_compra(iid, catalogo, state)
             ja_sabe = info.get("tipo") == "grimorio" and info.get("magia") in magias_sabidas
             itens.append({
                 "id": iid, "nome": info["nome"], "preco": preco,
@@ -5019,6 +5027,17 @@ def rodar_demo():
     # desconto do Famoso: 10% em preco_compra (com state)
     base = catalogo_mira(fc)["pocao_cura_maior"]
     assert preco_compra("pocao_cura_maior", catalogo_mira(fc), fc) == int(base * 0.9), "Famoso dá 10% de desconto"
+    # loja_json (UI) deve refletir o catálogo dinâmico E o desconto — senão a UI escondia
+    # os itens da Fama e mostrava preço cheio enquanto a compra cobrava com desconto.
+    fc["na_superficie"] = True
+    fc["masmorra"] = vila_nova()
+    mira_cell = next(c for c, s in fc["masmorra"].items() if s.get("npc") == "mira")
+    fc["pos"] = {"x": mira_cell[0], "y": mira_cell[1]}
+    lj = loja_json(fc)
+    ids_loja = {i["id"] for i in lj["itens"]}
+    assert "espada_magica" in ids_loja, "loja da UI mostra os itens exclusivos da Fama"
+    row_pcm = next(i for i in lj["itens"] if i["id"] == "pocao_cura_maior")
+    assert row_pcm["preco"] == int(base * 0.9), "loja da UI mostra o preço COM desconto do Famoso"
     # conquista Purificador: benefício mecânico (+5 HP máx, +1 luz) aplicado UMA vez
     pc = novo_jogo("Mago", seed=5)
     hp0, luz0 = pc["player"]["hp_max"], pc["player"].get("luz", 0)

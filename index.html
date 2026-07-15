@@ -46,7 +46,27 @@
   #dpad .up{grid-column:2;grid-row:1} #dpad .lf{grid-column:1;grid-row:2}
   #dpad .dn{grid-column:2;grid-row:2} #dpad .rt{grid-column:3;grid-row:2}
   @media(pointer:coarse){ #dpad{display:grid} }
+  #dpad.emcombate{display:none !important}   /* sem movimento durante o combate */
   #view{cursor:pointer;touch-action:manipulation}
+  /* Overlay de ações de combate sobre a visão (só em combate) */
+  #cbOverlay{position:absolute;left:0;right:0;bottom:0;z-index:6;display:none;
+             flex-direction:column;align-items:center;gap:8px;padding:10px 10px 14px;
+             background:linear-gradient(to top, rgba(6,7,10,.9) 30%, rgba(6,7,10,0))}
+  #cbOverlay.on{display:flex}
+  #cbActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  #cbActions button{padding:9px 16px;font-weight:600;font-size:14px;
+                    background:rgba(24,27,36,.92);border-color:#ffffff2a;
+                    box-shadow:0 2px 8px #0007;touch-action:manipulation}
+  #cbActions button.atk{border-color:var(--boss);color:#ffd7d2}
+  #cbActions button:disabled{opacity:.4}
+  #cbMagiasMenu{display:none;flex-direction:column;gap:5px;width:min(340px,92%);
+                max-height:190px;overflow-y:auto;background:rgba(12,14,20,.97);
+                border:1px solid var(--mana);border-radius:10px;padding:8px;
+                box-shadow:0 4px 16px #000a}
+  #cbMagiasMenu.on{display:flex}
+  #cbMagiasMenu button{width:100%;text-align:left;font-size:13px;padding:7px 10px;
+                       background:var(--panel2)}
+  #cbMagiasMenu .cbmvazio{color:var(--dim);font-size:12px;text-align:center;padding:4px}
   /* centralização SEGURA: margin:auto no canvas (não justify/align center no flex) —
      senão o excedente acima/à esquerda fica fora do alcance da rolagem */
   #miniWrap{display:flex;margin-top:10px;padding:8px;
@@ -211,6 +231,16 @@
           <button class="dn" data-dir="tras" aria-label="Recuar">▼</button>
           <button class="rt" data-dir="direita" aria-label="Virar à direita">▶</button>
         </div>
+        <!-- Ações de combate sobre a visão (só em combate); magias num submenu -->
+        <div id="cbOverlay">
+          <div id="cbMagiasMenu"></div>
+          <div id="cbActions">
+            <button class="atk" data-e="atacar">⚔ Atacar</button>
+            <button data-e="pocao">🧪 Poção</button>
+            <button id="cbMagiasToggle" type="button">🔮 Magias ▾</button>
+            <button data-e="fugir">🏃 Fugir</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -295,12 +325,7 @@
         <div id="cbEnemyDebuffs" style="margin:4px 0 0;font-size:12px;color:var(--gold);min-height:14px"></div>
         <div id="cbbuffs" style="margin:4px 0;font-size:12px;color:var(--mana);min-height:14px"></div>
         <div id="cbextras" style="margin:2px 0 6px;font-size:12px;color:var(--warn)"></div>
-        <div class="cbtns">
-          <button data-e="atacar">Atacar</button>
-          <button data-e="pocao">Poção</button>
-          <button data-e="fugir">Fugir</button>
-        </div>
-        <div class="cbtns" id="magiabtns"></div>
+        <div class="hint" style="margin-top:6px">Ações no rodapé da visão ⚔</div>
       </div>
     </div>
   </div>
@@ -410,6 +435,16 @@
       <li><b>Objetivo:</b> desça, fique mais forte e liberte o rio de Pedralume.</li>
     </ul>
     <div style="text-align:center;margin-top:14px"><button id="btnFecharAjuda">Fechar (Esc)</button></div>
+  </div>
+</div>
+
+<!-- Novidades (changelog) — mostrado uma vez por versão após o login -->
+<div class="overlay hidden" id="ovNovidades">
+  <div class="box" style="max-width:520px;text-align:left">
+    <h2 style="text-align:center">✨ Novidades</h2>
+    <p id="novVersao" style="text-align:center;color:var(--gold);margin:-6px 0 14px"></p>
+    <ul class="ajuda" id="novLista"></ul>
+    <div style="text-align:center;margin-top:16px"><button id="btnFecharNov">Entendi!</button></div>
   </div>
 </div>
 
@@ -545,9 +580,35 @@ function setUserUI(user){
   if(user){
     b.style.display = ""; b.textContent = "👤 "+user;
     lo.style.display = "";
+    mostrarNovidades();     // "o que há de novo" — uma vez por versão
   } else {
     b.style.display = "none"; lo.style.display = "none";
   }
+}
+
+// ---- Novidades / changelog: exibido uma vez por versão (localStorage) ----
+// Ao lançar novidades, bump NOVIDADES.versao e reescreva a lista — todos os
+// jogadores veem o aviso no próximo login e só uma vez.
+const NOVIDADES = {
+  versao: "v3.2",
+  itens: [
+    "<b>O Abismo ganhou rosto:</b> Larva, Cavaleiro do Túmulo, Bruxo Abissal e o Guardião da Lança agora aparecem com seus próprios sprites (antes vinham genéricos).",
+    "<b>Fama & Conquistas de verdade:</b> derrote chefes e resolva sidequests para ganhar <b>Fama</b> — ela abre itens exclusivos na loja da Mira (≥30) e da Morrigan (≥50). Conquistas (<b>Purificador</b>, <b>Famoso</b>, <b>Explorador</b>) dão bônus e ficam salvas na sua conta.",
+    "<b>Combate mais limpo:</b> as ações agora ficam sobre a visão em 1ª pessoa, e as magias vivem num submenu <b>🔮 Magias</b> — sem poluir a tela.",
+    "<b>Vila:</b> Irmão Silas cura tudo por ouro, Morrigan vende grimórios e o Guerreiro repara equipamento no campo.",
+  ],
+};
+function mostrarNovidades(){
+  let vista = null;
+  try { vista = localStorage.getItem("novidades_vista"); } catch(e){}
+  if(vista === NOVIDADES.versao) return;              // já viu esta versão
+  $("#novVersao").textContent = NOVIDADES.versao;
+  $("#novLista").innerHTML = NOVIDADES.itens.map(t=>`<li>${t}</li>`).join("");
+  $("#ovNovidades").classList.remove("hidden");
+}
+function fecharNovidades(){
+  $("#ovNovidades").classList.add("hidden");
+  try { localStorage.setItem("novidades_vista", NOVIDADES.versao); } catch(e){}
 }
 
 // ---- feedback visual: flash colorido na vista (base #viewFlash no DOM) ----
@@ -789,6 +850,10 @@ function aplicar(resp){
   // combate
   combatendo = !!resp.combate;
   $("#combate").classList.toggle("on", combatendo);
+  // Overlay de ações sobre a visão só em combate; some com o D-pad (movimento é bloqueado)
+  $("#cbOverlay").classList.toggle("on", combatendo);
+  $("#dpad").classList.toggle("emcombate", combatendo);
+  if(!combatendo) fecharMenuMagias();
   // botões de conjurar cura só fazem sentido FORA de combate
   $("#conjurarbtns").style.display = (!combatendo && $("#conjurarbtns").children.length) ? "flex" : "none";
   if(resp.combate){
@@ -1477,6 +1542,14 @@ const ENTITY_GLYPH = {
   cultista:           {ch:"k", col:"#c07090", kind:"enemy", name:"Cultista"},
   rato_gigante:       {ch:"r", col:"#a09070", kind:"enemy", name:"Rato"},
   morcego:            {ch:"b", col:"#9080a0", kind:"enemy", name:"Morcego"},
+  // Andar 2 minichefe + bestiário do Abismo (andar 4): sem estas entradas, entityMeta
+  // caía no sprite genérico "enemy" (larva/cavaleiro/bruxo) ou no boss-por-profundidade
+  // errado (Guardião virava Sacerdote). Os PNGs existem no SPRITE_MAP; faltava o glifo.
+  carrasco:           {ch:"X", col:"#c9433a", kind:"boss",  name:"Carrasco"},
+  larva_abissal:      {ch:"l", col:"#8a7a5a", kind:"enemy", name:"Larva"},
+  cavaleiro_tumulo:   {ch:"K", col:"#9aa0b0", kind:"enemy", name:"Cavaleiro"},
+  bruxo_abissal:      {ch:"w", col:"#a060e0", kind:"enemy", name:"Bruxo"},
+  guardiao_lanca:     {ch:"L", col:"#e0b040", kind:"boss",  name:"Guardião"},
   enemy:              {ch:"!", col:"#e0913a", kind:"enemy", name:"Inimigo"},
   boss:               {ch:"B", col:"#c9433a", kind:"boss",  name:"Chefe"},
   altar:              {ch:"†", col:"#e8c95a", kind:"altar", name:"Altar"},
@@ -1870,6 +1943,7 @@ function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);
 function toggleAjuda(v){ $("#ovAjuda").classList.toggle("hidden", !v); }
 $("#btnAjuda").onclick = ()=>toggleAjuda(true);
 $("#btnFecharAjuda").onclick = ()=>toggleAjuda(false);
+$("#btnFecharNov").onclick = fecharNovidades;
 
 // ---- feedback (sugestões / bugs / reports) ----
 let _fbTipo = "sugestao";
@@ -1952,7 +2026,7 @@ $("#ovAjuda").onclick = ev=>{ if(ev.target.id==="ovAjuda") toggleAjuda(false); }
 // Controles 1ª pessoa: frente/trás = relativo ao facing; laterais = virar no lugar.
 let _inputBusy = false;
 document.addEventListener("keydown", async ev=>{
-  if(ev.key==="Escape"){ toggleAjuda(false); toggleFeedback(false); $("#cmd").blur(); return; }
+  if(ev.key==="Escape"){ toggleAjuda(false); toggleFeedback(false); fecharNovidades(); $("#cmd").blur(); return; }
   if(ev.key==="F3"){
     ev.preventDefault();
     DEBUG_VIEW = !DEBUG_VIEW;
@@ -2099,14 +2173,18 @@ async function agirCombate(escolha){
   }
   if(escolha === "pocao") window._flashMagia = "rgba(75, 191, 115, 0.9)";
   if(escolha === "pocao_mana") window._flashMagia = "rgba(100, 150, 255, 0.9)";
+  fecharMenuMagias();                 // toda ação fecha o submenu de magias
   const resp = await api("/api/combate",{escolha});
   // Se o combate acabou, parar heartbeat
   if(!resp.combate) stopHeartbeat();
-  aplicar(resp); 
+  aplicar(resp);
 }
-document.querySelectorAll("#combate > .cbtns button[data-e]").forEach(b=>{
+// Ações de combate no overlay sobre a visão
+document.querySelectorAll("#cbActions button[data-e]").forEach(b=>{
   b.onclick = ()=>agirCombate(b.dataset.e);
 });
+function fecharMenuMagias(){ $("#cbMagiasMenu").classList.remove("on"); }
+$("#cbMagiasToggle").onclick = ()=> $("#cbMagiasMenu").classList.toggle("on");
 // Botões de conjurar FORA de combate: só magias de cura (efeito "cura"), direto por id.
 function montarBotoesConjurar(p){
   const box=$("#conjurarbtns"); box.innerHTML="";
@@ -2123,8 +2201,12 @@ function montarBotoesConjurar(p){
 }
 // Botões dinâmicos: magias conhecidas (desabilitadas sem mana) + poção de mana.
 function montarBotoesMagia(p){
-  const box=$("#magiabtns"); box.innerHTML="";
-  (p.magias||[]).forEach(m=>{
+  const box=$("#cbMagiasMenu"); box.innerHTML="";
+  const magias=(p.magias||[]);
+  const temPocaoMana=(p.inventario||[]).some(it=>it.id==="pocao_mana");
+  // O botão de toggle só aparece se há algo para conjurar/beber
+  $("#cbMagiasToggle").style.display = (magias.length || temPocaoMana) ? "" : "none";
+  magias.forEach(m=>{
     const b=document.createElement("button");
     const sufixo = m.efeito==="buff" ? `, ${m.duracao}t` : (m.efeito==="dano"||m.efeito==="dreno" ? `, ${m.valor}` : "");
     b.textContent = `${m.nome} (${m.custo}m${sufixo})`;
@@ -2133,9 +2215,9 @@ function montarBotoesMagia(p){
                       agirCombate("magia:"+m.id); };   // contrato da engine: "magia:<id>"
     box.appendChild(b);
   });
-  if((p.inventario||[]).some(it=>it.id==="pocao_mana")){
+  if(temPocaoMana){
     const b=document.createElement("button");
-    b.textContent = "Poção Mana"; b.onclick = ()=>agirCombate("pocao_mana");
+    b.textContent = "🧪 Poção de Mana"; b.onclick = ()=>agirCombate("pocao_mana");
     box.appendChild(b);
   }
 }

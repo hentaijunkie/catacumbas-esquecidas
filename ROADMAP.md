@@ -417,7 +417,39 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Fama & Conquistas LIGADAS de verdade (v3.1.1) - **atual**
+### UI de combate, changelog, sprites do Abismo + caça a bugs (v3.2) - **atual**
+- **Sprites do Abismo corrigidos:** Larva/Cavaleiro/Bruxo/Guardião apareciam com o sprite
+  genérico (`inimigo.png`) e o Guardião como Sacerdote. Causa: `ENTITY_GLYPH` (que o
+  `entityMeta` consulta ANTES do `SPRITE_MAP`) não tinha entrada para os inimigos do andar 4
+  nem para o Carrasco — caíam no `spriteId:"enemy"` ou no boss-por-profundidade errado. Os
+  PNGs sempre existiram; faltava o glifo. Adicionadas as 5 entradas.
+- **Changelog "Novidades" no login:** modal com as novidades da versão, exibido uma vez por
+  versão (guardado em `localStorage['novidades_vista']`); dispensável no botão/Esc. Bump
+  `NOVIDADES.versao` + editar a lista → todos veem no próximo login.
+- **UI de combate mais limpa:** ações (Atacar/Poção/Fugir) agora num overlay sobre a visão
+  em 1ª pessoa; as magias saíram da tela e vivem num submenu **🔮 Magias ▾** (popover que
+  abre sob demanda). O D-pad some durante o combate. Painel direito mantém o status
+  (HP do alvo, debuffs, bando, buffs).
+- **BUGS encontrados na varredura (v2.9–v3.1, feitas fora das minhas sessões):**
+  - **CRÍTICO — 500 em produção:** `pocao_cura_maior`, `espada_magica` e `grimorio_tempestade`
+    eram referenciados nos catálogos de Fama (`catalogo_mira`/`catalogo_morrigan`) mas
+    **não existiam em `ITENS`** → `KeyError` ao abrir a loja da Mira com Fama ≥30 ou ao
+    comprar. Os três agora estão definidos (poção cura 40; espada dano 5 c/ fogo; grimório
+    ensina a Tempestade Arcana, que já existia em MAGIAS).
+  - **Loja da UI ignorava a Fama:** `loja_json` montava o catálogo de `LOJA_VILA`/`LOJA_BRUXA`
+    cru — os itens exclusivos da Fama **não apareciam** e o preço mostrado ignorava o desconto
+    do Famoso (a compra cobrava com desconto → inconsistência). Agora usa `loja_do_tile` +
+    `preco_compra(..., state)`, igual ao caminho de compra.
+  - **Sidequest "Templo Esquecido" (v2.9) está MORTA** _(reportado, não corrigido nesta
+    leva)_: a ação `puxar_alavanca`, a porta selada e o botão existem, mas **nenhuma sala é
+    gerada com alavanca/porta** e a serialização não envia `alavanca`/`alavanca_ativa` ao
+    cliente. Precisa de wire-up (geração no andar 3 + serialização) como foi feito com a Fama.
+- Verificado: `--demo` (inclui teste de que a loja da UI mostra os itens da Fama com desconto);
+  browser (entityMeta resolve os 5 sprites do Abismo; changelog aparece 1×/versão e some ao
+  dispensar; overlay de combate + submenu de magias abrem/fecham; D-pad some em combate; zero
+  erros de console).
+
+### Fama & Conquistas LIGADAS de verdade (v3.1.1)
 - **Contexto:** as v2.9–v3.1 (feitas fora das minhas sessões) tinham o *andaime* de Fama
   e Conquistas — `CONQUISTAS`, `conceder_conquista`, `catalogo_mira/morrigan`, itens
   exclusivos e desconto do "famoso" — mas **nada estava conectado**: `conceder_conquista`
@@ -592,4 +624,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.1.1 - Fama e Conquistas conectadas de verdade (ganho por chefes/sidequests, disparo das conquistas, persistência global, HUD) — o andaime das v2.9–v3.1 virou mecânica funcional.*
+*Última atualização: v3.2 - UI de combate no campo de visão (magias em submenu), changelog no login, sprites do Abismo corrigidos, e correção de bugs (500 por itens de Fama indefinidos; loja da UI agora respeita Fama/desconto). Pendente: sidequest Templo Esquecido nunca é gerada.*

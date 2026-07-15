@@ -194,4 +194,4 @@ Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 �
 
 ---
 
-*Protótipo v3.1.1 - Fama e Conquistas conectadas de verdade: a Fama sobe ao vencer chefes e sidequests, as conquistas (Purificador/Famoso/Explorador) disparam nos eventos certos com benefício mecânico e persistem globais por conta, e o HUD mostra Fama + conquistas. (As v2.9–v3.1 traziam o sistema como esqueleto ainda não conectado.)*
+*Protótipo v3.2 - Combate mais limpo (ações sobre a visão, magias num submenu 🔮), aviso de "Novidades" no login, sprites próprios para os inimigos do Abismo, e correções: itens de loja por Fama que causavam erro 500 agora existem, e a loja da interface passou a mostrar os itens e descontos desbloqueados pela Fama.*
