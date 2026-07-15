@@ -417,7 +417,28 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Polimento Visual da Vila 2D e Fix de UI (v3.9.2) - **atual**
+### Fix da movimentação 360º da Vila (v3.9.4) - **atual**
+- **Contexto:** a navegação 360º (v3.9.3, feita fora das minhas sessões) tinha a movimentação
+  quebrada. Três bugs em `acaoDirecao` (index.html):
+- **Rotação não redesenhava (crítico):** ao girar com A/D, o código chamava `desenharVista()`
+  SEM argumentos — mas a função exige o estado (`if(!e) return`), então ela só logava um aviso
+  e retornava sem desenhar. `vilaAngle` mudava mas o panorama ficava parado. Corrigido para
+  `desenharVista(window._estado)`.
+- **Vazamento para o grid antigo:** na praça, `trás` (e `frente` sem hotspot) e, dentro de uma
+  loja, `frente`/`esquerda`/`direita` "caíam" para `/api/mover`/`/api/virar` — ou seja, W dentro
+  da forja teleportava o jogador pela grade antiga para outro tile. Agora a superfície inteira
+  CONSOME todas as direções (praça: gira/entra; local: só `trás` volta à praça), sem vazar.
+  Isso também destravou a **entrada das catacumbas**, que o código antigo excluía do handler de
+  saída (o jogador ficava preso lá, sem voltar à praça por movimento).
+- **Fórmula de ângulo frágil:** a detecção de hotspot usava `(a-b+180)%360-180`, que dá valores
+  errados com o `%` negativo do JS. Trocada por um helper `anguloDiff` robusto, usado tanto no
+  letreiro exibido quanto na ação de entrar (agora sempre consistentes).
+- Verificado no browser: girar redesenha o panorama (pixels mudam a cada 30º); W entra no local
+  encarado, `trás` volta à praça; W/A/D dentro de uma loja não movem; round-trip
+  praça→Catacumbas→Descer→masmorra íntegro; automapa oculto na vila; zero erros de console.
+  `--demo` verde (engine + puzzles de botões/estátuas intactos).
+
+### Polimento Visual da Vila 2D e Fix de UI (v3.9.2)
 - **Vila Pixel Art:** Restauração do uso de `vila_ceu`, `vila_casas`, `vila_chao` e `vila_fonte` para cenas da superfície (Praça e Entrada).
 - **Interiores da Vila:** Fundo escuro com gradientes imersivos para Forja, Loja e Tenda, sem o céu externo.
 - **Setas Interativas:** Melhoria na UI de navegação substituindo textos flutuantes por botões/placas com cantos arredondados, preenchimento e stroke colorido.
@@ -714,4 +735,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.9.3 — Vila 360º (Shining in the Darkness style). Antes (v3.9.2): Polimento visual da Vila 2D e Fix de UI de combate.*
+*Última atualização: v3.9.4 — Correção da movimentação 360º da Vila (rotação não redesenhava; direções vazavam para o grid antigo; fórmula de ângulo). Antes (v3.9.3): Vila 360º estilo Shining in the Darkness.*

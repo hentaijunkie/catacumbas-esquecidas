@@ -209,6 +209,8 @@ Changelog in-game: modal **✨ Novidades** no login (`NOVIDADES` em `index.html`
 
 | Versão | O que mudou |
 |---|---|
+| **v3.9.4** | **Fix da movimentação 360º da Vila:** a rotação (A/D) não redesenhava (`desenharVista()` era chamada sem o estado); direções vazavam para o grid antigo (W dentro da loja teleportava); entrada das catacumbas ficava presa; fórmula de ângulo corrigida |
+| **v3.9.3** | **Vila 360º** estilo Shining in the Darkness (panorama rotativo, hotspots, entrar/sair sem grid) |
 | **v3.9.2** | **Polimento Visual da Vila 2D** (restauração de pixel art para fundos e props) · UI de setas em botões interativos · Correção visual de overlap de texto (HP/Nome) em billboards inimigos |
 | **v3.9.1** | **Hotfix:** restaura `tileSala` / `tileFronteira` (removidas por engano na Vila 2D) — sem elas o automapa quebrava e a vista 1ª pessoa não atualizava · `NPCS_VILA` no cliente · try/catch no automapa |
 | **v3.9** | **Vila 2D multi-camadas** · billboards com partículas/HP · fix `const` duplicado · save legado não contamina contas novas · métricas LLM em disco |

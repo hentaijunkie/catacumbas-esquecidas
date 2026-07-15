@@ -2349,6 +2349,9 @@ const VILA_HOTSPOTS = [
   { alvo: "cabana_bruxa", angulo: 240, nome: "Cabana de Morrigan" },
   { alvo: "tenda_cura", angulo: 300, nome: "Tenda de Cura" }
 ];
+// Diferença angular no círculo [0,180], robusta (o `%` do JS dá negativo p/ operandos < 0).
+function anguloDiff(a, b){ const d = Math.abs(((a - b) % 360 + 360) % 360); return d > 180 ? 360 - d : d; }
+function vilaHotspotEmVista(){ return VILA_HOTSPOTS.find(h => anguloDiff(h.angulo, vilaAngle) < 25) || null; }
 
 const VILA_CENAS = {
   praca: {
@@ -2458,10 +2461,7 @@ function drawVillageScene(ctx, canvas, cenarioId, npcSprite = null) {
        ctx.fillRect(0, 0, W, H);
     }
     
-    let hot = VILA_HOTSPOTS.find(h => {
-       let diff = Math.abs((h.angulo - vilaAngle + 180) % 360 - 180);
-       return diff < 25;
-    });
+    let hot = vilaHotspotEmVista();   // mesmo critério do W (entrar) — letreiro e ação alinhados
     
     if(hot) {
        ctx.fillStyle = "rgba(0,0,0,0.6)";
@@ -2853,36 +2853,37 @@ async function acaoDirecao(dir){
   if(document.querySelector(".overlay:not(.hidden)")) return;
   _inputBusy = true;
   try{
+    // Navegação 360º da Vila (Shining in the Darkness): a superfície NÃO usa o grid.
+    // A praça gira com esquerda/direita e entra com frente; dentro de um local, trás
+    // volta à praça. Consome TODAS as direções — nada vaza para /api/mover|virar (senão
+    // W dentro da forja teleportava pela grade antiga).
     if(window._estado.na_superficie) {
-       const cena = window._estado.sala.tipo;
+       const cena = (window._estado.sala && window._estado.sala.tipo) || "praca";
        if(cena === "praca") {
           if(dir === "esquerda") {
              vilaAngle = (vilaAngle - 30 + 360) % 360;
-             desenharVista();
-             _inputBusy = false;
-             return;
+             desenharVista(window._estado);              // BUG antigo: chamava sem estado → não redesenhava
           } else if(dir === "direita") {
              vilaAngle = (vilaAngle + 30) % 360;
-             desenharVista();
-             _inputBusy = false;
-             return;
+             desenharVista(window._estado);
           } else if(dir === "norte" || dir === "frente") {
-             let hot = VILA_HOTSPOTS.find(h => Math.abs((h.angulo - vilaAngle + 180) % 360 - 180) < 25);
+             const hot = vilaHotspotEmVista();
              if(hot) {
                 clog("debug", "entrar " + hot.alvo);
                 aplicar(await api("/api/entrar", {alvo: hot.alvo}));
              }
-             _inputBusy = false;
-             return;
           }
-       } else if (cena !== "entrada_catacumbas") {
+          // trás/sul na praça: sem ação (não há "recuar" no hub)
+       } else {
+          // dentro de um local (loja/forja/tenda/entrada): trás volta à praça
           if(dir === "sul" || dir === "tras") {
              clog("debug", "sair para praca");
              aplicar(await api("/api/entrar", {alvo: "praca"}));
-             _inputBusy = false;
-             return;
           }
+          // demais direções: sem ação (sem movimento por grade dentro da vila)
        }
+       _inputBusy = false;
+       return;
     }
 
     if(dir==="esquerda" || dir==="direita"){
