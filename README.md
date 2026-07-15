@@ -209,6 +209,7 @@ Changelog in-game: modal **✨ Novidades** no login (`NOVIDADES` em `index.html`
 
 | Versão | O que mudou |
 |---|---|
+| **v3.9.2** | **Polimento Visual da Vila 2D** (restauração de pixel art para fundos e props) · UI de setas em botões interativos · Correção visual de overlap de texto (HP/Nome) em billboards inimigos |
 | **v3.9.1** | **Hotfix:** restaura `tileSala` / `tileFronteira` (removidas por engano na Vila 2D) — sem elas o automapa quebrava e a vista 1ª pessoa não atualizava · `NPCS_VILA` no cliente · try/catch no automapa |
 | **v3.9** | **Vila 2D multi-camadas** · billboards com partículas/HP · fix `const` duplicado · save legado não contamina contas novas · métricas LLM em disco |
 | **v3.8** | Conquistas Ladrão / Ferro Velho / Coração de Pedra · volume SFX/Amb · atalhos 1–9 de magia · toast de conquista · `GET /api/llm/status` · SFX de puzzle |

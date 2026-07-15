@@ -417,7 +417,13 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Vila 2D + correções multi-user / vista (v3.9) - **atual**
+### Polimento Visual da Vila 2D e Fix de UI (v3.9.2) - **atual**
+- **Vila Pixel Art:** Restauração do uso de `vila_ceu`, `vila_casas`, `vila_chao` e `vila_fonte` para cenas da superfície (Praça e Entrada).
+- **Interiores da Vila:** Fundo escuro com gradientes imersivos para Forja, Loja e Tenda, sem o céu externo.
+- **Setas Interativas:** Melhoria na UI de navegação substituindo textos flutuantes por botões/placas com cantos arredondados, preenchimento e stroke colorido.
+- **Fix Overlap de Billboards:** Resolvido bug visual onde o Nome do Inimigo e o HP se misturavam na visão de combate. Nome subiu e texto do HP foi alojado para baixo da barra.
+
+### Vila 2D + correções multi-user / vista (v3.9)
 - **Vila multi-camadas:** cenas 2D compostas (céu, casario, NPC, props, setas de saída).
 - **Billboards:** partículas + barra de HP; polish de sprites inimigos.
 - **BUG fix (crítico):** `drawBillboard` em `index.html` redeclarava `const g` no mesmo
@@ -708,4 +714,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.9 — Vila 2D, billboards, fix JS da vista, migração de save multi-user, métricas LLM em disco. Antes (v3.8): QoL, conquistas, /api/llm/status.*
+*Última atualização: v3.9.2 — Polimento visual da Vila 2D e Fix de UI de combate. Antes (v3.9): Vila 2D, billboards, fix JS da vista, migração de save multi-user.*
