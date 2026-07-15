@@ -683,6 +683,32 @@ def acao_virar(dados):
     return resposta()
 
 
+def acao_entrar(dados):
+    if GAME["combate"]:
+        return resposta(mensagens=["Termine o combate primeiro."])
+    state = GAME["state"]
+    alvo = dados.get("alvo", "")
+    if state.get("na_superficie"):
+        if alvo == "praca":
+            state["pos"] = {"x": 0, "y": 0}
+            log.info("saiu para praca")
+            eng._descrever_sala_engine(eng.sala_atual(state))
+            return resposta(mensagens=["Você retorna à praça."])
+        elif alvo == "entrada_catacumbas":
+            state["pos"] = {"x": 0, "y": -1}
+            log.info("entrou na entrada_catacumbas")
+            eng._descrever_sala_engine(eng.sala_atual(state))
+            return resposta(mensagens=["Você se aproxima da entrada das catacumbas."])
+        else:
+            for pos, s in state["masmorra"].items():
+                if s.get("tipo") == alvo:
+                    state["pos"] = {"x": pos[0], "y": pos[1]}
+                    log.info("entrou em %s", alvo)
+                    eng._descrever_sala_engine(eng.sala_atual(state))
+                    return resposta(mensagens=[f"Você entra na/no {alvo}."])
+            return resposta(mensagens=[f"Local {alvo} não encontrado."])
+    return resposta(mensagens=["Comando inválido aqui."])
+
 def acao_mover(dados):
     if GAME["combate"]:
         return resposta(mensagens=["Termine o combate primeiro."])
@@ -1191,6 +1217,7 @@ ROTAS = {
     "/api/mover": acao_mover,
     "/api/virar": acao_virar,
     "/api/interagir": acao_interagir,
+    "/api/entrar": acao_entrar,
     "/api/combate": acao_combate,
     "/api/equipar": acao_equipar,
     "/api/usar": acao_usar,

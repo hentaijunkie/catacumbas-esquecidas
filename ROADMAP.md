@@ -714,4 +714,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.9.2 — Polimento visual da Vila 2D e Fix de UI de combate. Antes (v3.9): Vila 2D, billboards, fix JS da vista, migração de save multi-user.*
+*Última atualização: v3.9.3 — Vila 360º (Shining in the Darkness style). Antes (v3.9.2): Polimento visual da Vila 2D e Fix de UI de combate.*

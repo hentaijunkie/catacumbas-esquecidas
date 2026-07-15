@@ -562,7 +562,8 @@ const SPRITE_MAP = {
   vila_loja: 'assets/sprites/vila_loja.png',
   vila_silas: 'assets/sprites/vila_silas.png',
   vila_anciao: 'assets/sprites/vila_anciao.png',
-  vila_morrigan: 'assets/sprites/vila_morrigan.png'
+  vila_morrigan: 'assets/sprites/vila_morrigan.png',
+  vila_panorama: 'assets/sprites/vila_panorama.png'
 };
 
 const spriteImages = {};
@@ -1013,7 +1014,14 @@ function desenharMapa(e){
 }
 function _desenharMapaInner(e){
   const cv = $("#mapa"), ctx = cv.getContext("2d");
+  const container = cv.closest(".card");
   if(!e || !e.mapa || !e.pos) return;
+  if(e.na_superficie) {
+     if(container) container.style.display = "none";
+     return;
+  } else {
+     if(container) container.style.display = "block";
+  }
   const rooms = e.mapa.rooms || [], fr = e.mapa.fronteira || [];
   const todos = rooms.concat(fr);
   if(!todos.length) return;
@@ -2332,6 +2340,16 @@ const NPCS_VILA = {
   bruxa:      {nome: "Morrigan, a Ocultista"},
 };
 
+let vilaAngle = 0;
+const VILA_HOTSPOTS = [
+  { alvo: "forja", angulo: 0, nome: "Forja do Kael" },
+  { alvo: "loja_alquimia", angulo: 60, nome: "Loja da Mira" },
+  { alvo: "entrada_catacumbas", angulo: 120, nome: "Catacumbas" },
+  { alvo: "tenda_sabio", angulo: 180, nome: "Tenda do Ancião" },
+  { alvo: "cabana_bruxa", angulo: 240, nome: "Cabana de Morrigan" },
+  { alvo: "tenda_cura", angulo: 300, nome: "Tenda de Cura" }
+];
+
 const VILA_CENAS = {
   praca: {
     titulo: "Praça da Fonte",
@@ -2409,6 +2427,63 @@ function drawVillageScene(ctx, canvas, cenarioId, npcSprite = null) {
   const W = canvas.width;
   const H = canvas.height;
   const isOutdoor = ["praca", "entrada_catacumbas"].includes(cenarioId);
+
+  if (cenarioId === "praca") {
+    // Fundo panorâmico 360
+    ctx.fillStyle = "#0f1626";
+    ctx.fillRect(0, 0, W, H);
+    let pan = spriteImages.vila_panorama;
+    if (pan && pan.complete) {
+      let pw = pan.width;
+      let ph = pan.height;
+      let scale = H / ph;
+      let scaledW = pw * scale;
+      let offset = (vilaAngle / 360) * scaledW;
+      
+      let x = -offset;
+      while (x < W) {
+        ctx.drawImage(pan, x, 0, scaledW, H);
+        x += scaledW;
+      }
+      x = -offset - scaledW;
+      while (x + scaledW > 0) {
+        ctx.drawImage(pan, x, 0, scaledW, H);
+        x -= scaledW;
+      }
+    } else {
+       const grad = ctx.createLinearGradient(0, 0, 0, H);
+       grad.addColorStop(0, "#0f1626");
+       grad.addColorStop(1, "#1a2030");
+       ctx.fillStyle = grad;
+       ctx.fillRect(0, 0, W, H);
+    }
+    
+    let hot = VILA_HOTSPOTS.find(h => {
+       let diff = Math.abs((h.angulo - vilaAngle + 180) % 360 - 180);
+       return diff < 25;
+    });
+    
+    if(hot) {
+       ctx.fillStyle = "rgba(0,0,0,0.6)";
+       ctx.fillRect(0, Math.floor(H * 0.1), W, 60);
+       ctx.fillStyle = "#ffcc00";
+       ctx.font = "bold 26px system-ui";
+       ctx.textAlign = "center";
+       ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
+       ctx.fillText("✨ " + hot.nome + " ✨", W/2, Math.floor(H * 0.1) + 32);
+       ctx.font = "14px system-ui";
+       ctx.fillStyle = "#ccc";
+       ctx.fillText("▲ [W] Entrar", W/2, Math.floor(H * 0.1) + 52);
+       ctx.shadowBlur = 0;
+       ctx.textAlign = "left";
+    }
+    
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.font = "bold 32px monospace";
+    ctx.fillText("◄ A", 20, H/2);
+    ctx.fillText("D ►", W - 70, H/2);
+    return;
+  }
 
   if (isOutdoor) {
     if (spriteImages.vila_ceu && spriteImages.vila_ceu.complete) {
@@ -2778,6 +2853,38 @@ async function acaoDirecao(dir){
   if(document.querySelector(".overlay:not(.hidden)")) return;
   _inputBusy = true;
   try{
+    if(window._estado.na_superficie) {
+       const cena = window._estado.sala.tipo;
+       if(cena === "praca") {
+          if(dir === "esquerda") {
+             vilaAngle = (vilaAngle - 30 + 360) % 360;
+             desenharVista();
+             _inputBusy = false;
+             return;
+          } else if(dir === "direita") {
+             vilaAngle = (vilaAngle + 30) % 360;
+             desenharVista();
+             _inputBusy = false;
+             return;
+          } else if(dir === "norte" || dir === "frente") {
+             let hot = VILA_HOTSPOTS.find(h => Math.abs((h.angulo - vilaAngle + 180) % 360 - 180) < 25);
+             if(hot) {
+                clog("debug", "entrar " + hot.alvo);
+                aplicar(await api("/api/entrar", {alvo: hot.alvo}));
+             }
+             _inputBusy = false;
+             return;
+          }
+       } else if (cena !== "entrada_catacumbas") {
+          if(dir === "sul" || dir === "tras") {
+             clog("debug", "sair para praca");
+             aplicar(await api("/api/entrar", {alvo: "praca"}));
+             _inputBusy = false;
+             return;
+          }
+       }
+    }
+
     if(dir==="esquerda" || dir==="direita"){
       clog("debug", "virar "+dir);
       aplicar(await api("/api/virar",{direcao:dir}));
