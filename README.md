@@ -89,9 +89,10 @@ seguram o jogo. Métricas (`api_ok` / `api_erro` / latência) em `logs/llm.log`.
 |---|---|
 | Criar conta | Precisa da **chave de convite** (`REGISTER_KEY` / `INVITE_KEY` / `invite_key.txt`) |
 | Login | Cookie `session` HttpOnly (expira em 14 dias); cada jogador tem seu `GAME` |
-| Saves | `saves/<usuario>/slot_1..3.json` |
+| Saves | `saves/<usuario>/slot_1..3.json` (3 slots por conta, isolados) |
+| Save legado | `savegame.json` (single-player antigo) migra **uma vez** para o 1º slot vazio e vira `savegame.json.migrated` — **não** é reaplicado em contas novas |
 | API auth | `POST /api/register`, `/api/login`, `/api/logout` · `GET /api/me`, `/api/auth/status` |
-| Métricas LLM | `GET /api/llm/status` (login). Se `LLM_STATUS_KEY` estiver setado, envie `?key=` ou header `X-LLM-Status-Key` |
+| Métricas LLM | `GET /api/llm/status` (login). Persistidas em `saves/llm_metrics.json` (ou `$SAVE_ROOT/llm_metrics.json`). Se `LLM_STATUS_KEY` estiver setado, envie `?key=` ou header `X-LLM-Status-Key` |
 
 **Segurança embutida no servidor** (stdlib, sem dependências):
 - Senhas com **PBKDF2-HMAC-SHA256**; comparações com `compare_digest`.
@@ -202,11 +203,24 @@ python server.py          # logs em logs/
 
 ---
 
-## Visão de longo prazo
+## Últimas alterações (para jogadores)
 
-Cliente Godot opcional · mais puzzles · missões de entrega na vila.  
-~~LLM robusto~~ ✅ v3.6 · ~~automapa POIs~~ ✅ · ~~estátuas/botões~~ ✅ · ~~conquistas tracker~~ ✅ v3.5.
+Changelog in-game: modal **✨ Novidades** no login (`NOVIDADES` em `index.html` — uma vez por versão).
+
+| Versão | O que mudou |
+|---|---|
+| **v3.9** | **Vila 2D multi-camadas** (céu, casario, NPC, props, saídas nomeadas) · billboards com partículas/HP · **fix JS** da vista 1ª pessoa (`const` duplicado que quebrava o script) · save legado single-player **não contamina** contas novas · métricas LLM persistidas em `$SAVE_ROOT/llm_metrics.json` |
+| **v3.8** | Conquistas Ladrão / Ferro Velho / Coração de Pedra · volume SFX/Amb · atalhos 1–9 de magia · toast de conquista · `GET /api/llm/status` · SFX de puzzle |
+| **v3.6–v3.7** | LLM robusto (timeout/retry/métricas) · automapa com POIs · botões de pressão e estátuas · QoL extra |
+| **v3.4–v3.5** | Fama legível · NPCs reativos · ambientação por andar · conquistas com tracker (Sangue de Ferro, Chamas, Veneno) |
 
 ---
 
-*Protótipo v3.8 — QoL (volume, atalhos de magia, toast de conquista, SFX de puzzle), /api/llm/status, 3 conquistas novas. Antes (v3.6): LLM robusto, automapa, puzzles.*
+## Visão de longo prazo
+
+Cliente Godot opcional · mais puzzles · missões de entrega na vila.  
+~~LLM robusto~~ ✅ v3.6 · ~~automapa POIs~~ ✅ · ~~estátuas/botões~~ ✅ · ~~conquistas tracker~~ ✅ v3.5 · ~~vila 2D~~ ✅ v3.9.
+
+---
+
+*Protótipo v3.9 — Vila 2D multi-camadas, billboards polidos, correções de saves multi-user e da vista 1ª pessoa. Antes (v3.8): QoL, conquistas novas, /api/llm/status.*

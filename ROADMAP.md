@@ -417,7 +417,20 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### QoL + métricas admin + conquistas (v3.8) - **atual**
+### Vila 2D + correções multi-user / vista (v3.9) - **atual**
+- **Vila multi-camadas:** cenas 2D compostas (céu, casario, NPC, props, setas de saída).
+- **Billboards:** partículas + barra de HP; polish de sprites inimigos.
+- **BUG fix (crítico):** `drawBillboard` em `index.html` redeclarava `const g` no mesmo
+  bloco → `SyntaxError` e a UI inteira morria no browser. Declarations únicas restauradas.
+- **BUG fix (multi-user):** migração de `savegame.json` legado copiava o save single-player
+  para **toda** conta com slot 1 vazio. Agora migra **uma vez** e arquiva como
+  `savegame.json.migrated`.
+- **Métricas LLM:** path unificado em `$SAVE_ROOT/llm_metrics.json`; load no boot do
+  servidor; save best-effort após `api_ok` / `api_erro` / `api_vazio` (sem `except:` bare).
+- **`NOVIDADES` v3.9** + tabela no README. Verificado: `--demo`, `node --check` no JS,
+  smoke HTTP register/login/novo/mover/save, teste unitário da migração.
+
+### QoL + métricas admin + conquistas (v3.8)
 - **`GET /api/llm/status`:** snapshot de modelo/endpoint/timeout + contadores e latência
   (avg/p95). Login obrigatório; se `LLM_STATUS_KEY` (ou `ADMIN_KEY`) no env, exige a chave
   (`?key=` ou `X-LLM-Status-Key`).
@@ -695,4 +708,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.8 — QoL áudio/UI, /api/llm/status, conquistas Ladrão/Ferro/Coração. Antes (v3.6): LLM, automapa, puzzles.*
+*Última atualização: v3.9 — Vila 2D, billboards, fix JS da vista, migração de save multi-user, métricas LLM em disco. Antes (v3.8): QoL, conquistas, /api/llm/status.*

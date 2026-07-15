@@ -628,12 +628,12 @@ function setUserUI(user){
 // Checklist de release: ao fechar uma versão, bump `versao` e reescreva `itens`
 // (jogadores com localStorage de versão antiga veem o modal uma vez no login).
 const NOVIDADES = {
-  versao: "v3.8",
+  versao: "v3.9",
   itens: [
-    "<b>Mais conquistas:</b> Ladrão das Sombras (10 furtos), Ferro Velho (5 armas quebradas), Coração de Pedra (20 descansos) — com progresso na ficha e toast ao desbloquear.",
-    "<b>Áudio:</b> sliders SFX/Amb no topo; som de <em>mecanismo</em> nos puzzles; Abismo com crepitações extras.",
-    "<b>Combate:</b> teclas <b>1–9</b> escolhem magias no submenu; o botão fica destacado ao conjurar.",
-    "<b>Puzzles &amp; automapa:</b> HUD de progresso e ícones de alavanca/botão/estátua (veja também a Ajuda).",
+    "<b>Vila em cenas 2D:</b> Pedralume agora tem camadas (céu, casario, NPC grande, props e setas de saída nomeadas) — cada local da vila tem identidade visual própria.",
+    "<b>Billboards polidos:</b> inimigos com partículas e barra de HP mais legível; sprites estáveis na vista em 1ª pessoa (correção de um erro de JS que podia travar a visão).",
+    "<b>Saves multi-jogador:</b> o save antigo single-player não é mais copiado para contas novas — cada conta começa limpa (exceto a primeira migração legada, se existir).",
+    "<b>Métricas do narrador:</b> contadores LLM persistem em disco junto dos saves (`llm_metrics.json`) e carregam ao subir o servidor.",
   ],
 };
 function mostrarNovidades(){
@@ -2191,7 +2191,6 @@ function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pul
 
   ctx.globalAlpha = Math.max(0.15, Math.min(1, alpha));
   const cx = x, cy = y + h*0.5;
-  const g = glyph || ENTITY_GLYPH[kind] || ENTITY_GLYPH.enemy;
   const col = g.col || "#e0913a";
   const t = pulseAtk ? Math.sin(Date.now()/160)*Math.min(6, w*0.03) : 0;
 
@@ -2200,9 +2199,6 @@ function drawBillboard(ctx, x, y, w, h, kind, alpha, combatPulse, hp, maxHp, pul
   ctx.beginPath();
   ctx.ellipse(cx + t*0.3, y + h*0.88, w*0.28, h*0.06, 0, 0, Math.PI*2);
   ctx.fill();
-
-  const spriteKey = (g.spriteId) ? g.spriteId : kind;
-  const img = spriteImages[spriteKey];
 
   if (img && img.complete) {
     if(combatPulse) {

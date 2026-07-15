@@ -64,34 +64,40 @@ def _log_llm_turno(evento, **campos):
         partes.append(f"{k}={s}")
     nivel = "warning" if evento in ("turno_invalido", "turno_fallback", "api_erro", "api_vazio") else "info"
     getattr(llm_log, nivel)(" | ".join(partes))
+    # persiste contadores de API (best-effort) após cada chamada LLM
+    if evento in ("api_ok", "api_erro", "api_vazio"):
+        try:
+            save_llm_metrics()
+        except Exception:
+            pass
 
 
 eng.LOG_LLM = _log_llm_turno
-
-def load_llm_metrics():
-    import os, json
-    p = os.path.join(os.environ.get("SAVE_ROOT", "data/saves"), "llm_metrics.json")
-    if os.path.exists(p):
-        try:
-            with open(p, "r", encoding="utf-8") as fl:
-                eng.LLM_METRICS.update(json.load(fl))
-        except: pass
-
-def save_llm_metrics():
-    import os, json
-    p = os.path.join(os.environ.get("SAVE_ROOT", "data/saves"), "llm_metrics.json")
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    try:
-        with open(p, "w", encoding="utf-8") as fl:
-            json.dump(eng.LLM_METRICS, fl)
-    except: pass
-
 
 PASSOS_POR_AUTOSAVE = 12
 N_SLOTS = 3
 # Em produção (Railway): volume em /data e SAVE_ROOT=/data/saves (junto com DATA_DIR=/data)
 SAVE_ROOT = os.environ.get("SAVE_ROOT") or os.path.join(AQUI, "saves")
 _LEGACY_SAVE = os.path.join(AQUI, "savegame.json")
+_LLM_METRICS_PATH = os.path.join(SAVE_ROOT, "llm_metrics.json")
+
+
+def load_llm_metrics():
+    if os.path.exists(_LLM_METRICS_PATH):
+        try:
+            with open(_LLM_METRICS_PATH, "r", encoding="utf-8") as fl:
+                eng.LLM_METRICS.update(json.load(fl))
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
+            log.warning("load_llm_metrics falhou: %s", e)
+
+
+def save_llm_metrics():
+    try:
+        os.makedirs(os.path.dirname(_LLM_METRICS_PATH) or ".", exist_ok=True)
+        with open(_LLM_METRICS_PATH, "w", encoding="utf-8") as fl:
+            json.dump(eng.LLM_METRICS, fl)
+    except (OSError, TypeError, ValueError) as e:
+        log.warning("save_llm_metrics falhou: %s", e)
 
 # Feedback dos jogadores (sugestões / bugs / reports) — persistido no volume junto
 # com as contas (DATA_DIR), uma linha JSON por envio.
@@ -266,7 +272,11 @@ def _resumo_slot(state, combate=None):
 
 
 def _migrar_legacy_save():
-    """savegame.json legado -> saves/<user>/slot_1 se o slot 1 do user estiver vazio."""
+    """savegame.json legado -> saves/<user>/slot_1 se o slot 1 do user estiver vazio.
+
+    Após copiar com sucesso, arquiva o legado (rename .migrated) para NÃO
+    injetar o mesmo save single-player em todas as contas novas.
+    """
     if not os.path.isfile(_LEGACY_SAVE):
         return
     if os.path.isfile(_slot_path(1)):
@@ -285,6 +295,11 @@ def _migrar_legacy_save():
             meta["active"] = 1
             _escrever_meta(meta)
         log.info("migrou savegame.json legado -> %s", _slot_path(1))
+        # Uma migração só: evita que cada conta nova herde o save single-player.
+        try:
+            os.replace(_LEGACY_SAVE, _LEGACY_SAVE + ".migrated")
+        except OSError as e:
+            log.warning("não foi possível arquivar savegame.json legado: %s", e)
     except Exception as e:
         log.warning("migração de save legado falhou: %s", e)
 
@@ -1421,6 +1436,7 @@ def main():
         os.makedirs(SAVE_ROOT, exist_ok=True)
     except OSError as e:
         log.warning("não foi possível criar data/saves: %s", e)
+    load_llm_metrics()
     modo = f"ONLINE ({eng.MODELO} @ {eng.BASE_URL})" if ONLINE else "OFFLINE (narração por template)"
     convite = "configurada" if auth.invite_key() else "AUSENTE (cadastro desativado)"
     print(f"As Catacumbas Esquecidas — servidor web [{modo}]")
