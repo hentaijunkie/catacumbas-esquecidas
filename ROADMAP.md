@@ -417,7 +417,27 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Fix da movimentação 360º da Vila (v3.9.4) - **atual**
+### Auditoria completa — conquistas inatingíveis (v3.9.5) - **atual**
+- **Auditoria sistemática** de itens/magias/loot/altares/lore (nada referenciado sem existir),
+  ações×executores, rotas×handlers, chamadas do cliente×rotas, funções órfãs, campos que o
+  cliente lê × serialização, e sprites em disco. Resultado: engine e wiring limpos; os puzzles
+  de botões/estátuas (v3.5+) estão completos (geração+executor+portas+serialização+cliente).
+- **BUG — 2 conquistas inatingíveis (andaime morto):** os trackers `kills_totais` (→ **Matador**,
+  50 abates, +2 dano base) e `pocoes_cura` (→ **Alquimista**, 20 poções, +5 HP/poção) existiam
+  em `TRACKER_METAS` e tinham benefício codado em `conceder_conquista`, mas **nunca eram
+  incrementados** — nenhum código chamava `registrar_tracker` para eles. As duas eram
+  impossíveis de ganhar. Corrigido: `kills_totais` incrementa em `_vencer_combate` (todo abate);
+  `pocoes_cura` ao beber Poção de Cura (em `usar_item` e no combate).
+- **BUG — benefício do Alquimista inerte:** mesmo destravado, o "+5 HP por poção" NÃO era
+  aplicado (a cura usava `info["cura"]` puro). Novo helper `bonus_cura_pocao` aplicado nos dois
+  pontos de cura.
+- **Benefício do Explorador era só texto:** "resistência a armadilhas" não era lida em lugar
+  nenhum. Agora reduz o dano de armadilha em 2 (`resolver_armadilha`).
+- Verificado: `--demo` com bloco novo (Matador atinge 50 e dá +2 dano; Alquimista atinge 20,
+  cura +5; Explorador reduz dano de trap); reauditoria confirma que todo tracker incrementa e
+  toda conquista é atingível; `py_compile` de todos os .py; browser sem erros de console.
+
+### Fix da movimentação 360º da Vila (v3.9.4)
 - **Contexto:** a navegação 360º (v3.9.3, feita fora das minhas sessões) tinha a movimentação
   quebrada. Três bugs em `acaoDirecao` (index.html):
 - **Rotação não redesenhava (crítico):** ao girar com A/D, o código chamava `desenharVista()`
@@ -735,4 +755,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.9.4 — Correção da movimentação 360º da Vila (rotação não redesenhava; direções vazavam para o grid antigo; fórmula de ângulo). Antes (v3.9.3): Vila 360º estilo Shining in the Darkness.*
+*Última atualização: v3.9.5 — Auditoria completa do código: corrigidas 2 conquistas inatingíveis (Matador/Alquimista — trackers nunca incrementavam) + benefícios inertes (Alquimista/Explorador). Antes (v3.9.4): correção da movimentação 360º da Vila.*

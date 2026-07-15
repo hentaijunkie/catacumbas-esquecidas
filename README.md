@@ -209,6 +209,7 @@ Changelog in-game: modal **✨ Novidades** no login (`NOVIDADES` em `index.html`
 
 | Versão | O que mudou |
 |---|---|
+| **v3.9.5** | **Auditoria de código:** corrigidas as conquistas **Matador** (50 abates) e **Alquimista** (20 poções), que eram **impossíveis de ganhar** — os contadores nunca eram incrementados. Benefícios inertes do Alquimista (+5 HP/poção) e do Explorador (resistência a armadilhas) agora funcionam |
 | **v3.9.4** | **Fix da movimentação 360º da Vila:** a rotação (A/D) não redesenhava (`desenharVista()` era chamada sem o estado); direções vazavam para o grid antigo (W dentro da loja teleportava); entrada das catacumbas ficava presa; fórmula de ângulo corrigida |
 | **v3.9.3** | **Vila 360º** estilo Shining in the Darkness (panorama rotativo, hotspots, entrar/sair sem grid) |
 | **v3.9.2** | **Polimento Visual da Vila 2D** (restauração de pixel art para fundos e props) · UI de setas em botões interativos · Correção visual de overlap de texto (HP/Nome) em billboards inimigos |

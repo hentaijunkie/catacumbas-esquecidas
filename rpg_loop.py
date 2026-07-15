@@ -526,6 +526,14 @@ def registrar_tracker(state, key, n=1):
     return msgs
 
 
+# Poções de cura que contam para o tracker do Alquimista.
+POCOES_CURA = frozenset({"pocao_cura", "pocao_cura_maior"})
+
+def bonus_cura_pocao(player):
+    """Alquimista: +5 HP curado em cada poção (benefício passivo da conquista)."""
+    return 5 if "alquimista" in (player.get("conquistas") or []) else 0
+
+
 def progresso_conquistas(player):
     """Lista de progresso de conquistas com tracker (p/ a UI)."""
     out = []
@@ -2553,11 +2561,14 @@ def executar_acao(state, acao):
         p["inventario"].remove(item)      # consumo: gasta uma unidade
         if "cura" in info:
             antes = p["hp"]
-            p["hp"] = min(p["hp_max"], p["hp"] + info["cura"])  # clamp: engine é dona da conta
+            cura = info["cura"] + bonus_cura_pocao(p)     # Alquimista: +5 por poção
+            p["hp"] = min(p["hp_max"], p["hp"] + cura)    # clamp: engine é dona da conta
             print(f"  [usar] {info['nome']}: +{p['hp'] - antes} HP.")
             antidoto = curar_veneno(p, state)
             if antidoto:
                 print(f"  [usar] {antidoto}")
+            if item in POCOES_CURA:                       # conquista Alquimista (20 poções)
+                registrar_tracker(state, "pocoes_cura")   # (conceder_conquista já imprime)
         elif "mana" in info:
             antes = p["mana"]
             p["mana"] = min(p["mana_max"], p["mana"] + info["mana"])
@@ -3575,6 +3586,9 @@ def resolver_armadilha(state, sala):
     resist = RACAS.get(p.get("raca"), {}).get("resist_armadilha", 0)
     if resist:
         dano = max(1, dano - resist)
+    # Explorador (conquista): "resistência mental à escuridão e armadilhas" — -2 de dano.
+    if "explorador" in (p.get("conquistas") or []):
+        dano = max(1, dano - 2)
     p["hp"] = max(0, p["hp"] - dano)
     state["historico"].append(f"caiu em {arm['nome']}")
     if arm.get("veneno") and p["hp"] > 0:           # gás: dano contínuo além do imediato
@@ -3732,6 +3746,7 @@ def _vencer_combate(state, enemy_id):
     if ouro > 0:
         state["player"]["ouro"] = state["player"].get("ouro", 0) + ouro
         msgs.append(f"+{ouro} ouro (total: {state['player']['ouro']}).")
+    msgs += registrar_tracker(state, "kills_totais")   # conquista Matador (50 abates)
     if BESTIARIO[enemy_id].get("unico"):
         state["derrotados_unicos"].append(enemy_id)
         # Chefes e minichefes rendem Fama (proporcional ao mlvl) — reputação em Pedralume.
@@ -4205,11 +4220,13 @@ def combate_passo(state, cb, escolha):
         if "pocao_cura" in p["inventario"]:
             p["inventario"].remove("pocao_cura")
             antes = p["hp"]
-            p["hp"] = min(p["hp_max"], p["hp"] + ITENS["pocao_cura"]["cura"])
+            cura = ITENS["pocao_cura"]["cura"] + bonus_cura_pocao(p)   # Alquimista: +5
+            p["hp"] = min(p["hp_max"], p["hp"] + cura)
             linhas.append(f"Você bebe a poção: +{p['hp'] - antes} HP.")
             antidoto = curar_veneno(p, state)
             if antidoto:
                 linhas.append(antidoto)
+            linhas += registrar_tracker(state, "pocoes_cura")   # conquista Alquimista
         else:
             return "continua", ["Você não tem poções."]   # não gasta o turno
     elif escolha == "pocao_mana":
@@ -5842,6 +5859,46 @@ def rodar_demo():
     assert "coracao_de_pedra" in cp["player"]["conquistas"]
     assert cp["player"]["hp_max"] == hp0 + 2
     print("  Ladrão das Sombras, Ferro Velho, Coração de Pedra. OK")
+
+    # --- Matador (kills totais) e Alquimista (poções) — trackers estavam MORTOS (nunca
+    #     incrementados) até esta leva; as duas conquistas eram inatingíveis. ---
+    print("\nConquistas atingíveis: Matador (kills) / Alquimista (poções):")
+    assert TRACKER_METAS["kills_totais"][1] == 50 and TRACKER_METAS["pocoes_cura"][1] == 20
+    mt = novo_jogo("Guerreiro", seed=4)
+    _vencer_combate(mt, "rato_gigante")               # cada abate conta no chokepoint real
+    assert mt["player"]["trackers"]["kills_totais"] == 1, "kills contam em _vencer_combate"
+    # marco de 50 via tracker isolado (evita ruído de XP/level-up dos 50 abates)
+    mt2 = novo_jogo("Guerreiro", seed=4)
+    dano0 = mt2["player"]["dano_base"]
+    for _ in range(50):
+        registrar_tracker(mt2, "kills_totais")
+    assert "matador" in mt2["player"]["conquistas"] and mt2["player"]["dano_base"] == dano0 + 2, "Matador dá +2 dano"
+    # Alquimista: beber 20 poções (via usar_item) destrava e passa a curar +5
+    al = novo_jogo("Guerreiro", seed=4)
+    al["player"]["inventario"] += ["pocao_cura"] * 21
+    al["player"]["hp"] = 1
+    for _ in range(20):
+        al["player"]["hp"] = 1
+        executar_acao(al, {"tipo": "usar_item", "item": "pocao_cura"})
+    assert al["player"]["trackers"]["pocoes_cura"] == 20, "poções contam ao usar"
+    assert "alquimista" in al["player"]["conquistas"], "20 poções → Alquimista"
+    al["player"]["hp"] = 1
+    executar_acao(al, {"tipo": "usar_item", "item": "pocao_cura"})   # 21ª, já com bônus
+    assert al["player"]["hp"] == 1 + ITENS["pocao_cura"]["cura"] + 5, "Alquimista cura +5 por poção"
+    print("  Matador (+2 dano) e Alquimista (+5 cura) agora atingíveis. OK")
+
+    # Explorador: benefício de armadilha (antes só texto — não era lido em resolver_armadilha)
+    ex_t = novo_jogo("Guerreiro", seed=4)   # Guerreiro: sem disarma, sem resist racial
+    sala_arm = {"armadilha": "fosso", "armadilha_ativa": True}       # dano base 6
+    hp_sem = ex_t["player"]["hp"]
+    resolver_armadilha(ex_t, dict(sala_arm))
+    dano_sem = hp_sem - ex_t["player"]["hp"]
+    ex_t["player"]["hp"] = hp_sem
+    ex_t["player"]["conquistas"] = ["explorador"]
+    resolver_armadilha(ex_t, dict(sala_arm))
+    dano_com = hp_sem - ex_t["player"]["hp"]
+    assert dano_com == dano_sem - 2, "Explorador reduz dano de armadilha em 2"
+    print("  Explorador reduz dano de armadilha (benefício antes inerte). OK")
 
     # --- LLM config (chave genérica + timeout + status) ---
     print("\nLLM config (API key genérica / timeout):")
