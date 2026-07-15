@@ -267,30 +267,59 @@ NPCS_VILA = {
         "papel": "loja",
         "fala": ("Mira arruma frascos na barraca: \"Poções, tochas, pergaminhos — ouro na mão, "
                  "mercadoria na bolsa. Não peço de onde veio o metal.\""),
+        # Fala mais “alta” de Fama vence (engine escolhe; o LLM só embelezaria se narrar).
+        "falas_fama": [
+            (30, ("Mira ergue uma sobrancelha e sorri: \"Ah, é você! Já ouvi falar das suas "
+                  "façanhas. Separado umas mercadorias especiais — só para quem a vila "
+                  "reconhece.\"")),
+            (50, ("Mira faz uma reverência breve: \"O herói de Pedralume na minha barraca. "
+                  "Preço de amigo, estoque de lenda — e não diga que eu não aviso.\"")),
+        ],
     },
     "anciao": {
         "nome": "Ancião Brum",
         "papel": "lore",
         "fala": ("O ancião olha a fonte rachada: \"Três andares descem sob Pedralume. No fundo, "
                  "algo antigo ainda chora. Traga a água de volta — ou o que restar dela.\""),
+        "falas_fama": [
+            (30, ("Brum acena com a barba: \"Seu nome já sobe com a fumaça das lareiras. "
+                  "As lendas falam de um rio preso e de um coração de pedra — e agora "
+                  "falam de você no meio delas.\"")),
+            (50, ("O ancião toca a borda da fonte: \"Famoso entre os vivos e temido "
+                  "pelas sombras. Lembre-se: glória sem água na fonte é só poeira.\"")),
+        ],
     },
     "ferreiro": {
         "nome": "Kael, o Forjador",
         "papel": "forja",
         "fala": ("Kael bate o martelo em uma espada gasta: \"As lâminas lascam rápido nas catacumbas. "
                  "Traga-as aqui antes que quebrem de vez.\""),
+        "falas_fama": [
+            (30, ("Kael ri sem parar o martelo: \"Então as histórias são verdade. "
+                  "Traga o aço — conserto de herói não espera.\"")),
+        ],
     },
     "curandeiro": {
         "nome": "Irmão Silas",
         "papel": "cura",
         "fala": ("O monge lava bandagens ensanguentadas: \"A luz ainda não nos abandonou. "
                  "Fique em paz, eu cuidarei de suas feridas.\""),
+        "falas_fama": [
+            (30, ("Silas limpa as mãos e sorri: \"Pedralume reza por quem desce e volta. "
+                  "Sente-se — a luz também te reconhece.\"")),
+        ],
     },
     "bruxa": {
         "nome": "Morrigan, a Ocultista",
         "papel": "magia",
         "fala": ("A bruxa sorri na penumbra de sua tenda: \"Eles temem o que não entendem. "
                  "Mas o poder arcano é a única coisa que aquelas sombras respeitam.\""),
+        "falas_fama": [
+            (30, ("Morrigan estala os dedos: \"Sangue e runas já contam o seu nome. "
+                  "Quer poder de verdade? Eu vendo o que a luz da praça esconde.\"")),
+            (50, ("A ocultista inclina a cabeça: \"Famoso. Bom. Tenho um grimório "
+                  "que só mostro a quem a vila já elevou — e o preço acompanha a lenda.\"")),
+        ],
     },
 }
 
@@ -397,7 +426,36 @@ def conceder_conquista(state, cid):
 # Fama: reputação persistente ganha ao superar chefes e sidequests. Ela abre catálogos
 # exclusivos na Vila (Mira ≥30, Morrigan ≥50) e, ao cruzar 50, concede a conquista Famoso
 # (10% de desconto). É estado do jogador (dono: a engine); o LLM só narra.
-FAMA_FAMOSO = 50                 # limiar da conquista Famoso
+FAMA_MIRA = 30                   # catálogo exclusivo da Mira
+FAMA_MORRIGAN = 50               # catálogo exclusivo da Morrigan
+FAMA_FAMOSO = 50                 # limiar da conquista Famoso (igual Morrigan)
+FAMA_NASCENTE = 8                # limpar a sidequest Nascente Envenenada (andar 1)
+
+# Metas exibidas na ficha (ordem crescente). A UI mostra “faltam X p/ …” da próxima.
+FAMA_METAS = (
+    (FAMA_MIRA, "itens exclusivos na Mira"),
+    (FAMA_FAMOSO, "Famoso + grimório na Morrigan"),
+)
+
+
+def dica_fama(fama):
+    """Texto curto para a ficha: próxima meta de Fama ou reputação “no topo”."""
+    fama = int(fama or 0)
+    for limiar, desc in FAMA_METAS:
+        if fama < limiar:
+            return f"{limiar - fama} p/ {desc}"
+    return "reputação no topo da vila"
+
+
+def fala_do_npc(npc_id, fama=0):
+    """Escolhe a fala canônica do NPC (Fama mais alta que o jogador alcançou)."""
+    npc = NPCS_VILA.get(npc_id) or {}
+    escolhida = npc.get("fala", "…")
+    for limiar, texto in sorted(npc.get("falas_fama") or [], key=lambda x: x[0]):
+        if fama >= limiar:
+            escolhida = texto
+    return escolhida
+
 
 def ganhar_fama(state, pontos, motivo=""):
     """Soma Fama ao jogador (com feedback) e concede a conquista Famoso ao cruzar o limiar.
@@ -405,13 +463,39 @@ def ganhar_fama(state, pontos, motivo=""):
     if pontos <= 0:
         return []
     p = state["player"]
-    p["fama"] = p.get("fama", 0) + pontos
+    antes = p.get("fama", 0)
+    p["fama"] = antes + pontos
     msg = f"Sua fama cresce em Pedralume (+{pontos} Fama — total {p['fama']})."
     print(f"  [fama] {msg}" + (f" [{motivo}]" if motivo else ""))
     state["historico"].append(f"ganhou fama ({motivo})" if motivo else "ganhou fama")
     msgs = [msg]
+    if antes < FAMA_MIRA <= p["fama"]:
+        m30 = "Sua reputação abre o catálogo especial da Mira (≥30 Fama)."
+        print(f"  [fama] {m30}")
+        msgs.append(m30)
     if p["fama"] >= FAMA_FAMOSO:
         msgs += conceder_conquista(state, "famoso")
+    if antes < FAMA_MORRIGAN <= p["fama"]:
+        m50 = "Morrigan passa a oferecer grimórios raros a quem a vila elevou (≥50 Fama)."
+        print(f"  [fama] {m50}")
+        msgs.append(m50)
+    return msgs
+
+
+def recompensar_sala_limpa(state, sala):
+    """Sidequests de câmara: recompensa de Fama ao limpar a sala (uma vez por run).
+    Chamado quando a sala vira limpa após vitória em combate (terminal e web)."""
+    if not sala:
+        return []
+    msgs = []
+    feitas = state.setdefault("sidequests_feitas", [])
+    if sala.get("nome") == "Nascente Envenenada" and "nascente_envenenada" not in feitas:
+        feitas.append("nascente_envenenada")
+        msgs += ganhar_fama(state, FAMA_NASCENTE, "limpou a Nascente Envenenada")
+        extra = "A nascente para de borbulhar veneno — Pedralume ouvirá falar disso."
+        print(f"  [sidequest] {extra}")
+        msgs.append(extra)
+        state["historico"].append("limpou a Nascente Envenenada")
     return msgs
 
 
@@ -1084,6 +1168,7 @@ def novo_jogo(classe, seed=None, raca="Humano"):
         "pos":       {"x": 0, "y": 0},
         "facing":    facing0,              # aponta p/ uma saída real (1ª pessoa jogável)
         "derrotados_unicos": [],        # chefes/inimigos únicos já mortos (não reaparecem)
+        "sidequests_feitas": [],        # ids de sidequests de câmara recompensadas nesta run
         "missao_cumprida": False,       # True quando o Golem cai e a água volta
         "final":     None,              # None | "vitoria" | "purificacao"
         "na_superficie": False,         # True = de volta a Pedralume (fora da masmorra)
@@ -1500,6 +1585,7 @@ def serializar_estado(state):
             "mana": p["mana"], "mana_max": p["mana_max"],
             "nivel": p["nivel"], "xp": p["xp"], "xp_prox": xp_para_proximo(p),
             "ouro": p.get("ouro", 0), "fama": p.get("fama", 0),
+            "fama_dica": dica_fama(p.get("fama", 0)),
             "dano_base": p["dano_base"], "dano_arma": dano_da_arma(p, state),
             "conquistas": p.get("conquistas", []),
             "bonus_for": bonus_dano_fisico(p, state), "defesa": defesa_total(p, state),
@@ -1609,6 +1695,7 @@ def reidratar_estado(state):
     # Saves anteriores à v3.x não têm Fama/Conquistas — garante os campos p/ a UI e a economia.
     p.setdefault("fama", 0)
     p.setdefault("conquistas", [])
+    state.setdefault("sidequests_feitas", [])
 
     def _fix_masmorra(m):
         for s in (m or {}).values():
@@ -1690,6 +1777,10 @@ def estado_para_prompt(state):
         f"Inventário: {inv}\n"
         f"Lore descoberto (títulos): {lore_txt}\n"
         f"LORE CANÔNICO (fatos absolutos — embeleze, NÃO invente além disto):\n{lore_canon}\n"
+        f"Reputação em Pedralume: Fama {p.get('fama', 0)}"
+        + (f" | Conquistas: {', '.join(p.get('conquistas') or [])}"
+           if p.get("conquistas") else " | Conquistas: (nenhuma)")
+        + f" | próxima meta: {dica_fama(p.get('fama', 0))}\n"
         f"Fatos recentes: {hist}"
     )
 
@@ -3211,14 +3302,14 @@ def _vencer_combate(state, enemy_id):
 
 def catalogo_mira(state):
     cat = LOJA_VILA.copy()
-    if state["player"].get("fama", 0) >= 30:
+    if state["player"].get("fama", 0) >= FAMA_MIRA:
         cat["pocao_cura_maior"] = 25
         cat["espada_magica"] = 100
     return cat
 
 def catalogo_morrigan(state):
     cat = LOJA_BRUXA.copy()
-    if state["player"].get("fama", 0) >= 50:
+    if state["player"].get("fama", 0) >= FAMA_MORRIGAN:
         cat["grimorio_tempestade"] = 150
     return cat
 
@@ -3498,7 +3589,8 @@ def consertar_item(state, item_id):
     return _resp(f"Kael consertou {inst['nome']} por {custo} ouro.")
 
 def falar_npc(state, alvo):
-    """Diálogo com NPC da Vila (sem efeito mecânico além de lore no histórico)."""
+    """Diálogo com NPC da Vila (sem efeito mecânico além de lore no histórico).
+    A fala muda com a Fama do jogador (tabela falas_fama — engine é dona do texto)."""
     pos = (state["pos"]["x"], state["pos"]["y"])
     npc_local = state["masmorra"].get(pos, {}).get("npc")
     if npc_local != alvo:
@@ -3508,9 +3600,11 @@ def falar_npc(state, alvo):
     if not npc:
         print(f"  [npc] ninguém responde a '{alvo}'.")
         return [f"Ninguém responde. NPCs: {', '.join(NPCS_VILA)}."]
+    fama = state["player"].get("fama", 0)
+    fala = fala_do_npc(alvo, fama)
     state["historico"].append(f"falou com {npc['nome']}")
-    print(f"  [npc] {npc['fala']}")
-    return [npc["fala"]]
+    print(f"  [npc] {fala}")
+    return [fala]
 
 
 def _resolver_mortes(state, cb):
@@ -3839,6 +3933,7 @@ def jogar():
             if resultado == "vitoria":
                 sala = sala_atual(state)
                 sala["limpa"] = True              # a luta acabou -> a sala inteira fica segura
+                recompensar_sala_limpa(state, sala)  # Fama de sidequest (imprime se houver)
                 # Vitória sobre o chefe-objetivo = missão cumprida: a água volta, jogo vencido.
                 if enemy_id == OBJETIVO_BOSS:
                     state["missao_cumprida"] = True
@@ -5079,10 +5174,14 @@ def rodar_demo():
     assert ITENS["lanca_perdida"]["dano"] == 6, "a Lança supera a Lâmina Rúnica"
     print("  Guardião solo no fundo, Lança no loot, NIVEL_MAX 12 coerente. OK")
 
-    # --- Fama + Conquistas (v3.x "ligar o andaime") ---
+    # --- Fama + Conquistas (v3.x "ligar o andaime") + PR1 v3.4 (dica, Nascente, NPCs) ---
     print("\nFama e Conquistas (ganho, conquistas, catálogo, desconto):")
     fc = novo_jogo("Guerreiro", seed=5)
     assert fc["player"]["fama"] == 0 and fc["player"]["conquistas"] == [], "novo jogo começa sem fama/conquista"
+    assert dica_fama(0).startswith("30 p/"), "dica em Fama 0 aponta para Mira"
+    assert dica_fama(29).startswith("1 p/"), "dica em 29: falta 1 p/ Mira"
+    assert "Famoso" in dica_fama(30) or "Morrigan" in dica_fama(30), "dica em 30 aponta para Famoso/Morrigan"
+    assert "topo" in dica_fama(50), "dica em 50: no topo"
     # derrotar chefe único rende Fama proporcional ao mlvl (Golem mlvl 7 → 14)
     msgs_v = _vencer_combate(fc, "golem_barro")
     assert fc["player"]["fama"] == 14, "Golem (mlvl 7) rende 14 de Fama"
@@ -5090,11 +5189,17 @@ def rodar_demo():
     # inimigo comum NÃO dá Fama
     _vencer_combate(fc, "rato_gigante")
     assert fc["player"]["fama"] == 14, "inimigo comum não rende Fama"
-    # catálogo da Mira: Fama < 30 não mostra exclusivos; >= 30 mostra
+    # catálogo da Mira: Fama < FAMA_MIRA não mostra exclusivos; >= mostra
     assert "espada_magica" not in catalogo_mira(fc), "sem Fama 30, sem itens exclusivos"
     fc["player"]["fama"] = 35
     assert "espada_magica" in catalogo_mira(fc) and "pocao_cura_maior" in catalogo_mira(fc)
     assert "grimorio_tempestade" not in catalogo_morrigan(fc), "Morrigan exige Fama 50"
+    # NPCs mudam a fala com a Fama (engine escolhe o texto)
+    assert "Poções" in fala_do_npc("mira", 0) or "poções" in fala_do_npc("mira", 0).lower()
+    assert "façanhas" in fala_do_npc("mira", 30) or "especiais" in fala_do_npc("mira", 30)
+    assert "herói" in fala_do_npc("mira", 50).lower() or "lenda" in fala_do_npc("mira", 50).lower()
+    assert fala_do_npc("mira", 0) != fala_do_npc("mira", 30)
+    assert "falam de você" in fala_do_npc("anciao", 30) or "lareiras" in fala_do_npc("anciao", 30)
     # cruzar 50 de Fama concede a conquista Famoso automaticamente
     msgs_f = ganhar_fama(fc, 20, "teste")           # 35 -> 55
     assert fc["player"]["fama"] == 55 and "famoso" in fc["player"]["conquistas"], "Fama>=50 → Famoso"
@@ -5135,14 +5240,43 @@ def rodar_demo():
     ex = novo_jogo("Guerreiro", seed=9)
     _vencer_combate(ex, "guardiao_lanca")
     assert "explorador" in ex["player"]["conquistas"], "matar o Guardião → Explorador"
-    # whitelist não muda; serialização expõe fama/conquistas p/ a UI
+    # whitelist não muda; serialização expõe fama/conquistas/dica p/ a UI
     serial = serializar_estado(fc)
     assert serial["player"]["fama"] == 55 and "famoso" in serial["player"]["conquistas"], "UI vê fama/conquistas"
+    assert serial["player"].get("fama_dica"), "UI recebe dica de progresso de Fama"
+    assert "topo" in serial["player"]["fama_dica"], "com Fama 55 a dica é o topo"
+    # prompt do LLM inclui reputação (sem inventar números — engine injeta)
+    prompt_fc = estado_para_prompt(fc)
+    assert "Reputação em Pedralume: Fama 55" in prompt_fc, "prompt carrega Fama"
+    assert "famoso" in prompt_fc, "prompt lista conquistas"
+    # Nascente Envenenada: limpar a câmara rende Fama uma vez
+    ns = novo_jogo("Guerreiro", seed=3)
+    nasc_cell = next((c for c, s in ns["masmorra"].items()
+                      if s.get("nome") == "Nascente Envenenada"), None)
+    assert nasc_cell, "seed 3 deve ter Nascente no andar 1"
+    ns["pos"] = {"x": nasc_cell[0], "y": nasc_cell[1]}
+    sala_n = sala_atual(ns)
+    fama_antes = ns["player"]["fama"]
+    sala_n["limpa"] = True
+    msgs_n = recompensar_sala_limpa(ns, sala_n)
+    assert ns["player"]["fama"] == fama_antes + FAMA_NASCENTE, "Nascente rende Fama"
+    assert "nascente_envenenada" in ns["sidequests_feitas"]
+    assert any("fama" in m.lower() for m in msgs_n), "mensagem de Fama ao limpar Nascente"
+    assert recompensar_sala_limpa(ns, sala_n) == [], "Nascente não paga Fama duas vezes"
+    # falar_npc na Mira com Fama alta usa a fala de herói
+    ns["player"]["fama"] = 50
+    ns["na_superficie"] = True
+    ns["masmorra"] = vila_nova()
+    mira_c = next(c for c, s in ns["masmorra"].items() if s.get("npc") == "mira")
+    ns["pos"] = {"x": mira_c[0], "y": mira_c[1]}
+    fala_m = falar_npc(ns, "mira")
+    assert any("herói" in m.lower() or "lenda" in m.lower() for m in fala_m), "Mira reconhece Famoso"
     # saves antigos (sem os campos) são reidratados sem quebrar
     velho = {"player": {"armaduras": []}, "masmorra": {}}
     reidratar_estado(velho)
     assert velho["player"]["fama"] == 0 and velho["player"]["conquistas"] == [], "save legado ganha os campos"
-    print("  Fama por chefe/sidequest, conquistas c/ benefício, catálogo e desconto por Fama. OK")
+    assert velho.get("sidequests_feitas") == [], "save legado ganha sidequests_feitas"
+    print("  Fama por chefe/sidequest/Nascente, dica HUD, NPCs por limiar, prompt. OK")
 
     print("\n>>> DEMO OK — inventário final:", state["player"]["inventario"],
           "| arma:", state["player"]["arma"], "| HP:", state["player"]["hp"])

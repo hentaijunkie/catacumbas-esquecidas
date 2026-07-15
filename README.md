@@ -59,7 +59,7 @@ Cada conta tem **sessão e saves isolados** (vários jogadores ao mesmo tempo).
 - **Vila navegável em cenas 2D:** Pedralume é um mapa andável (praça, entrada das catacumbas, forja do Kael, loja da Mira, tenda do Ancião, curandeiro e cabana da bruxa), mas cada local renderiza uma **cena 2D composta** — céu noturno + casario ao fundo, NPC grande e nomeado no centro, props do local (fonte, brasas da forja, arco das catacumbas) e **setas de saída** com o nome do destino. O NPC da sala atual vira botão "Falar" no painel; comprar/vender só na loja da Mira e consertar só na forja.
 - **Automapa** com névoa de guerra e indicadores de **status** (☠️ veneno, 🩸 sangramento, ⬇️ fraqueza, ❄️ gelo/atordoamento). O boss revela a identidade correta à distância.
 - Badge: `online · DeepSeek` ou `offline · template`.
-- **Áudio** via Web Audio API: batimento cardíaco com HP crítico, shake prolongado nas magias, impacto grave (hit) e áudio de fadiga (pitch e LFO dinâmicos).
+- **Áudio** via Web Audio API: batimento cardíaco com HP crítico, shake prolongado nas magias, impacto grave (hit), áudio de fadiga (pitch e LFO dinâmicos) e **ambientação por local** (vento no andar 1, gotas no 2, cripta no 3, fogo no Abismo; brisa na vila).
 
 ### Narração do LLM (opcional)
 
@@ -143,7 +143,9 @@ Não publique a chave no repositório.
 - **Toque/clique no NPC** na cena para conversar; transição vila↔catacumbas com **fade**
 
 ### Fama & Conquistas (reputação persistente)
-- **Fama** sobe ao derrotar chefes/minichefes e resolver sidequests (abrir o Templo Esquecido, purificar o Golem). Ela **desbloqueia catálogo exclusivo**: Mira a partir de 30 de Fama (poção maior, espada mágica), Morrigan a partir de 50 (grimório de tempestade).
+- **Fama** sobe ao derrotar chefes/minichefes e resolver sidequests (limpar a **Nascente Envenenada**, abrir o Templo Esquecido, purificar o Golem). Ela **desbloqueia catálogo exclusivo**: Mira a partir de 30 de Fama (poção maior, espada mágica), Morrigan a partir de 50 (grimório de tempestade).
+- **Ficha legível:** contador de Fama + dica do próximo marco (`N p/ itens da Mira` / `N p/ Famoso + grimório na Morrigan`).
+- **NPCs reagem à Fama:** Mira, Ancião Brum, Morrigan e os demais mudam o diálogo em ≥30 e ≥50 (texto canônico da engine).
 - **Conquistas** com benefício mecânico, **globais por conta** (persistem entre personagens): **Purificador** (purificar o Golem → +5 HP máx, +1 luz) · **Famoso** (Fama ≥50 → 10% de desconto nas lojas) · **Explorador** (vencer o Guardião da Lança no Abismo). Aparecem na ficha do aventureiro.
 
 ### Combate e magia
@@ -190,8 +192,9 @@ python server.py          # logs em logs/
 
 ## Visão de longo prazo
 
-Polimento FP → cliente Godot opcional → ~~LLM local (Ollama)~~ ✅ v2.7.4 → Vila/persistência.
+Fama/conquistas legíveis → robustez do LLM (timeout/retry) → automapa com POIs → cliente Godot opcional.  
+~~LLM local (Ollama)~~ ✅ v2.7.4 · ~~Vila/persistência~~ ✅ · ~~ambientação sonora~~ ✅ v3.4.
 
 ---
 
-*Protótipo v3.3 - Sidequest "O Templo Esquecido" ligada: no Andar 3, puxe 3 alavancas para abrir a câmara selada (loot premium + Fama). Antes (v3.2): combate mais limpo (ações sobre a visão, magias em submenu 🔮), "Novidades" no login, sprites do Abismo e correção do erro 500 dos itens de Fama.*
+*Protótipo v3.4 — Fama legível (dica na ficha), Nascente Envenenada rende Fama, NPCs reagem à reputação, ambientação sonora por andar. Antes (v3.3): Templo Esquecido ligado de verdade.*

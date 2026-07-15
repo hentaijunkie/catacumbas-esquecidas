@@ -1046,6 +1046,7 @@ def acao_combate(dados):
     # vitória: a luta inteira acabou -> a sala fica segura (vale p/ hordas), saqueia e checa chefe
     sala = eng.sala_atual(state)
     sala["limpa"] = True
+    linhas += eng.recompensar_sala_limpa(state, sala)  # Fama de sidequest (ex.: Nascente)
     salvar_estado()   # auto-save após cada combate encerrado
     if enemy_id == eng.OBJETIVO_BOSS:
         state["missao_cumprida"] = True

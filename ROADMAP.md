@@ -417,7 +417,18 @@ testes novos no `--demo` (vila, durabilidade, conserto, sidequests):
   vila no `--demo` não passa mais "por sorte" (descia da loja da Mira com estado
   corrompido e o assert casava com a mensagem de erro).
 
-### Templo Esquecido LIGADO (v3.3) - **atual**
+### Fama legível + Nascente + NPCs reativos + ambientação (v3.4) - **atual**
+- **HUD de Fama:** a ficha mostra o total e a **próxima meta** (`fama_dica`: ex. `18 p/ itens exclusivos na Mira`, depois `N p/ Famoso + grimório na Morrigan`, depois “topo da vila”). Serializado em `player.fama_dica`.
+- **Marcos no log:** ao cruzar 30 e 50 de Fama, mensagens explícitas (catálogo Mira / Morrigan).
+- **Nascente Envenenada rende Fama:** limpar a câmara (vitória em combate → `recompensar_sala_limpa`) concede `FAMA_NASCENTE` (8) **uma vez por run** (`sidequests_feitas`); terminal e web.
+- **NPCs por limiar:** `falas_fama` em Mira/Ancião/Kael/Silas/Morrigan; `falar_npc` / `fala_do_npc` escolhem o texto pela Fama do jogador (engine é dona).
+- **Prompt do LLM:** `estado_para_prompt` inclui uma linha `Reputação em Pedralume: Fama N | Conquistas: … | próxima meta: …`.
+- **Ambientação sonora (Web Audio, procedural):** loops por local — vila (brisa), andar 1 (vento), 2 (gotas), 3 (cripta), 4 Abismo (fogo + drone); crossfade na troca; para em fim de run/logout.
+- Constantes: `FAMA_MIRA=30`, `FAMA_MORRIGAN=50`, `FAMA_FAMOSO=50`, `FAMA_NASCENTE=8`.
+- Verificado: `--demo` (dica, Nascente idempotente, falas por limiar, `fama_dica` na serialização, prompt com Fama).
+
+### Templo Esquecido LIGADO (v3.3)
+
 - **Contexto:** a sidequest "O Templo Esquecido" (v2.9) estava morta — a ação `puxar_alavanca`,
   a porta selada, o botão e o render da alavanca no raycaster existiam, mas **nenhuma sala era
   gerada** com alavanca/porta e a serialização não enviava os campos. Wire-up completo:
@@ -602,9 +613,14 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 ## Proximos passos (curto prazo)
 
 ### Expansão da Gameplay
+- [ ] Ampliação do sistema de Conquistas: trackers novos (ex: Mestre das Chamas, Sangue de Ferro, Sobrevivente Envenenado).
 - [ ] Novas interações procedurais: estátuas que giram e botões de pressão nas masmorras.
-- [ ] Ampliação do sistema de Conquistas: criar novos trackers (ex: Mestre das Chamas, Sangue de Ferro).
-- [ ] Áudio ambiental por andar: adicionar loops de áudio simples usando Web Audio API.
+- [x] ~~Áudio ambiental por andar~~ — ✅ v3.4 (Web Audio procedural).
+- [x] ~~Fama legível + Nascente + NPCs reativos~~ — ✅ v3.4.
+
+### Robustez / QoL
+- [ ] LLM: `LLM_API_KEY` genérico, timeout + retry, métricas no `llm.log`.
+- [ ] Automapa: ícones de altar/alavanca/escada/cofre + HUD alavancas N/3.
 
 ---
 
@@ -622,7 +638,7 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 - Sessões de jogo em memória: reiniciar o servidor derruba runs ativas (saves em disco persistem).
 - Narracao offline = template; online depende de DeepSeek e latencia.
 - Guerreiro endgame continua forte vs Golem.
-- Audio e "beep" sintetico (sem arquivos de som).
+- Audio procedural (beeps + ambientação por andar; sem arquivos de som externos).
 - Cadastro aberto a quem tiver a chave de convite (não há papéis admin/moderador).
 - Rate-limit de login é por IP e em memória: atrás de NAT compartilhado pode bloquear
   vizinhos honestos; reiniciar o servidor zera o contador.
@@ -641,4 +657,4 @@ Fecha o bloco médio do roadmap (exceto Godot/LLM local):
 
 ---
 
-*Última atualização: v3.3 - Sidequest "Templo Esquecido" ligada de verdade (3 alavancas geram no andar 3 + câmara selada com loot premium + Fama). Antes: UI de combate na visão, changelog no login, sprites do Abismo e correção do 500 dos itens de Fama (v3.2).*
+*Última atualização: v3.4 — Fama legível (dica na ficha), Nascente Envenenada rende Fama, NPCs reagem à reputação, ambientação sonora por andar. Antes (v3.3): Templo Esquecido ligado de verdade.*

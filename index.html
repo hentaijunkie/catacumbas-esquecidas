@@ -286,6 +286,10 @@
         style="width:0;background:var(--xp)"></i></div>
       <div class="stat" style="margin-top:10px"><span>Ouro</span><b id="ouro" style="color:var(--gold)">0</b></div>
       <div class="stat"><span>Fama</span><b id="fama" style="color:#a8e6cf">0</b></div>
+      <div class="stat" id="famahintrow" style="display:none;font-size:0.85em;opacity:0.9">
+        <span style="color:#8ab">próximo</span>
+        <b id="famahint" style="color:#9dc;font-weight:500">—</b>
+      </div>
       <div class="stat" id="conqrow" style="display:none"><span>Conquistas</span><b id="conquistas" style="color:#e8c95a">—</b></div>
       <div class="stat"><span>Arma</span><b id="arma">—</b></div>
       <div class="stat"><span>Armadura</span><b id="armadura">—</b></div>
@@ -590,13 +594,12 @@ function setUserUI(user){
 // Ao lançar novidades, bump NOVIDADES.versao e reescreva a lista — todos os
 // jogadores veem o aviso no próximo login e só uma vez.
 const NOVIDADES = {
-  versao: "v3.3",
+  versao: "v3.4",
   itens: [
-    "<b>Sidequest — O Templo Esquecido:</b> no Andar 3, encontre e puxe <b>3 alavancas</b> escondidas para abrir a câmara selada do Templo, guardada por inimigos e cheia de loot nobre (rende Fama!).",
-    "<b>O Abismo ganhou rosto:</b> Larva, Cavaleiro do Túmulo, Bruxo Abissal e o Guardião da Lança agora aparecem com seus próprios sprites (antes vinham genéricos).",
-    "<b>Fama & Conquistas de verdade:</b> derrote chefes e resolva sidequests para ganhar <b>Fama</b> — ela abre itens exclusivos na loja da Mira (≥30) e da Morrigan (≥50). Conquistas (<b>Purificador</b>, <b>Famoso</b>, <b>Explorador</b>) dão bônus e ficam salvas na sua conta.",
-    "<b>Combate mais limpo:</b> as ações agora ficam sobre a visão em 1ª pessoa, e as magias vivem num submenu <b>🔮 Magias</b> — sem poluir a tela.",
-    "<b>Vila:</b> Irmão Silas cura tudo por ouro, Morrigan vende grimórios e o Guerreiro repara equipamento no campo.",
+    "<b>Fama legível:</b> a ficha mostra quantos pontos faltam para os <b>itens da Mira</b> (≥30) e para <b>Famoso / Morrigan</b> (≥50).",
+    "<b>Nascente Envenenada rende Fama:</b> limpar a sidequest do andar 1 agora eleva sua reputação em Pedralume.",
+    "<b>NPCs reagem à Fama:</b> Mira, Ancião, Morrigan e os outros mudam o diálogo quando você é conhecido (≥30) ou famoso (≥50).",
+    "<b>Ambientação sonora:</b> cada local tem um loop sutil (vento, gotas, cripta, fogo no Abismo).",
   ],
 };
 function mostrarNovidades(){
@@ -651,7 +654,11 @@ function aplicar(resp){
   if(resp.precisa_login){ mostrarAuth(true); return; }
   if(resp.erro) log("⚠ " + resp.erro, "msg");   // erros do servidor eram engolidos em silêncio
   if(resp.user) setUserUI(resp.user);
-  if(resp.precisa_novo){ $("#ovStart").classList.remove("hidden"); return; }
+  if(resp.precisa_novo){
+    stopAmbient(0.6);
+    $("#ovStart").classList.remove("hidden");
+    return;
+  }
   if(resp.online!==undefined) $("#modo").textContent = resp.online ? "online · DeepSeek" : "offline · template";
   if(resp.narrativa) log(resp.narrativa, "narr");
   (resp.mensagens||[]).forEach(m => log("• "+m, "msg"));
@@ -727,7 +734,14 @@ function aplicar(resp){
     $("#lorecount").textContent = (p.lore&&p.lore.length) ? p.lore.length+" fragmentos" : "0";
     montarBotoesConjurar(p);
     $("#ouro").textContent = (p.ouro!=null ? p.ouro : 0) + " 💰";
-    $("#fama").textContent = (p.fama!=null ? p.fama : 0) + " 👑";
+    const famaN = p.fama!=null ? p.fama : 0;
+    $("#fama").textContent = famaN + " 👑";
+    // Dica de progresso: quantos pontos faltam p/ Mira (≥30) ou Famoso/Morrigan (≥50)
+    const dica = p.fama_dica || (famaN < 30 ? `${30-famaN} p/ itens exclusivos na Mira`
+      : famaN < 50 ? `${50-famaN} p/ Famoso + grimório na Morrigan`
+      : "reputação no topo da vila");
+    $("#famahint").textContent = dica;
+    $("#famahintrow").style.display = "";
     const CONQ_NOMES = {purificador:"Purificador 💧", famoso:"Famoso 👑", explorador:"Explorador 🗺️"};
     const conq = p.conquistas || [];
     $("#conqrow").style.display = conq.length ? "" : "none";
@@ -843,6 +857,8 @@ function aplicar(resp){
       else if(p.mana > pvp.mana) flashView("rgba(90,108,240,0.8)");
     }
     window._flashMagia = null;
+    // Loop de ambientação: vila / andar 1–4 (crossfade em updateAmbient)
+    updateAmbient(e);
     desenharMapa(e);
     // lerp visual em direção ao novo estado
     solicitarVista(e, resp.combate);
@@ -1107,6 +1123,255 @@ function stopHeartbeat() {
     _heartbeatId = null;
   }
 }
+
+// ---- Ambientação por local (procedural, Web Audio — sem arquivos) ----
+// Vila: brisa noturna | Andar 1: vento nas pedras | 2: gotas | 3: cripta baixa
+// | 4 Abismo: fogo + zumbido. Volume sutil para não competir com sfx/fadiga/heartbeat.
+let _ambient = null;          // { key, master, timers[], sources[] }
+let _noiseBuf = null;
+
+function ensureAudioCtx(){
+  if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(_audioCtx.state === "suspended") _audioCtx.resume();
+  return _audioCtx;
+}
+
+function _noiseBuffer(ctx){
+  if(_noiseBuf && _noiseBuf.sampleRate === ctx.sampleRate) return _noiseBuf;
+  const sec = 2.5;
+  const n = Math.floor(ctx.sampleRate * sec);
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  _noiseBuf = buf;
+  return buf;
+}
+
+function _loopNoise(ctx, filterType, freq, q, gainVal){
+  const src = ctx.createBufferSource();
+  src.buffer = _noiseBuffer(ctx);
+  src.loop = true;
+  const f = ctx.createBiquadFilter();
+  f.type = filterType;
+  f.frequency.value = freq;
+  if(q != null) f.Q.value = q;
+  const g = ctx.createGain();
+  g.gain.value = gainVal;
+  src.connect(f); f.connect(g);
+  src.start();
+  return { src, out: g, filter: f, gain: g };
+}
+
+function stopAmbient(fadeSec){
+  if(!_ambient) return;
+  const amb = _ambient;
+  _ambient = null;
+  const fade = (fadeSec == null) ? 0.9 : fadeSec;
+  try{
+    const now = _audioCtx ? _audioCtx.currentTime : 0;
+    amb.master.gain.cancelScheduledValues(now);
+    amb.master.gain.setValueAtTime(amb.master.gain.value, now);
+    amb.master.gain.linearRampToValueAtTime(0.0001, now + fade);
+  }catch(_){}
+  (amb.timers||[]).forEach(t => clearTimeout(t));
+  setTimeout(()=>{
+    (amb.sources||[]).forEach(s=>{
+      try{ if(s.stop) s.stop(); s.disconnect && s.disconnect(); }catch(_){}
+    });
+    try{ amb.master.disconnect(); }catch(_){}
+  }, Math.ceil(fade * 1000) + 40);
+}
+
+function startAmbient(key){
+  if(_ambient && _ambient.key === key) return;
+  stopAmbient(0.7);
+  let ctx;
+  try{ ctx = ensureAudioCtx(); }catch(_){ return; }
+  const master = ctx.createGain();
+  master.gain.value = 0.0001;
+  master.connect(ctx.destination);
+  const sources = [];
+  const timers = [];
+  const now = ctx.currentTime;
+  let targetVol = 0.045;
+
+  const track = (node) => { sources.push(node); return node; };
+
+  if(key === "vila"){
+    // Brisa noturna suave + harmônico distante (praça sob as estrelas)
+    targetVol = 0.035;
+    const wind = _loopNoise(ctx, "bandpass", 420, 0.7, 0.55);
+    track(wind.src);
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.frequency.value = 0.08;
+    lfoG.gain.value = 90;
+    lfo.connect(lfoG); lfoG.connect(wind.filter.frequency);
+    lfo.start(); track(lfo);
+    wind.out.connect(master);
+    const pad = ctx.createOscillator();
+    const padG = ctx.createGain();
+    pad.type = "sine";
+    pad.frequency.value = 110;
+    padG.gain.value = 0.12;
+    pad.connect(padG); padG.connect(master);
+    pad.start(); track(pad);
+  } else if(key === "1"){
+    // Vento frio nos corredores de pedra
+    targetVol = 0.05;
+    const wind = _loopNoise(ctx, "bandpass", 280, 0.55, 0.7);
+    track(wind.src);
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.frequency.value = 0.12;
+    lfoG.gain.value = 140;
+    lfo.connect(lfoG); lfoG.connect(wind.filter.frequency);
+    lfo.start(); track(lfo);
+    // LFO lento no volume (rajadas)
+    const ampLfo = ctx.createOscillator();
+    const ampDepth = ctx.createGain();
+    const ampBase = ctx.createGain();
+    ampBase.gain.value = 0.55;
+    ampLfo.frequency.value = 0.18;
+    ampDepth.gain.value = 0.25;
+    ampLfo.connect(ampDepth); ampDepth.connect(ampBase.gain);
+    ampLfo.start(); track(ampLfo);
+    wind.out.connect(ampBase); ampBase.connect(master);
+  } else if(key === "2"){
+    // Humidade + gotas irregulares
+    targetVol = 0.048;
+    const hum = _loopNoise(ctx, "lowpass", 180, null, 0.28);
+    track(hum.src);
+    hum.out.connect(master);
+    const dripOnce = ()=>{
+      if(!_ambient || _ambient.key !== "2") return;
+      try{
+        const t = ctx.currentTime;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        const f = ctx.createBiquadFilter();
+        o.type = "sine";
+        o.frequency.setValueAtTime(1400 + Math.random()*900, t);
+        o.frequency.exponentialRampToValueAtTime(600, t + 0.12);
+        f.type = "bandpass";
+        f.frequency.value = 1200;
+        f.Q.value = 4;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.35 + Math.random()*0.2, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+        o.connect(f); f.connect(g); g.connect(master);
+        o.start(t); o.stop(t + 0.16);
+      }catch(_){}
+      const wait = 700 + Math.random() * 2200;
+      timers.push(setTimeout(dripOnce, wait));
+    };
+    timers.push(setTimeout(dripOnce, 400 + Math.random()*600));
+  } else if(key === "3"){
+    // Cripta: zumbido grave + eco metálico esporádico
+    targetVol = 0.05;
+    const drone = ctx.createOscillator();
+    const droneG = ctx.createGain();
+    drone.type = "sine";
+    drone.frequency.value = 48;
+    droneG.gain.value = 0.55;
+    drone.connect(droneG); droneG.connect(master);
+    drone.start(); track(drone);
+    const drone2 = ctx.createOscillator();
+    const drone2G = ctx.createGain();
+    drone2.type = "triangle";
+    drone2.frequency.value = 72.5;
+    drone2G.gain.value = 0.12;
+    drone2.connect(drone2G); drone2G.connect(master);
+    drone2.start(); track(drone2);
+    const air = _loopNoise(ctx, "lowpass", 220, null, 0.22);
+    track(air.src);
+    air.out.connect(master);
+    const clang = ()=>{
+      if(!_ambient || _ambient.key !== "3") return;
+      try{
+        const t = ctx.currentTime;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "square";
+        o.frequency.setValueAtTime(90 + Math.random()*40, t);
+        o.frequency.exponentialRampToValueAtTime(40, t + 0.6);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+        o.connect(g); g.connect(master);
+        o.start(t); o.stop(t + 0.75);
+      }catch(_){}
+      timers.push(setTimeout(clang, 4000 + Math.random()*7000));
+    };
+    timers.push(setTimeout(clang, 2500));
+  } else if(key === "4"){
+    // Abismo: crepitação de fogo + drone ameaçador
+    targetVol = 0.055;
+    const fire = _loopNoise(ctx, "bandpass", 900, 1.2, 0.45);
+    track(fire.src);
+    const crackle = ctx.createOscillator();
+    const crackleG = ctx.createGain();
+    crackle.frequency.value = 14;
+    crackleG.gain.value = 0.35;
+    const fireAmp = ctx.createGain();
+    fireAmp.gain.value = 0.5;
+    crackle.connect(crackleG); crackleG.connect(fireAmp.gain);
+    crackle.start(); track(crackle);
+    fire.out.connect(fireAmp); fireAmp.connect(master);
+    const hiss = _loopNoise(ctx, "highpass", 2400, null, 0.12);
+    track(hiss.src);
+    hiss.out.connect(master);
+    const bass = ctx.createOscillator();
+    const bassG = ctx.createGain();
+    bass.type = "sawtooth";
+    bass.frequency.value = 36;
+    bassG.gain.value = 0.08;
+    const bassLp = ctx.createBiquadFilter();
+    bassLp.type = "lowpass";
+    bassLp.frequency.value = 90;
+    bass.connect(bassLp); bassLp.connect(bassG); bassG.connect(master);
+    bass.start(); track(bass);
+  } else {
+    // fallback = vento leve
+    targetVol = 0.04;
+    const wind = _loopNoise(ctx, "bandpass", 300, 0.6, 0.5);
+    track(wind.src);
+    wind.out.connect(master);
+  }
+
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.linearRampToValueAtTime(targetVol, now + 1.2);
+  _ambient = { key, master, sources, timers };
+}
+
+function ambientKeyFromState(e){
+  if(!e) return null;
+  if(e.na_superficie) return "vila";
+  const p = e.profundidade || 1;
+  if(p >= 4) return "4";
+  if(p >= 3) return "3";
+  if(p >= 2) return "2";
+  return "1";
+}
+
+function updateAmbient(e){
+  const key = ambientKeyFromState(e);
+  if(!key){ stopAmbient(0.5); return; }
+  if(_ambient && _ambient.key === key) return;
+  try{ startAmbient(key); }
+  catch(_){ /* audio opcional */ }
+}
+
+// Desbloqueia AudioContext no primeiro gesto (política do browser) e retoma o loop.
+["pointerdown","keydown"].forEach(ev=>{
+  window.addEventListener(ev, ()=>{
+    try{
+      ensureAudioCtx();
+      if(window._estado && (!_ambient || _audioCtx.state === "running"))
+        updateAmbient(window._estado);
+    }catch(_){}
+  }, {passive:true});
+});
 
 const FACE_ANG = {leste:0, norte:Math.PI/2, oeste:Math.PI, sul:-Math.PI/2};
 
@@ -2303,6 +2568,7 @@ $("#btnLogout").onclick = async ()=>{
   await api("/api/logout", {});
   setUserUI(null);
   window._estado = null;
+  stopAmbient(0.4);
   $("#ovStart").classList.add("hidden");
   mostrarAuth(true);
   log("Sessão encerrada.", "msg");
